@@ -1,0 +1,1573 @@
+[
+  {
+    "schema_version": "1.0",
+    "event_id": "2533f99aa98b",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:55:52Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32593",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117068",
+      "group_id": "22256",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        1528.0,
+        1976.0,
+        2792.0,
+        6824.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "active",
+        "event_action": "Start"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "a092059d4c09",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:55:52Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32593",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117068",
+      "group_id": "22256",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        1528.0,
+        1976.0,
+        2792.0,
+        6824.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "active",
+        "event_action": "Start"
+      }
+    },
+    "bounding_boxes": [
+      {
+        "source": "dahua_object_bounding_box",
+        "x": 501,
+        "y": 367,
+        "width": 415,
+        "height": 899,
+        "x2": 916,
+        "y2": 1266,
+        "image_ratio": 0.09131348880012531
+      }
+    ],
+    "selected_bounding_box": {
+      "source": "dahua_object_bounding_box",
+      "x": 501,
+      "y": 367,
+      "width": 415,
+      "height": 899,
+      "x2": 916,
+      "y2": 1266,
+      "image_ratio": 0.09131348880012531
+    },
+    "image": {
+      "width": 2688,
+      "height": 1520,
+      "format": "jpeg",
+      "original_path": "imagens_eventos/20260804T205552Z_CrossRegionDetection_a092059d4c09_original.jpg",
+      "annotated_path": "imagens_eventos/20260804T205552Z_CrossRegionDetection_a092059d4c09_marcada.jpg"
+    }
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "91d7d0d5321d",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "inactive",
+    "timestamp": "2026-08-04T20:55:52Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32593",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117068",
+      "group_id": "22256",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        1528.0,
+        1976.0,
+        2792.0,
+        6824.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "inactive",
+        "event_action": "Stop"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "114999782772",
+    "manufacturer": "hikvision",
+    "camera_id": "1",
+    "camera_name": "Camera 01",
+    "camera_ip": "192.168.101.214",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:03Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_event_type": "fielddetection",
+      "rule_id": "1",
+      "sensitivity": 50.0,
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.558,
+          "y": 0.875
+        },
+        {
+          "x": 0.548,
+          "y": 0.0
+        },
+        {
+          "x": 0.004,
+          "y": 0.01
+        },
+        {
+          "x": 0.174,
+          "y": 0.989
+        }
+      ],
+      "vendor_data": {
+        "vendor_target_type": "human",
+        "vendor_state": "active"
+      }
+    },
+    "bounding_boxes": [
+      {
+        "source": "targetrect",
+        "x": 677,
+        "y": 1,
+        "width": 49,
+        "height": 100,
+        "x2": 726,
+        "y2": 101,
+        "image_ratio": 0.0053
+      }
+    ],
+    "selected_bounding_box": {
+      "source": "targetrect",
+      "x": 677,
+      "y": 1,
+      "width": 49,
+      "height": 100,
+      "x2": 726,
+      "y2": 101,
+      "image_ratio": 0.0053
+    },
+    "image": {
+      "width": 1280,
+      "height": 720,
+      "format": "jpeg",
+      "original_path": "imagens_eventos/20260804T205603Z_fielddetection_114999782772_original.jpg",
+      "annotated_path": "imagens_eventos/20260804T205603Z_fielddetection_114999782772_marcada.jpg"
+    }
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "1b872e4297b7",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:07Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32595",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117084",
+      "group_id": "22258",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        2128.0,
+        1768.0,
+        3056.0,
+        6328.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "active",
+        "event_action": "Start"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "4befbbbb3293",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:07Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32595",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117084",
+      "group_id": "22258",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        2128.0,
+        1768.0,
+        3056.0,
+        6328.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "active",
+        "event_action": "Start"
+      }
+    },
+    "bounding_boxes": [
+      {
+        "source": "dahua_object_bounding_box",
+        "x": 698,
+        "y": 328,
+        "width": 305,
+        "height": 846,
+        "x2": 1003,
+        "y2": 1174,
+        "image_ratio": 0.06315348919172932
+      }
+    ],
+    "selected_bounding_box": {
+      "source": "dahua_object_bounding_box",
+      "x": 698,
+      "y": 328,
+      "width": 305,
+      "height": 846,
+      "x2": 1003,
+      "y2": 1174,
+      "image_ratio": 0.06315348919172932
+    },
+    "image": {
+      "width": 2688,
+      "height": 1520,
+      "format": "jpeg",
+      "original_path": "imagens_eventos/20260804T205607Z_CrossRegionDetection_4befbbbb3293_original.jpg",
+      "annotated_path": "imagens_eventos/20260804T205607Z_CrossRegionDetection_4befbbbb3293_marcada.jpg"
+    }
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "b54117cfa01e",
+    "manufacturer": "hikvision",
+    "camera_id": "1",
+    "camera_name": "Camera 01",
+    "camera_ip": "192.168.101.214",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:11Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "line_crossing",
+      "vendor_event_type": "linedetection",
+      "rule_id": "1",
+      "sensitivity": 70.0,
+      "geometry_type": "line",
+      "geometry": [
+        {
+          "x": 0.084,
+          "y": 0.605
+        },
+        {
+          "x": 1.0,
+          "y": 0.574
+        }
+      ],
+      "vendor_data": {
+        "vendor_target_type": "human",
+        "vendor_state": "active"
+      }
+    },
+    "bounding_boxes": [
+      {
+        "source": "targetrect",
+        "x": 364,
+        "y": 95,
+        "width": 124,
+        "height": 273,
+        "x2": 488,
+        "y2": 368,
+        "image_ratio": 0.0367
+      }
+    ],
+    "selected_bounding_box": {
+      "source": "targetrect",
+      "x": 364,
+      "y": 95,
+      "width": 124,
+      "height": 273,
+      "x2": 488,
+      "y2": 368,
+      "image_ratio": 0.0367
+    },
+    "image": {
+      "width": 1280,
+      "height": 720,
+      "format": "jpeg",
+      "original_path": "imagens_eventos/20260804T205611Z_linedetection_b54117cfa01e_original.jpg",
+      "annotated_path": "imagens_eventos/20260804T205611Z_linedetection_b54117cfa01e_marcada.jpg"
+    }
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "55a84c1ebc68",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "inactive",
+    "timestamp": "2026-08-04T20:56:07Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32595",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117084",
+      "group_id": "22258",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        2128.0,
+        1768.0,
+        3056.0,
+        6328.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "inactive",
+        "event_action": "Stop"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "abdc244186b8",
+    "manufacturer": "hikvision",
+    "camera_id": "1",
+    "camera_name": "Camera 01",
+    "camera_ip": "192.168.101.214",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:26Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_event_type": "fielddetection",
+      "rule_id": "2",
+      "sensitivity": 50.0,
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.541,
+          "y": 0.654
+        },
+        {
+          "x": 0.542,
+          "y": 0.411
+        },
+        {
+          "x": 0.998,
+          "y": 0.391
+        },
+        {
+          "x": 0.999,
+          "y": 0.605
+        }
+      ],
+      "vendor_data": {
+        "vendor_target_type": "human",
+        "vendor_state": "active"
+      }
+    },
+    "bounding_boxes": [
+      {
+        "source": "targetrect",
+        "x": 174,
+        "y": 136,
+        "width": 182,
+        "height": 293,
+        "x2": 356,
+        "y2": 429,
+        "image_ratio": 0.0579
+      }
+    ],
+    "selected_bounding_box": {
+      "source": "targetrect",
+      "x": 174,
+      "y": 136,
+      "width": 182,
+      "height": 293,
+      "x2": 356,
+      "y2": 429,
+      "image_ratio": 0.0579
+    },
+    "image": {
+      "width": 1280,
+      "height": 720,
+      "format": "jpeg",
+      "original_path": "imagens_eventos/20260804T205626Z_fielddetection_abdc244186b8_original.jpg",
+      "annotated_path": "imagens_eventos/20260804T205626Z_fielddetection_abdc244186b8_marcada.jpg"
+    }
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "4eba109d59f6",
+    "manufacturer": "hikvision",
+    "camera_id": "1",
+    "camera_name": "Camera 01",
+    "camera_ip": "192.168.101.214",
+    "event_type": "face_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:39Z",
+    "target_type": "face",
+    "attributes": {
+      "event_category": "facedetection",
+      "vendor_event_type": "facedetection",
+      "geometry": [],
+      "vendor_data": {
+        "vendor_state": "active"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "0c356714fddf",
+    "manufacturer": "hikvision",
+    "camera_id": "1",
+    "camera_name": "Camera 01",
+    "camera_ip": "192.168.101.214",
+    "event_type": "face_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:41Z",
+    "target_type": "face",
+    "attributes": {
+      "event_category": "facedetection",
+      "vendor_event_type": "facedetection",
+      "geometry": [],
+      "vendor_data": {
+        "vendor_state": "active"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "85820cbcd91f",
+    "manufacturer": "hikvision",
+    "camera_id": "1",
+    "camera_name": "Camera 01",
+    "camera_ip": "192.168.101.214",
+    "event_type": "face_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:42Z",
+    "target_type": "face",
+    "attributes": {
+      "event_category": "facedetection",
+      "vendor_event_type": "facedetection",
+      "geometry": [],
+      "vendor_data": {
+        "vendor_state": "active"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "4e8ae3c76ed0",
+    "manufacturer": "hikvision",
+    "camera_id": "1",
+    "camera_name": "Camera 01",
+    "camera_ip": "192.168.101.214",
+    "event_type": "face_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:42Z",
+    "target_type": "face",
+    "attributes": {
+      "event_category": "facedetection",
+      "vendor_event_type": "facedetection",
+      "geometry": [],
+      "vendor_data": {
+        "vendor_state": "active"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "354d61b151bd",
+    "manufacturer": "hikvision",
+    "camera_id": "1",
+    "camera_name": "Camera 01",
+    "camera_ip": "192.168.101.214",
+    "event_type": "face_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:43Z",
+    "target_type": "face",
+    "attributes": {
+      "event_category": "facedetection",
+      "vendor_event_type": "facedetection",
+      "geometry": [],
+      "vendor_data": {
+        "vendor_state": "active"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "45b2929cb141",
+    "manufacturer": "hikvision",
+    "camera_id": "1",
+    "camera_name": "Camera 01",
+    "camera_ip": "192.168.101.214",
+    "event_type": "face_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:44Z",
+    "target_type": "face",
+    "attributes": {
+      "event_category": "facedetection",
+      "vendor_event_type": "facedetection",
+      "geometry": [],
+      "vendor_data": {
+        "vendor_state": "active"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "76fd8cb14f07",
+    "manufacturer": "hikvision",
+    "camera_id": "1",
+    "camera_name": "Camera 01",
+    "camera_ip": "192.168.101.214",
+    "event_type": "face_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:44Z",
+    "target_type": "face",
+    "attributes": {
+      "event_category": "facedetection",
+      "vendor_event_type": "facedetection",
+      "geometry": [],
+      "vendor_data": {
+        "vendor_state": "active"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "0a43c893815e",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:41Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32597",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117085",
+      "group_id": "22260",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        672.0,
+        2848.0,
+        976.0,
+        3808.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "active",
+        "event_action": "Start"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "66c150aea670",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:41Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32597",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117085",
+      "group_id": "22260",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        672.0,
+        2848.0,
+        976.0,
+        3808.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "active",
+        "event_action": "Start"
+      }
+    },
+    "bounding_boxes": [
+      {
+        "source": "dahua_object_bounding_box",
+        "x": 221,
+        "y": 529,
+        "width": 99,
+        "height": 178,
+        "x2": 320,
+        "y2": 707,
+        "image_ratio": 0.004313028665413534
+      }
+    ],
+    "selected_bounding_box": {
+      "source": "dahua_object_bounding_box",
+      "x": 221,
+      "y": 529,
+      "width": 99,
+      "height": 178,
+      "x2": 320,
+      "y2": 707,
+      "image_ratio": 0.004313028665413534
+    },
+    "image": {
+      "width": 2688,
+      "height": 1520,
+      "format": "jpeg",
+      "original_path": "imagens_eventos/20260804T205641Z_CrossRegionDetection_66c150aea670_original.jpg",
+      "annotated_path": "imagens_eventos/20260804T205641Z_CrossRegionDetection_66c150aea670_marcada.jpg"
+    }
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "7ae7c8d3446b",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "inactive",
+    "timestamp": "2026-08-04T20:56:41Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32597",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117085",
+      "group_id": "22260",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        672.0,
+        2848.0,
+        976.0,
+        3808.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "inactive",
+        "event_action": "Stop"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "64c4d212cd04",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:50Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32599",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117103",
+      "group_id": "22262",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        4816.0,
+        1976.0,
+        5824.0,
+        7144.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "active",
+        "event_action": "Start"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "e65182be0b40",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:50Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32599",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117103",
+      "group_id": "22262",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        4816.0,
+        1976.0,
+        5824.0,
+        7144.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "active",
+        "event_action": "Start"
+      }
+    },
+    "bounding_boxes": [
+      {
+        "source": "dahua_object_bounding_box",
+        "x": 1580,
+        "y": 367,
+        "width": 331,
+        "height": 959,
+        "x2": 1911,
+        "y2": 1326,
+        "image_ratio": 0.0776915433114035
+      }
+    ],
+    "selected_bounding_box": {
+      "source": "dahua_object_bounding_box",
+      "x": 1580,
+      "y": 367,
+      "width": 331,
+      "height": 959,
+      "x2": 1911,
+      "y2": 1326,
+      "image_ratio": 0.0776915433114035
+    },
+    "image": {
+      "width": 2688,
+      "height": 1520,
+      "format": "jpeg",
+      "original_path": "imagens_eventos/20260804T205650Z_CrossRegionDetection_e65182be0b40_original.jpg",
+      "annotated_path": "imagens_eventos/20260804T205650Z_CrossRegionDetection_e65182be0b40_marcada.jpg"
+    }
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "3c5abe7e1f38",
+    "manufacturer": "hikvision",
+    "camera_id": "1",
+    "camera_name": "Camera 01",
+    "camera_ip": "192.168.101.214",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:56:54Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "line_crossing",
+      "vendor_event_type": "linedetection",
+      "rule_id": "1",
+      "sensitivity": 70.0,
+      "geometry_type": "line",
+      "geometry": [
+        {
+          "x": 0.084,
+          "y": 0.605
+        },
+        {
+          "x": 1.0,
+          "y": 0.574
+        }
+      ],
+      "vendor_data": {
+        "vendor_target_type": "human",
+        "vendor_state": "active"
+      }
+    },
+    "bounding_boxes": [
+      {
+        "source": "targetrect",
+        "x": 552,
+        "y": 97,
+        "width": 109,
+        "height": 299,
+        "x2": 661,
+        "y2": 396,
+        "image_ratio": 0.0354
+      }
+    ],
+    "selected_bounding_box": {
+      "source": "targetrect",
+      "x": 552,
+      "y": 97,
+      "width": 109,
+      "height": 299,
+      "x2": 661,
+      "y2": 396,
+      "image_ratio": 0.0354
+    },
+    "image": {
+      "width": 1280,
+      "height": 720,
+      "format": "jpeg",
+      "original_path": "imagens_eventos/20260804T205654Z_linedetection_3c5abe7e1f38_original.jpg",
+      "annotated_path": "imagens_eventos/20260804T205654Z_linedetection_3c5abe7e1f38_marcada.jpg"
+    }
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "f7d093940cf5",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "inactive",
+    "timestamp": "2026-08-04T20:56:50Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32599",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117103",
+      "group_id": "22262",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        4816.0,
+        1976.0,
+        5824.0,
+        7144.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "inactive",
+        "event_action": "Stop"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "80e08bbd4a52",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:57:09Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32601",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117105",
+      "group_id": "22264",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        4312.0,
+        2184.0,
+        4920.0,
+        4760.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "active",
+        "event_action": "Start"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "808041f9e9ea",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:57:09Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32601",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117105",
+      "group_id": "22264",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        4312.0,
+        2184.0,
+        4920.0,
+        4760.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "active",
+        "event_action": "Start"
+      }
+    },
+    "bounding_boxes": [
+      {
+        "source": "dahua_object_bounding_box",
+        "x": 1415,
+        "y": 405,
+        "width": 200,
+        "height": 478,
+        "x2": 1615,
+        "y2": 883,
+        "image_ratio": 0.023398339598997495
+      }
+    ],
+    "selected_bounding_box": {
+      "source": "dahua_object_bounding_box",
+      "x": 1415,
+      "y": 405,
+      "width": 200,
+      "height": 478,
+      "x2": 1615,
+      "y2": 883,
+      "image_ratio": 0.023398339598997495
+    },
+    "image": {
+      "width": 2688,
+      "height": 1520,
+      "format": "jpeg",
+      "original_path": "imagens_eventos/20260804T205709Z_CrossRegionDetection_808041f9e9ea_original.jpg",
+      "annotated_path": "imagens_eventos/20260804T205709Z_CrossRegionDetection_808041f9e9ea_marcada.jpg"
+    }
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "178436de2c78",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:57:12Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32603",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117109",
+      "group_id": "22266",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        4832.0,
+        2304.0,
+        5632.0,
+        5632.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "active",
+        "event_action": "Start"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "0a5cffc71a6d",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "inactive",
+    "timestamp": "2026-08-04T20:57:09Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32601",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117105",
+      "group_id": "22264",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        4312.0,
+        2184.0,
+        4920.0,
+        4760.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "inactive",
+        "event_action": "Stop"
+      }
+    },
+    "bounding_boxes": []
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "be90113f9917",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:57:12Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "32603",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "117109",
+      "group_id": "22266",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        4832.0,
+        2304.0,
+        5632.0,
+        5632.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "active",
+        "event_action": "Start"
+      }
+    },
+    "bounding_boxes": [
+      {
+        "source": "dahua_object_bounding_box",
+        "x": 1586,
+        "y": 428,
+        "width": 262,
+        "height": 617,
+        "x2": 1848,
+        "y2": 1045,
+        "image_ratio": 0.03956522164786967
+      }
+    ],
+    "selected_bounding_box": {
+      "source": "dahua_object_bounding_box",
+      "x": 1586,
+      "y": 428,
+      "width": 262,
+      "height": 617,
+      "x2": 1848,
+      "y2": 1045,
+      "image_ratio": 0.03956522164786967
+    },
+    "image": {
+      "width": 2688,
+      "height": 1520,
+      "format": "jpeg",
+      "original_path": "imagens_eventos/20260804T205712Z_CrossRegionDetection_be90113f9917_original.jpg",
+      "annotated_path": "imagens_eventos/20260804T205712Z_CrossRegionDetection_be90113f9917_marcada.jpg"
+    }
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "77dbe95a43ec",
+    "manufacturer": "hikvision",
+    "camera_id": "1",
+    "camera_name": "Camera 01",
+    "camera_ip": "192.168.101.214",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:57:28Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_event_type": "fielddetection",
+      "rule_id": "2",
+      "sensitivity": 50.0,
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.541,
+          "y": 0.654
+        },
+        {
+          "x": 0.542,
+          "y": 0.411
+        },
+        {
+          "x": 0.998,
+          "y": 0.391
+        },
+        {
+          "x": 0.999,
+          "y": 0.605
+        }
+      ],
+      "vendor_data": {
+        "vendor_target_type": "human",
+        "vendor_state": "active"
+      }
+    },
+    "bounding_boxes": [
+      {
+        "source": "targetrect",
+        "x": 289,
+        "y": 127,
+        "width": 120,
+        "height": 287,
+        "x2": 409,
+        "y2": 414,
+        "image_ratio": 0.0374
+      }
+    ],
+    "selected_bounding_box": {
+      "source": "targetrect",
+      "x": 289,
+      "y": 127,
+      "width": 120,
+      "height": 287,
+      "x2": 409,
+      "y2": 414,
+      "image_ratio": 0.0374
+    },
+    "image": {
+      "width": 1280,
+      "height": 720,
+      "format": "jpeg",
+      "original_path": "imagens_eventos/20260804T205728Z_fielddetection_77dbe95a43ec_original.jpg",
+      "annotated_path": "imagens_eventos/20260804T205728Z_fielddetection_77dbe95a43ec_marcada.jpg"
+    }
+  },
+  {
+    "schema_version": "1.0",
+    "event_id": "2047246653f9",
+    "manufacturer": "hikvision",
+    "camera_id": "1",
+    "camera_name": "Camera 01",
+    "camera_ip": "192.168.101.214",
+    "event_type": "face_detection",
+    "state": "active",
+    "timestamp": "2026-08-04T20:57:36Z",
+    "target_type": "face",
+    "attributes": {
+      "event_category": "facedetection",
+      "vendor_event_type": "facedetection",
+      "geometry": [],
+      "vendor_data": {
+        "vendor_state": "active"
+      }
+    },
+    "bounding_boxes": []
+  }
+]

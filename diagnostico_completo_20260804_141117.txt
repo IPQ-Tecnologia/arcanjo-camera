@@ -1,0 +1,2977 @@
+============================================================
+DIAGNÓSTICO COMPLETO DA API
+Data: ter 04 ago 2026 14:11:17 -03
+Pasta: /home/matheus-gomes/Documentos/minha-api-lab
+============================================================
+
+===== PYTHON E PACOTES =====
+Python 3.12.3
+Name: ultralytics
+Version: 8.4.115
+Summary: Ultralytics YOLO 🚀 for SOTA object detection, multi-object tracking, instance segmentation, pose estimation, classification, and oriented object detection.
+Home-page: https://ultralytics.com
+Author: 
+Author-email: Glenn Jocher <glenn.jocher@ultralytics.com>, Jing Qiu <jing.qiu@ultralytics.com>
+License: AGPL-3.0
+Location: /home/matheus-gomes/Documentos/minha-api-lab/venv/lib/python3.12/site-packages
+Requires: filelock, matplotlib, numpy, nvidia-ml-py, opencv-python, pillow, polars, psutil, pyyaml, requests, torch, torchvision, ultralytics-thop
+Required-by: 
+---
+Name: websockets
+Version: 17.0.1
+Summary: An implementation of the WebSocket Protocol (RFC 6455 & 7692)
+Home-page: https://github.com/python-websockets/websockets
+Author: 
+Author-email: Aymeric Augustin <aymeric.augustin@m4x.org>
+License-Expression: BSD-3-Clause
+Location: /home/matheus-gomes/Documentos/minha-api-lab/venv/lib/python3.12/site-packages
+Requires: 
+Required-by: 
+---
+Name: uvicorn
+Version: 0.51.0
+Summary: The lightning-fast ASGI server.
+Home-page: https://uvicorn.dev/
+Author: 
+Author-email: Tom Christie <tom@tomchristie.com>
+License-Expression: BSD-3-Clause
+Location: /home/matheus-gomes/Documentos/minha-api-lab/venv/lib/python3.12/site-packages
+Requires: click, h11
+Required-by: 
+---
+Name: fastapi
+Version: 0.139.0
+Summary: FastAPI framework, high performance, easy to learn, fast to code, ready for production
+Home-page: https://github.com/fastapi/fastapi
+Author: 
+Author-email: =?utf-8?q?Sebasti=C3=A1n_Ram=C3=ADrez?= <tiangolo@gmail.com>
+License-Expression: MIT
+Location: /home/matheus-gomes/Documentos/minha-api-lab/venv/lib/python3.12/site-packages
+Requires: annotated-doc, pydantic, starlette, typing-extensions, typing-inspection
+Required-by: 
+---
+Name: pillow
+Version: 12.3.0
+Summary: Python Imaging Library (fork)
+Home-page: https://python-pillow.github.io
+Author: 
+Author-email: Jeffrey 'Alex' Clark <aclark@aclark.net>
+License-Expression: MIT-CMU
+Location: /home/matheus-gomes/Documentos/minha-api-lab/venv/lib/python3.12/site-packages
+Requires: 
+Required-by: matplotlib, torchvision, ultralytics
+---
+Name: numpy
+Version: 2.5.1
+Summary: Fundamental package for array computing in Python
+Home-page: https://numpy.org
+Author: Travis E. Oliphant et al.
+Author-email: 
+License-Expression: BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0
+Location: /home/matheus-gomes/Documentos/minha-api-lab/venv/lib/python3.12/site-packages
+Requires: 
+Required-by: contourpy, matplotlib, opencv-python, torchvision, ultralytics, ultralytics-thop
+
+===== UVICORN EM EXECUÇÃO =====
+
+===== COMPILAÇÃO DOS ARQUIVOS =====
+COMPILAÇÃO: OK
+
+===== LINHAS IMPORTANTES DOS LOGS =====
+
+----- validacao_cor_consistente.log -----
+INFO:     127.0.0.1:37236 - "WebSocket /ws/eventos" [accepted]
+2026-08-04 14:07:37,111 | INFO | app.services.event_hub | Painel conectado. Total: 1
+2026-08-04 14:07:43,953 | INFO | app.services.camera_event_pipeline | [909c26a010cf] Aparência ignorada: caixa pequena pessoa=camera-01-a30fe212 dimensoes=46x123 area=0.61%
+2026-08-04 14:07:44,003 | INFO | app.services.camera_event_pipeline | [909c26a010cf] Pessoa enviada ao painel: pessoa=camera-01-a30fe212 status=entered indice=1/1 paineis=1
+2026-08-04 14:07:48,131 | INFO | app.services.person_detector_yolo | Carregando modelo de segmentação: /home/matheus-gomes/Documentos/minha-api-lab/yolo11n-seg.pt
+2026-08-04 14:07:50,479 | INFO | app.services.camera_event_pipeline | [4c77422a2fd6] Aparência estável: pessoa=dahua-canal-0-005b45f2 cor=indefinida posição=esquerda tamanho=medio área_média=10.61% amostras=1
+2026-08-04 14:07:50,578 | INFO | app.services.camera_event_pipeline | [4c77422a2fd6] Pessoa enviada ao painel: pessoa=dahua-canal-0-005b45f2 status=entered indice=1/1 paineis=1
+2026-08-04 14:07:58,115 | INFO | app.services.camera_event_pipeline | [dd552819d255] Aparência ignorada: caixa pequena pessoa=dahua-canal-0-005b45f2 dimensoes=126x400 area=1.23%
+2026-08-04 14:07:58,210 | INFO | app.services.camera_event_pipeline | [dd552819d255] Pessoa enviada ao painel: pessoa=dahua-canal-0-005b45f2 status=updated indice=1/1 paineis=1
+2026-08-04 14:08:02,101 | INFO | app.services.camera_event_pipeline | [7e58f6feb751] Aparência ignorada: caixa pequena pessoa=dahua-canal-0-e47eeb15 dimensoes=137x380 area=1.27%
+2026-08-04 14:08:02,211 | INFO | app.services.camera_event_pipeline | [7e58f6feb751] Pessoa enviada ao painel: pessoa=dahua-canal-0-e47eeb15 status=entered indice=1/1 paineis=1
+2026-08-04 14:08:10,628 | INFO | app.services.camera_event_pipeline | [08d63909d2fa] Aparência ignorada: caixa pequena pessoa=camera-01-70f74ce8 dimensoes=81x144 area=1.27%
+2026-08-04 14:08:10,662 | INFO | app.services.camera_event_pipeline | [08d63909d2fa] Pessoa enviada ao painel: pessoa=camera-01-70f74ce8 status=entered indice=1/1 paineis=1
+2026-08-04 14:08:11,246 | INFO | app.services.camera_event_pipeline | [c007be7dcb03] Cor escura indefinida: pessoa=camera-01-70f74ce8 rgb=(30, 34, 43); mantendo aparência anterior
+2026-08-04 14:08:19,532 | INFO | app.services.camera_event_pipeline | [6fcb06898fd4] Aparência ignorada: caixa pequena pessoa=camera-01-7d5614ba dimensoes=42x95 area=0.43%
+2026-08-04 14:08:19,563 | INFO | app.services.camera_event_pipeline | [6fcb06898fd4] Pessoa enviada ao painel: pessoa=camera-01-7d5614ba status=entered indice=1/1 paineis=1
+2026-08-04 14:08:25,769 | INFO | app.services.camera_event_pipeline | [55589d258f4b] Cor escura indefinida: pessoa=camera-01-70f74ce8 rgb=(29, 34, 43); mantendo aparência anterior
+2026-08-04 14:08:25,801 | INFO | app.services.camera_event_pipeline | [55589d258f4b] Pessoa enviada ao painel: pessoa=camera-01-70f74ce8 status=updated indice=1/1 paineis=1
+2026-08-04 14:08:38,058 | INFO | app.services.camera_event_pipeline | [2d53298ef001] Aparência ignorada: caixa pequena pessoa=camera-01-70f74ce8 dimensoes=77x140 area=1.17%
+2026-08-04 14:08:38,095 | INFO | app.services.camera_event_pipeline | [2d53298ef001] Pessoa enviada ao painel: pessoa=camera-01-70f74ce8 status=updated indice=1/1 paineis=1
+2026-08-04 14:08:48,460 | INFO | app.services.camera_event_pipeline | [9e13ae4d7594] Cor escura indefinida: pessoa=camera-01-70f74ce8 rgb=(31, 35, 44); mantendo aparência anterior
+2026-08-04 14:08:48,493 | INFO | app.services.camera_event_pipeline | [9e13ae4d7594] Pessoa enviada ao painel: pessoa=camera-01-70f74ce8 status=updated indice=1/1 paineis=1
+2026-08-04 14:08:50,987 | INFO | app.services.camera_event_pipeline | [788a1994701b] Aparência ignorada: caixa pequena pessoa=dahua-canal-0-edb4c6cc dimensoes=136x359 area=1.19%
+2026-08-04 14:08:51,081 | INFO | app.services.camera_event_pipeline | [788a1994701b] Pessoa enviada ao painel: pessoa=dahua-canal-0-edb4c6cc status=entered indice=1/1 paineis=1
+2026-08-04 14:09:01,644 | INFO | app.services.camera_event_pipeline | [5f941f6fcbf0] Aparência estável: pessoa=camera-01-70f74ce8 cor=indefinida posição=esquerda tamanho=pequeno área_média=2.36% amostras=1
+2026-08-04 14:09:01,684 | INFO | app.services.camera_event_pipeline | [5f941f6fcbf0] Pessoa enviada ao painel: pessoa=camera-01-70f74ce8 status=updated indice=1/1 paineis=1
+2026-08-04 14:09:08,852 | INFO | app.services.camera_event_pipeline | [807c5f5bf1ce] Aparência ignorada: caixa pequena pessoa=camera-01-15176d45 dimensoes=28x79 area=0.24%
+2026-08-04 14:09:08,883 | INFO | app.services.camera_event_pipeline | [807c5f5bf1ce] Pessoa enviada ao painel: pessoa=camera-01-15176d45 status=entered indice=1/1 paineis=1
+2026-08-04 14:09:14,914 | INFO | app.services.camera_event_pipeline | [f9862e76d3d7] Aparência ignorada: caixa pequena pessoa=dahua-canal-0-0e594eea dimensoes=116x216 area=0.61%
+2026-08-04 14:09:15,009 | INFO | app.services.camera_event_pipeline | [f9862e76d3d7] Pessoa enviada ao painel: pessoa=dahua-canal-0-0e594eea status=entered indice=1/1 paineis=1
+2026-08-04 14:09:46,809 | INFO | app.services.camera_event_pipeline | [415b5af43d61] Aparência ignorada: caixa pequena pessoa=camera-01-8f32fea9 dimensoes=65x207 area=1.46%
+2026-08-04 14:09:46,839 | INFO | app.services.camera_event_pipeline | [415b5af43d61] Pessoa enviada ao painel: pessoa=camera-01-8f32fea9 status=entered indice=1/1 paineis=1
+2026-08-04 14:09:47,968 | INFO | app.services.camera_event_pipeline | [d50023659b75] Aparência estável: pessoa=camera-01-44419319 cor=indefinida posição=centro tamanho=pequeno área_média=2.11% amostras=1
+2026-08-04 14:09:47,996 | INFO | app.services.camera_event_pipeline | [d50023659b75] Pessoa enviada ao painel: pessoa=camera-01-44419319 status=entered indice=1/1 paineis=1
+2026-08-04 14:09:56,902 | INFO | app.services.camera_event_pipeline | [39a3f1b42d64] Aparência ignorada: caixa pequena pessoa=camera-01-44419319 dimensoes=88x90 area=0.86%
+2026-08-04 14:09:56,935 | INFO | app.services.camera_event_pipeline | [39a3f1b42d64] Pessoa enviada ao painel: pessoa=camera-01-44419319 status=updated indice=1/1 paineis=1
+2026-08-04 14:10:06,954 | INFO | app.services.camera_event_pipeline | [8bd116c20192] Aparência ignorada: caixa pequena pessoa=dahua-canal-0-0bc7263b dimensoes=153x383 area=1.43%
+2026-08-04 14:10:07,078 | INFO | app.services.camera_event_pipeline | [8bd116c20192] Pessoa enviada ao painel: pessoa=dahua-canal-0-0bc7263b status=entered indice=1/1 paineis=1
+2026-08-04 14:10:43,938 | INFO | app.services.camera_event_pipeline | [f065e44c7fb7] Aparência ignorada: caixa pequena pessoa=dahua-canal-0-49eeeb5c dimensoes=105x205 area=0.53%
+2026-08-04 14:10:44,057 | INFO | app.services.camera_event_pipeline | [f065e44c7fb7] Pessoa enviada ao painel: pessoa=dahua-canal-0-49eeeb5c status=entered indice=1/1 paineis=1
+2026-08-04 14:10:55,852 | INFO | app.services.camera_event_pipeline | [a14e46ca8954] Aparência estável: pessoa=camera-01-957df54b cor=indefinida posição=centro tamanho=pequeno área_média=2.69% amostras=1
+2026-08-04 14:10:55,888 | INFO | app.services.camera_event_pipeline | [a14e46ca8954] Pessoa enviada ao painel: pessoa=camera-01-957df54b status=entered indice=1/1 paineis=1
+2026-08-04 14:10:57,012 | INFO | app.services.camera_event_pipeline | [d24edbc23bc7] Aparência estável: pessoa=camera-01-957df54b cor=indefinida posição=centro tamanho=medio área_média=2.96% amostras=2
+2026-08-04 14:10:57,394 | INFO | app.services.camera_event_pipeline | [bb907915e7d4] Aparência estável: pessoa=dahua-canal-0-2875fa2f cor=indefinida posição=direita tamanho=medio área_média=9.95% amostras=1
+2026-08-04 14:10:57,504 | INFO | app.services.camera_event_pipeline | [bb907915e7d4] Pessoa enviada ao painel: pessoa=dahua-canal-0-2875fa2f status=entered indice=1/1 paineis=1
+2026-08-04 14:11:02,134 | INFO | app.services.camera_event_pipeline | [e46af91d34ba] Aparência estável: pessoa=dahua-canal-0-2875fa2f cor=indefinida posição=centro tamanho=medio área_média=7.71% amostras=2
+2026-08-04 14:11:04,323 | INFO | app.services.camera_event_pipeline | [e8a93c692056] Aparência ignorada: caixa pequena pessoa=camera-01-957df54b dimensoes=108x153 area=1.79%
+2026-08-04 14:11:04,353 | INFO | app.services.camera_event_pipeline | [e8a93c692056] Pessoa enviada ao painel: pessoa=camera-01-957df54b status=updated indice=1/1 paineis=1
+2026-08-04 14:11:09,538 | INFO | app.services.camera_event_pipeline | [e601b4bf2412] Aparência estável: pessoa=camera-01-957df54b cor=cinza posição=esquerda tamanho=pequeno área_média=2.84% amostras=3
+2026-08-04 14:11:12,841 | INFO | app.services.camera_event_pipeline | [2e9657173b30] Aparência estável: pessoa=camera-01-957df54b cor=indefinida posição=esquerda tamanho=pequeno área_média=2.69% amostras=4
+2026-08-04 14:11:12,874 | INFO | app.services.camera_event_pipeline | [2e9657173b30] Pessoa enviada ao painel: pessoa=camera-01-957df54b status=updated indice=1/1 paineis=1
+
+----- validacao_modo_seguro.log -----
+2026-08-04 13:58:31,356 | INFO | app.services.person_detector_yolo | Carregando modelo de segmentação: /home/matheus-gomes/Documentos/minha-api-lab/yolo11n-seg.pt
+2026-08-04 13:58:34,152 | INFO | app.services.camera_event_pipeline | [28e0677bdc80] Cor escura indefinida: pessoa=camera-01-f61bfcec rgb=(35, 37, 44); mantendo aparência anterior
+2026-08-04 13:58:34,182 | INFO | app.services.camera_event_pipeline | [28e0677bdc80] Pessoa enviada ao painel: pessoa=camera-01-f61bfcec status=entered indice=1/1 paineis=0
+2026-08-04 13:58:34,617 | INFO | app.services.camera_event_pipeline | [b6a8ed597fbb] Aparência estável: pessoa=dahua-canal-0-334a40c6 cor=preta posição=direita tamanho=pequeno área_média=1.02% amostras=1
+2026-08-04 13:58:34,682 | INFO | app.services.camera_event_pipeline | [b6a8ed597fbb] Pessoa enviada ao painel: pessoa=dahua-canal-0-334a40c6 status=entered indice=1/1 paineis=0
+2026-08-04 13:58:34,901 | INFO | app.services.camera_event_pipeline | [41ad7d2ca76d] Aparência estável: pessoa=dahua-canal-0-334a40c6 cor=preta posição=direita tamanho=pequeno área_média=0.81% amostras=2
+2026-08-04 13:58:36,220 | INFO | app.services.camera_event_pipeline | [665bb500e257] Aparência estável: pessoa=dahua-canal-0-334a40c6 cor=preta posição=esquerda tamanho=pequeno área_média=2.86% amostras=3
+2026-08-04 13:58:40,231 | INFO | app.services.camera_event_pipeline | [e3bbd6308ba1] Aparência estável: pessoa=dahua-canal-0-f56e1cad cor=preta posição=direita tamanho=pequeno área_média=0.56% amostras=1
+2026-08-04 13:58:40,255 | INFO | app.services.camera_event_pipeline | [e3bbd6308ba1] Pessoa enviada ao painel: pessoa=dahua-canal-0-f56e1cad status=entered indice=1/1 paineis=0
+INFO:     127.0.0.1:54410 - "WebSocket /ws/eventos" [accepted]
+2026-08-04 13:58:50,090 | INFO | app.services.event_hub | Painel conectado. Total: 1
+2026-08-04 13:58:50,314 | INFO | app.services.camera_event_pipeline | [ee2f6554d39b] Aparência estável: pessoa=dahua-canal-0-1e02b4e0 cor=azul-escura posição=centro tamanho=pequeno área_média=1.8% amostras=1
+2026-08-04 13:58:50,397 | INFO | app.services.camera_event_pipeline | [ee2f6554d39b] Pessoa enviada ao painel: pessoa=dahua-canal-0-1e02b4e0 status=entered indice=1/1 paineis=1
+2026-08-04 13:58:59,364 | INFO | app.services.camera_event_pipeline | [25c0fccc1364] Aparência estável: pessoa=dahua-canal-0-1e02b4e0 cor=amarela posição=esquerda tamanho=medio área_média=2.77% amostras=2
+2026-08-04 13:58:59,470 | INFO | app.services.camera_event_pipeline | [25c0fccc1364] Pessoa enviada ao painel: pessoa=dahua-canal-0-1e02b4e0 status=updated indice=1/1 paineis=1
+2026-08-04 13:59:19,528 | INFO | app.services.camera_event_pipeline | [741a7fac673e] Aparência ignorada: caixa pequena pessoa=camera-01-6a4b4c56 dimensoes=52x96 area=0.54%
+2026-08-04 13:59:19,565 | INFO | app.services.camera_event_pipeline | [741a7fac673e] Pessoa enviada ao painel: pessoa=camera-01-6a4b4c56 status=entered indice=1/1 paineis=1
+2026-08-04 13:59:46,702 | INFO | app.services.camera_event_pipeline | [31ca2baeeeec] Aparência estável: pessoa=camera-01-928d4a37 cor=verde-escura posição=centro tamanho=medio área_média=4.19% amostras=1
+2026-08-04 13:59:46,745 | INFO | app.services.camera_event_pipeline | [31ca2baeeeec] Pessoa enviada ao painel: pessoa=camera-01-928d4a37 status=entered indice=1/1 paineis=1
+2026-08-04 13:59:47,322 | INFO | app.services.camera_event_pipeline | [172a2c61eb71] Aparência estável: pessoa=dahua-canal-0-7a3c22d2 cor=preta posição=direita tamanho=medio área_média=7.23% amostras=1
+2026-08-04 13:59:47,464 | INFO | app.services.camera_event_pipeline | [172a2c61eb71] Pessoa enviada ao painel: pessoa=dahua-canal-0-7a3c22d2 status=entered indice=1/1 paineis=1
+2026-08-04 13:59:52,040 | INFO | app.services.camera_event_pipeline | [01b7200b5080] Aparência estável: pessoa=camera-01-928d4a37 cor=cinza-escura posição=esquerda tamanho=pequeno área_média=3.25% amostras=2
+2026-08-04 13:59:52,079 | INFO | app.services.camera_event_pipeline | [01b7200b5080] Pessoa enviada ao painel: pessoa=camera-01-928d4a37 status=updated indice=1/1 paineis=1
+2026-08-04 13:59:57,566 | INFO | app.services.camera_event_pipeline | [834f30d0e298] Aparência estável: pessoa=camera-01-928d4a37 cor=marrom posição=esquerda tamanho=pequeno área_média=2.82% amostras=3
+2026-08-04 13:59:57,602 | INFO | app.services.camera_event_pipeline | [834f30d0e298] Pessoa enviada ao painel: pessoa=camera-01-928d4a37 status=updated indice=1/1 paineis=1
+2026-08-04 14:00:26,159 | INFO | app.services.camera_event_pipeline | [6ce5848e24c8] Aparência estável: pessoa=camera-01-7b164d84 cor=marrom posição=centro tamanho=medio área_média=3.58% amostras=1
+2026-08-04 14:00:26,202 | INFO | app.services.camera_event_pipeline | [6ce5848e24c8] Pessoa enviada ao painel: pessoa=camera-01-7b164d84 status=entered indice=1/1 paineis=1
+2026-08-04 14:00:27,237 | INFO | app.services.camera_event_pipeline | [fbd164cdc51c] Aparência estável: pessoa=dahua-canal-0-c6b00030 cor=azul-escura posição=centro tamanho=pequeno área_média=2.89% amostras=1
+2026-08-04 14:00:27,344 | INFO | app.services.camera_event_pipeline | [fbd164cdc51c] Pessoa enviada ao painel: pessoa=dahua-canal-0-c6b00030 status=entered indice=1/1 paineis=1
+2026-08-04 14:00:30,680 | INFO | app.services.camera_event_pipeline | [796c4f959855] Aparência estável: pessoa=camera-01-7b164d84 cor=cinza posição=centro tamanho=medio área_média=3.89% amostras=2
+2026-08-04 14:00:34,184 | INFO | app.services.camera_event_pipeline | [d521ec4dd3e8] Aparência estável: pessoa=dahua-canal-0-c6b00030 cor=azul-escura posição=centro tamanho=pequeno área_média=2.25% amostras=2
+2026-08-04 14:00:34,281 | INFO | app.services.camera_event_pipeline | [d521ec4dd3e8] Pessoa enviada ao painel: pessoa=dahua-canal-0-c6b00030 status=updated indice=1/1 paineis=1
+2026-08-04 14:01:13,657 | INFO | app.services.camera_event_pipeline | [ef82bafb8963] Aparência estável: pessoa=camera-01-eea4c955 cor=azul-escura posição=centro tamanho=pequeno área_média=1.61% amostras=1
+2026-08-04 14:01:13,689 | INFO | app.services.camera_event_pipeline | [ef82bafb8963] Pessoa enviada ao painel: pessoa=camera-01-eea4c955 status=entered indice=1/1 paineis=1
+2026-08-04 14:01:28,436 | INFO | app.services.camera_event_pipeline | [4e94621705c9] Aparência estável: pessoa=camera-01-eea4c955 cor=azul posição=centro tamanho=pequeno área_média=1.4% amostras=2
+2026-08-04 14:01:28,477 | INFO | app.services.camera_event_pipeline | [4e94621705c9] Pessoa enviada ao painel: pessoa=camera-01-eea4c955 status=updated indice=1/1 paineis=1
+2026-08-04 14:01:38,138 | INFO | app.services.camera_event_pipeline | [4707cc4c8819] Aparência estável: pessoa=dahua-canal-0-365a252e cor=preta posição=centro tamanho=pequeno área_média=1.11% amostras=1
+2026-08-04 14:01:38,242 | INFO | app.services.camera_event_pipeline | [4707cc4c8819] Pessoa enviada ao painel: pessoa=dahua-canal-0-365a252e status=entered indice=1/1 paineis=1
+2026-08-04 14:01:49,790 | INFO | app.services.camera_event_pipeline | [a2dcb0256807] Aparência ignorada: caixa pequena pessoa=camera-01-c1965dca dimensoes=26x47 area=0.13%
+2026-08-04 14:01:49,834 | INFO | app.services.camera_event_pipeline | [a2dcb0256807] Pessoa enviada ao painel: pessoa=camera-01-c1965dca status=entered indice=1/1 paineis=1
+2026-08-04 14:01:50,246 | INFO | app.services.camera_event_pipeline | [debd305f120f] Aparência estável: pessoa=dahua-canal-0-cabb758d cor=marrom posição=direita tamanho=pequeno área_média=1.26% amostras=1
+2026-08-04 14:01:50,379 | INFO | app.services.camera_event_pipeline | [debd305f120f] Pessoa enviada ao painel: pessoa=dahua-canal-0-cabb758d status=entered indice=1/1 paineis=1
+2026-08-04 14:01:58,870 | INFO | app.services.camera_event_pipeline | [8720865b3a74] Aparência estável: pessoa=camera-01-451c512f cor=azul-escura posição=esquerda tamanho=pequeno área_média=0.86% amostras=1
+2026-08-04 14:01:58,905 | INFO | app.services.camera_event_pipeline | [8720865b3a74] Pessoa enviada ao painel: pessoa=camera-01-451c512f status=entered indice=1/1 paineis=1
+2026-08-04 14:02:13,048 | INFO | app.services.camera_event_pipeline | [5783ed97d2d6] Aparência estável: pessoa=dahua-canal-0-c817f90b cor=cinza-escura posição=direita tamanho=pequeno área_média=2.2% amostras=1
+2026-08-04 14:02:13,137 | INFO | app.services.camera_event_pipeline | [5783ed97d2d6] Pessoa enviada ao painel: pessoa=dahua-canal-0-c817f90b status=entered indice=1/1 paineis=1
+2026-08-04 14:02:15,368 | INFO | app.services.camera_event_pipeline | [64f67aeb4f6d] Aparência ignorada: caixa pequena pessoa=camera-01-5b9d6de7 dimensoes=76x84 area=0.69%
+2026-08-04 14:02:15,407 | INFO | app.services.camera_event_pipeline | [64f67aeb4f6d] Pessoa enviada ao painel: pessoa=camera-01-5b9d6de7 status=entered indice=1/1 paineis=1
+2026-08-04 14:02:17,719 | INFO | app.services.camera_event_pipeline | [462dc165fca0] Aparência estável: pessoa=camera-01-5b9d6de7 cor=azul-escura posição=esquerda tamanho=pequeno área_média=1.25% amostras=1
+2026-08-04 14:02:23,641 | INFO | app.services.camera_event_pipeline | [1fa7a82313ed] Aparência estável: pessoa=camera-01-5b9d6de7 cor=cinza posição=esquerda tamanho=pequeno área_média=1.3% amostras=2
+2026-08-04 14:02:23,673 | INFO | app.services.camera_event_pipeline | [1fa7a82313ed] Pessoa enviada ao painel: pessoa=camera-01-5b9d6de7 status=updated indice=1/1 paineis=1
+2026-08-04 14:02:27,175 | INFO | app.services.camera_event_pipeline | [9ea830d88572] Aparência estável: pessoa=camera-01-7c1f16b8 cor=azul-escura posição=centro tamanho=pequeno área_média=1.42% amostras=1
+2026-08-04 14:02:27,210 | INFO | app.services.camera_event_pipeline | [9ea830d88572] Pessoa enviada ao painel: pessoa=camera-01-7c1f16b8 status=entered indice=1/1 paineis=1
+2026-08-04 14:02:29,612 | INFO | app.services.camera_event_pipeline | [4468357cce8b] Aparência ignorada: caixa pequena pessoa=dahua-canal-0-47a01180 dimensoes=116x136 area=0.39%
+2026-08-04 14:02:29,723 | INFO | app.services.camera_event_pipeline | [4468357cce8b] Pessoa enviada ao painel: pessoa=dahua-canal-0-47a01180 status=entered indice=1/1 paineis=1
+
+----- validacao_preto_corrigido.log -----
+2026-08-03 17:52:10,551 | INFO | app.services.person_detector_yolo | Carregando modelo de segmentação: /home/matheus-gomes/Documentos/minha-api-lab/yolo11n-seg.pt
+2026-08-03 17:52:13,494 | INFO | app.services.camera_event_pipeline | [c98dbca624ee] Aparência estável: pessoa=camera-01-61fba5d9 cor=azul-escura posição=esquerda tamanho=pequeno área_média=0.96% amostras=1
+2026-08-03 17:52:13,509 | INFO | app.services.camera_event_pipeline | [c98dbca624ee] Pessoa enviada ao painel: pessoa=camera-01-61fba5d9 status=entered indice=1/1 paineis=0
+2026-08-03 17:52:13,787 | INFO | app.services.camera_event_pipeline | [b1839f36db89] Aparência estável: pessoa=camera-01-61fba5d9 cor=azul-escura posição=esquerda tamanho=pequeno área_média=1.42% amostras=2
+2026-08-03 17:52:17,932 | INFO | app.services.camera_event_pipeline | [8f18f99b6b09] Aparência estável: pessoa=camera-01-61fba5d9 cor=azul-escura posição=esquerda tamanho=pequeno área_média=1.55% amostras=3
+2026-08-03 17:52:17,942 | INFO | app.services.camera_event_pipeline | [8f18f99b6b09] Pessoa enviada ao painel: pessoa=camera-01-61fba5d9 status=updated indice=1/1 paineis=0
+INFO:     127.0.0.1:54104 - "WebSocket /ws/eventos" [accepted]
+2026-08-03 17:52:34,081 | INFO | app.services.event_hub | Painel conectado. Total: 1
+2026-08-03 17:53:01,518 | INFO | app.services.camera_event_pipeline | [e800df4cb319] Aparência estável: pessoa=camera-01-09d18708 cor=azul-escura posição=centro tamanho=pequeno área_média=0.11% amostras=1
+2026-08-03 17:53:01,547 | INFO | app.services.camera_event_pipeline | [e800df4cb319] Pessoa enviada ao painel: pessoa=camera-01-09d18708 status=entered indice=1/1 paineis=1
+2026-08-03 17:53:24,379 | INFO | app.services.camera_event_pipeline | [3a140b12860e] Aparência estável: pessoa=camera-01-1ff81b87 cor=marrom posição=centro tamanho=pequeno área_média=0.43% amostras=1
+2026-08-03 17:53:24,406 | INFO | app.services.camera_event_pipeline | [3a140b12860e] Pessoa enviada ao painel: pessoa=camera-01-1ff81b87 status=entered indice=1/1 paineis=1
+2026-08-03 17:53:46,919 | INFO | app.services.camera_event_pipeline | [e5de725d9e1c] Aparência estável: pessoa=camera-01-dd426cc0 cor=preta posição=esquerda tamanho=pequeno área_média=0.92% amostras=1
+2026-08-03 17:53:46,948 | INFO | app.services.camera_event_pipeline | [e5de725d9e1c] Pessoa enviada ao painel: pessoa=camera-01-dd426cc0 status=entered indice=1/1 paineis=1
+2026-08-03 17:53:55,810 | INFO | app.services.camera_event_pipeline | [31ee106aa5cf] Aparência estável: pessoa=camera-01-dd426cc0 cor=preta posição=esquerda tamanho=medio área_média=2.1% amostras=2
+2026-08-03 17:53:55,845 | INFO | app.services.camera_event_pipeline | [31ee106aa5cf] Pessoa enviada ao painel: pessoa=camera-01-dd426cc0 status=updated indice=1/1 paineis=1
+2026-08-03 17:53:59,235 | INFO | app.services.camera_event_pipeline | [d508331ae896] Aparência estável: pessoa=camera-01-dd426cc0 cor=preta posição=centro tamanho=medio área_média=3.14% amostras=3
+2026-08-03 17:54:35,886 | INFO | app.services.camera_event_pipeline | [66f317d52d2a] Aparência estável: pessoa=camera-01-33ec0172 cor=azul posição=centro tamanho=pequeno área_média=1.85% amostras=1
+2026-08-03 17:54:35,920 | INFO | app.services.camera_event_pipeline | [66f317d52d2a] Pessoa enviada ao painel: pessoa=camera-01-33ec0172 status=entered indice=1/1 paineis=1
+2026-08-03 17:55:32,458 | INFO | app.services.camera_event_pipeline | [3097137500c0] Aparência estável: pessoa=camera-01-67fb8852 cor=azul posição=centro tamanho=pequeno área_média=0.56% amostras=1
+2026-08-03 17:55:32,486 | INFO | app.services.camera_event_pipeline | [3097137500c0] Pessoa enviada ao painel: pessoa=camera-01-67fb8852 status=entered indice=1/1 paineis=1
+2026-08-03 17:55:40,053 | INFO | app.services.camera_event_pipeline | [15117e1b41e0] Aparência estável: pessoa=dahua-canal-0-1f48dd1b cor=preta posição=direita tamanho=medio área_média=8.55% amostras=1
+2026-08-03 17:55:40,167 | INFO | app.services.camera_event_pipeline | [15117e1b41e0] Pessoa enviada ao painel: pessoa=dahua-canal-0-1f48dd1b status=entered indice=1/1 paineis=1
+2026-08-03 17:55:40,256 | INFO | app.services.camera_event_pipeline | [a2f7cfec8fd0] Aparência estável: pessoa=camera-01-67fb8852 cor=azul-escura posição=centro tamanho=medio área_média=2.27% amostras=2
+2026-08-03 17:55:40,298 | INFO | app.services.camera_event_pipeline | [a2f7cfec8fd0] Pessoa enviada ao painel: pessoa=camera-01-67fb8852 status=updated indice=1/1 paineis=1
+2026-08-03 17:55:57,246 | INFO | app.services.camera_event_pipeline | [83dd284a5ec4] Aparência estável: pessoa=camera-01-3097847b cor=azul-escura posição=centro tamanho=pequeno área_média=0.15% amostras=1
+2026-08-03 17:55:57,282 | INFO | app.services.camera_event_pipeline | [83dd284a5ec4] Pessoa enviada ao painel: pessoa=camera-01-3097847b status=entered indice=1/1 paineis=1
+
+----- validacao_final_cor_estavel.log -----
+INFO:     127.0.0.1:36624 - "WebSocket /ws/eventos" [accepted]
+2026-08-03 17:44:51,402 | INFO | app.services.event_hub | Painel conectado. Total: 1
+2026-08-03 17:44:52,548 | INFO | app.services.person_detector_yolo | Carregando modelo de segmentação: /home/matheus-gomes/Documentos/minha-api-lab/yolo11n-seg.pt
+2026-08-03 17:44:54,624 | INFO | app.services.camera_event_pipeline | [1a4e7d6d0087] Aparência estável: pessoa=camera-01-6bd21071 cor=azul-escura posição=centro tamanho=medio área_média=3.75% amostras=1
+2026-08-03 17:44:54,658 | INFO | app.services.camera_event_pipeline | [1a4e7d6d0087] Pessoa enviada ao painel: pessoa=camera-01-6bd21071 status=entered indice=1/1 paineis=1
+2026-08-03 17:44:54,992 | INFO | app.services.camera_event_pipeline | [9b104e94b618] Aparência estável: pessoa=dahua-canal-0-387dfade cor=preta posição=direita tamanho=medio área_média=9.33% amostras=1
+2026-08-03 17:44:55,086 | INFO | app.services.camera_event_pipeline | [9b104e94b618] Pessoa enviada ao painel: pessoa=dahua-canal-0-387dfade status=entered indice=1/1 paineis=1
+2026-08-03 17:45:02,518 | INFO | app.services.camera_event_pipeline | [7c3ba59c9021] Aparência estável: pessoa=camera-01-6bd21071 cor=azul-escura posição=esquerda tamanho=medio área_média=3.68% amostras=2
+2026-08-03 17:45:02,553 | INFO | app.services.camera_event_pipeline | [7c3ba59c9021] Pessoa enviada ao painel: pessoa=camera-01-6bd21071 status=updated indice=1/1 paineis=1
+
+----- validacao_segmentacao_roupa.log -----
+2026-08-03 17:36:49,478 | INFO | app.services.person_detector_yolo | Carregando modelo de segmentação: /home/matheus-gomes/Documentos/minha-api-lab/yolo11n-seg.pt
+2026-08-03 17:36:52,789 | INFO | app.services.camera_event_pipeline | [2a6df440dac9] Aparência estável: pessoa=dahua-canal-0-3dd95662 cor=branca posição=direita tamanho=pequeno área_média=1.35% amostras=1
+2026-08-03 17:36:52,839 | INFO | app.services.camera_event_pipeline | [2a6df440dac9] Pessoa enviada ao painel: pessoa=dahua-canal-0-3dd95662 status=entered indice=1/1 paineis=0
+2026-08-03 17:36:53,045 | INFO | app.services.camera_event_pipeline | [5dd4b3dd704c] Aparência estável: pessoa=dahua-canal-0-3dd95662 cor=cinza-escura posição=direita tamanho=pequeno área_média=0.91% amostras=2
+2026-08-03 17:36:56,636 | INFO | app.services.camera_event_pipeline | [73ce99573493] Aparência estável: pessoa=dahua-canal-0-3dd95662 cor=branca posição=direita tamanho=pequeno área_média=0.75% amostras=3
+2026-08-03 17:36:56,664 | INFO | app.services.camera_event_pipeline | [73ce99573493] Pessoa enviada ao painel: pessoa=dahua-canal-0-3dd95662 status=updated indice=1/1 paineis=0
+2026-08-03 17:36:57,564 | INFO | app.services.camera_event_pipeline | [fd23095b888d] Aparência estável: pessoa=dahua-canal-0-3dd95662 cor=branca posição=direita tamanho=pequeno área_média=0.84% amostras=4
+INFO:     127.0.0.1:47236 - "WebSocket /ws/eventos" [accepted]
+2026-08-03 17:36:57,840 | INFO | app.services.event_hub | Painel conectado. Total: 1
+2026-08-03 17:36:58,628 | INFO | app.services.camera_event_pipeline | [68d6b21e7564] Aparência estável: pessoa=dahua-canal-0-3dd95662 cor=cinza-escura posição=direita tamanho=pequeno área_média=0.77% amostras=5
+2026-08-03 17:37:05,808 | INFO | app.services.camera_event_pipeline | [3881f3dcfac0] Aparência estável: pessoa=dahua-canal-0-3dd95662 cor=branca posição=direita tamanho=pequeno área_média=0.85% amostras=6
+2026-08-03 17:37:05,897 | INFO | app.services.camera_event_pipeline | [3881f3dcfac0] Pessoa enviada ao painel: pessoa=dahua-canal-0-3dd95662 status=updated indice=1/1 paineis=1
+2026-08-03 17:37:09,765 | INFO | app.services.camera_event_pipeline | [8675ec287423] Aparência estável: pessoa=dahua-canal-0-3dd95662 cor=branca posição=direita tamanho=pequeno área_média=0.85% amostras=7
+2026-08-03 17:37:29,501 | INFO | app.services.camera_event_pipeline | [5764ee25a164] Aparência estável: pessoa=camera-01-2b04bd61 cor=roxa-escura posição=centro tamanho=pequeno área_média=0.45% amostras=1
+2026-08-03 17:37:29,530 | INFO | app.services.camera_event_pipeline | [5764ee25a164] Pessoa enviada ao painel: pessoa=camera-01-2b04bd61 status=entered indice=1/1 paineis=1
+2026-08-03 17:37:32,490 | INFO | app.services.camera_event_pipeline | [8af00bc802c0] Aparência estável: pessoa=camera-01-2b04bd61 cor=azul-escura posição=centro tamanho=pequeno área_média=0.7% amostras=2
+
+===== FINAL DO LOG MAIS RECENTE =====
+Log mais recente: ./validacao_cor_consistente.log
+    }
+  },
+  "bounding_boxes": []
+}
+2026-08-04 14:11:00,938 | INFO | app.services.camera_event_pipeline | [386aea4565fa] Evento ignorado: não possui imagem
+2026-08-04 14:11:00,939 | INFO | root | [DAHUA][386aea4565fa] Captura salva: pacote=/home/matheus-gomes/Documentos/minha-api-lab/capturas_dahua/20260804T171100_936953Z_386aea4565fa_pacote.bin headers=/home/matheus-gomes/Documentos/minha-api-lab/capturas_dahua/20260804T171100_936953Z_386aea4565fa_headers.txt bytes=1417 primeiros_bytes=b'{\n   "Action" : "Start",\n   "Code" : "CrossRegionDetection",\n   "Data" : {\n      "Action" : "Appear"'
+2026-08-04 14:11:01,631 | INFO | root | [DAHUA][e46af91d34ba] Requisição recebida: ip=192.168.101.211 content_type=multipart/x-mixed-replace; boundary=myboundary bytes=496530 primeiros_bytes=b'--myboundary\r\nContent-Type: text/plain\r\nContent-Length: 2159\r\n\r\n{\n   "Ack" : true,\n   "Channel" : 0,'
+2026-08-04 14:11:01,631 | INFO | root | [DAHUA][e46af91d34ba] Recebido: bytes=496530 fila=1/1000 resposta=39.98ms
+INFO:     192.168.101.211:41404 - "POST /CAM7442 HTTP/1.1" 200 OK
+2026-08-04 14:11:01,632 | INFO | app.services.camera_event_pipeline | [e46af91d34ba] Worker 1 usando DahuaAdapter
+2026-08-04 14:11:01,636 | INFO | root | [DAHUA][e46af91d34ba] Captura salva: pacote=/home/matheus-gomes/Documentos/minha-api-lab/capturas_dahua/20260804T171101_591403Z_e46af91d34ba_pacote.bin headers=/home/matheus-gomes/Documentos/minha-api-lab/capturas_dahua/20260804T171101_591403Z_e46af91d34ba_headers.txt bytes=496530 primeiros_bytes=b'--myboundary\r\nContent-Type: text/plain\r\nContent-Length: 2159\r\n\r\n{\n   "Ack" : true,\n   "Channel" : 0,'
+2026-08-04 14:11:01,659 | INFO | root | [HIKVISION][955bbfed9733] Recebido: bytes=676 fila=1/1000 resposta=0.29ms
+INFO:     192.168.101.214:55370 - "POST /hikvision HTTP/1.1" 200 OK
+2026-08-04 14:11:01,661 | INFO | app.services.camera_event_pipeline | [955bbfed9733] Worker 4 usando HikvisionAdapter
+2026-08-04 14:11:01,662 | INFO | app.services.camera_event_pipeline | [955bbfed9733] OBJETO NORMALIZADO (hikvision):
+{
+  "schema_version": "1.0",
+  "event_id": "955bbfed9733",
+  "manufacturer": "hikvision",
+  "camera_id": "1",
+  "camera_name": "Camera 01",
+  "camera_ip": "192.168.101.214",
+  "event_type": "duration",
+  "state": "active",
+  "timestamp": "2026-08-04T17:11:04Z",
+  "attributes": {
+    "event_category": "duration",
+    "vendor_event_type": "duration",
+    "geometry": [],
+    "vendor_data": {
+      "vendor_state": "active"
+    }
+  },
+  "bounding_boxes": []
+}
+2026-08-04 14:11:01,662 | INFO | app.services.camera_event_pipeline | [955bbfed9733] Evento ignorado: não possui imagem
+2026-08-04 14:11:01,702 | INFO | app.services.camera_event_pipeline | [e46af91d34ba] OBJETO NORMALIZADO (dahua):
+{
+  "schema_version": "1.0",
+  "event_id": "e46af91d34ba",
+  "manufacturer": "dahua",
+  "camera_id": "0",
+  "camera_name": "Dahua Canal 0",
+  "camera_ip": "192.168.101.211",
+  "event_type": "person_detection",
+  "state": "active",
+  "timestamp": "2026-08-04T17:11:00Z",
+  "target_type": "person",
+  "attributes": {
+    "event_category": "intrusion",
+    "vendor_action": "Appear",
+    "vendor_event_type": "CrossRegionDetection",
+    "source_event_id": "31055",
+    "rule_id": "17",
+    "rule_name": "IVS-1",
+    "object_id": "110607",
+    "group_id": "20718",
+    "geometry_type": "region",
+    "geometry": [
+      {
+        "x": 0.00988890245391283,
+        "y": 0.01648150408985472
+      },
+      {
+        "x": 0.9854718593578318,
+        "y": 0.01648150408985472
+      },
+      {
+        "x": 0.9854718593578318,
+        "y": 0.9920644609937737
+      },
+      {
+        "x": 0.00988890245391283,
+        "y": 0.9920644609937737
+      }
+    ],
+    "raw_bounding_box": [
+      4616.0,
+      2480.0,
+      5480.0,
+      6736.0
+    ],
+    "vendor_data": {
+      "vendor_target_type": "Human",
+      "vendor_state": "active",
+      "event_action": "Start"
+    }
+  },
+  "bounding_boxes": [
+    {
+      "source": "dahua_object_bounding_box",
+      "x": 1515,
+      "y": 460,
+      "width": 283,
+      "height": 790,
+      "x2": 1798,
+      "y2": 1250,
+      "image_ratio": 0.05471931782581454
+    }
+  ],
+  "selected_bounding_box": {
+    "source": "dahua_object_bounding_box",
+    "x": 1515,
+    "y": 460,
+    "width": 283,
+    "height": 790,
+    "x2": 1798,
+    "y2": 1250,
+    "image_ratio": 0.05471931782581454
+  },
+  "image": {
+    "width": 2688,
+    "height": 1520,
+    "format": "jpeg",
+    "original_path": "imagens_eventos/20260804T171100Z_CrossRegionDetection_e46af91d34ba_original.jpg",
+    "annotated_path": "imagens_eventos/20260804T171100Z_CrossRegionDetection_e46af91d34ba_marcada.jpg"
+  }
+}
+2026-08-04 14:11:01,702 | INFO | app.services.camera_event_pipeline | [e46af91d34ba] Rastreamento em lote: pessoas=1 ids=[('dahua-canal-0-2875fa2f', 'suppressed')]
+2026-08-04 14:11:01,702 | INFO | app.services.camera_event_pipeline | [e46af91d34ba] Contexto da cena: pessoas=1 esquerda=0 centro=1 direita=0 muito_proximos=0 proximos=0 separados=0
+2026-08-04 14:11:01,702 | INFO | app.services.camera_event_pipeline | [e46af91d34ba] Descrição da cena: Uma pessoa identificada no centro da cena.
+2026-08-04 14:11:01,779 | INFO | app.services.camera_event_pipeline | [e46af91d34ba] Cena renderizada: boxes=1 dimensoes=2688x1520 base64=867504 caracteres
+Corrupt JPEG data: 608 extraneous bytes before marker 0xfe
+2026-08-04 14:11:02,134 | INFO | app.services.camera_event_pipeline | [e46af91d34ba] Aparência estável: pessoa=dahua-canal-0-2875fa2f cor=indefinida posição=centro tamanho=medio área_média=7.71% amostras=2
+2026-08-04 14:11:02,135 | INFO | app.services.camera_event_pipeline | [e46af91d34ba] Movimento: pessoa=dahua-canal-0-2875fa2f horizontal=esquerda vertical=cima tendencia=afastando velocidade=157.18px_s distancia_total=745.08px tempo=4.74s amostras=2
+2026-08-04 14:11:02,242 | INFO | app.services.camera_event_pipeline | [e46af91d34ba] Atualização parcial: pessoa=dahua-canal-0-2875fa2f indice=1/1 deteccoes=2 amostras=2 movimento=esquerda/cima velocidade=157.18px_s boxes=1 paineis=1
+2026-08-04 14:11:02,243 | INFO | app.services.camera_event_pipeline | [e46af91d34ba] Evento repetido suprimido: pessoa=dahua-canal-0-2875fa2f indice=1/1 amostras=2
+2026-08-04 14:11:03,356 | INFO | root | [DAHUA][52eafd299e0e] Requisição recebida: ip=192.168.101.211 content_type=application/json bytes=1416 primeiros_bytes=b'{\n   "Action" : "Stop",\n   "Code" : "CrossRegionDetection",\n   "Data" : {\n      "Action" : "Appear",'
+2026-08-04 14:11:03,356 | INFO | root | [DAHUA][52eafd299e0e] Recebido: bytes=1416 fila=1/1000 resposta=0.29ms
+INFO:     192.168.101.211:41406 - "POST /CAM7442 HTTP/1.1" 200 OK
+2026-08-04 14:11:03,357 | INFO | app.services.camera_event_pipeline | [52eafd299e0e] Worker 3 usando DahuaAdapter
+2026-08-04 14:11:03,358 | INFO | app.services.camera_event_pipeline | [52eafd299e0e] OBJETO NORMALIZADO (dahua):
+{
+  "schema_version": "1.0",
+  "event_id": "52eafd299e0e",
+  "manufacturer": "dahua",
+  "camera_id": "0",
+  "camera_name": "Dahua Canal 0",
+  "camera_ip": "192.168.101.211",
+  "event_type": "person_detection",
+  "state": "inactive",
+  "timestamp": "2026-08-04T17:11:00Z",
+  "target_type": "person",
+  "attributes": {
+    "event_category": "intrusion",
+    "vendor_action": "Appear",
+    "vendor_event_type": "CrossRegionDetection",
+    "source_event_id": "31055",
+    "rule_id": "17",
+    "rule_name": "IVS-1",
+    "object_id": "110607",
+    "group_id": "20718",
+    "geometry_type": "region",
+    "geometry": [
+      {
+        "x": 0.00988890245391283,
+        "y": 0.01648150408985472
+      },
+      {
+        "x": 0.9854718593578318,
+        "y": 0.01648150408985472
+      },
+      {
+        "x": 0.9854718593578318,
+        "y": 0.9920644609937737
+      },
+      {
+        "x": 0.00988890245391283,
+        "y": 0.9920644609937737
+      }
+    ],
+    "raw_bounding_box": [
+      4616.0,
+      2480.0,
+      5480.0,
+      6736.0
+    ],
+    "vendor_data": {
+      "vendor_target_type": "Human",
+      "vendor_state": "inactive",
+      "event_action": "Stop"
+    }
+  },
+  "bounding_boxes": []
+}
+2026-08-04 14:11:03,358 | INFO | app.services.camera_event_pipeline | [52eafd299e0e] Evento ignorado: não possui imagem
+2026-08-04 14:11:03,358 | INFO | root | [DAHUA][52eafd299e0e] Captura salva: pacote=/home/matheus-gomes/Documentos/minha-api-lab/capturas_dahua/20260804T171103_356457Z_52eafd299e0e_pacote.bin headers=/home/matheus-gomes/Documentos/minha-api-lab/capturas_dahua/20260804T171103_356457Z_52eafd299e0e_headers.txt bytes=1416 primeiros_bytes=b'{\n   "Action" : "Stop",\n   "Code" : "CrossRegionDetection",\n   "Data" : {\n      "Action" : "Appear",'
+2026-08-04 14:11:04,262 | INFO | root | [HIKVISION][e8a93c692056] Recebido: bytes=197673 fila=1/1000 resposta=50.91ms
+INFO:     192.168.101.214:55372 - "POST /hikvision HTTP/1.1" 200 OK
+2026-08-04 14:11:04,264 | INFO | app.services.camera_event_pipeline | [e8a93c692056] Worker 2 usando HikvisionAdapter
+2026-08-04 14:11:04,295 | INFO | app.services.camera_event_pipeline | [e8a93c692056] OBJETO NORMALIZADO (hikvision):
+{
+  "schema_version": "1.0",
+  "event_id": "e8a93c692056",
+  "manufacturer": "hikvision",
+  "camera_id": "1",
+  "camera_name": "Camera 01",
+  "camera_ip": "192.168.101.214",
+  "event_type": "person_detection",
+  "state": "active",
+  "timestamp": "2026-08-04T17:11:06Z",
+  "target_type": "person",
+  "attributes": {
+    "event_category": "line_crossing",
+    "vendor_event_type": "linedetection",
+    "rule_id": "1",
+    "sensitivity": 70.0,
+    "geometry_type": "line",
+    "geometry": [
+      {
+        "x": 0.084,
+        "y": 0.605
+      },
+      {
+        "x": 1.0,
+        "y": 0.574
+      }
+    ],
+    "vendor_data": {
+      "vendor_target_type": "human",
+      "vendor_state": "active"
+    }
+  },
+  "bounding_boxes": [
+    {
+      "source": "targetrect",
+      "x": 36,
+      "y": 232,
+      "width": 108,
+      "height": 153,
+      "x2": 144,
+      "y2": 385,
+      "image_ratio": 0.0179
+    }
+  ],
+  "selected_bounding_box": {
+    "source": "targetrect",
+    "x": 36,
+    "y": 232,
+    "width": 108,
+    "height": 153,
+    "x2": 144,
+    "y2": 385,
+    "image_ratio": 0.0179
+  },
+  "image": {
+    "width": 1280,
+    "height": 720,
+    "format": "jpeg",
+    "original_path": "imagens_eventos/20260804T171106Z_linedetection_e8a93c692056_original.jpg",
+    "annotated_path": "imagens_eventos/20260804T171106Z_linedetection_e8a93c692056_marcada.jpg"
+  }
+}
+2026-08-04 14:11:04,296 | INFO | app.services.camera_event_pipeline | [e8a93c692056] Rastreamento em lote: pessoas=1 ids=[('camera-01-957df54b', 'updated')]
+2026-08-04 14:11:04,296 | INFO | app.services.camera_event_pipeline | [e8a93c692056] Contexto da cena: pessoas=1 esquerda=1 centro=0 direita=0 muito_proximos=0 proximos=0 separados=0
+2026-08-04 14:11:04,296 | INFO | app.services.camera_event_pipeline | [e8a93c692056] Descrição da cena: Uma pessoa identificada à esquerda da cena.
+2026-08-04 14:11:04,323 | INFO | app.services.camera_event_pipeline | [e8a93c692056] Cena renderizada: boxes=1 dimensoes=1280x720 base64=276516 caracteres
+2026-08-04 14:11:04,323 | INFO | app.services.camera_event_pipeline | [e8a93c692056] Aparência ignorada: caixa pequena pessoa=camera-01-957df54b dimensoes=108x153 area=1.79%
+2026-08-04 14:11:04,323 | INFO | app.services.camera_event_pipeline | [e8a93c692056] Movimento: pessoa=camera-01-957df54b horizontal=esquerda vertical=baixo tendencia=afastando velocidade=75.01px_s distancia_total=616.38px tempo=8.47s amostras=3
+2026-08-04 14:11:04,353 | INFO | app.services.camera_event_pipeline | [e8a93c692056] Pessoa enviada ao painel: pessoa=camera-01-957df54b status=updated indice=1/1 paineis=1
+2026-08-04 14:11:04,353 | INFO | app.services.camera_event_pipeline | [e8a93c692056] Payload pronto; Kafka desativado: pessoa=camera-01-957df54b
+2026-08-04 14:11:04,933 | INFO | root | [HIKVISION][0a239bcdfe1d] Recebido: bytes=676 fila=1/1000 resposta=0.17ms
+INFO:     192.168.101.214:55374 - "POST /hikvision HTTP/1.1" 200 OK
+2026-08-04 14:11:04,934 | INFO | app.services.camera_event_pipeline | [0a239bcdfe1d] Worker 4 usando HikvisionAdapter
+2026-08-04 14:11:04,935 | INFO | app.services.camera_event_pipeline | [0a239bcdfe1d] OBJETO NORMALIZADO (hikvision):
+{
+  "schema_version": "1.0",
+  "event_id": "0a239bcdfe1d",
+  "manufacturer": "hikvision",
+  "camera_id": "1",
+  "camera_name": "Camera 01",
+  "camera_ip": "192.168.101.214",
+  "event_type": "duration",
+  "state": "active",
+  "timestamp": "2026-08-04T17:11:07Z",
+  "attributes": {
+    "event_category": "duration",
+    "vendor_event_type": "duration",
+    "geometry": [],
+    "vendor_data": {
+      "vendor_state": "active"
+    }
+  },
+  "bounding_boxes": []
+}
+2026-08-04 14:11:04,935 | INFO | app.services.camera_event_pipeline | [0a239bcdfe1d] Evento ignorado: não possui imagem
+2026-08-04 14:11:09,183 | INFO | root | [HIKVISION][74750c5dc7cf] Recebido: bytes=676 fila=1/1000 resposta=0.16ms
+INFO:     192.168.101.214:55378 - "POST /hikvision HTTP/1.1" 200 OK
+2026-08-04 14:11:09,184 | INFO | app.services.camera_event_pipeline | [74750c5dc7cf] Worker 1 usando HikvisionAdapter
+2026-08-04 14:11:09,185 | INFO | root | [HIKVISION][e601b4bf2412] Recebido: bytes=197495 fila=1/1000 resposta=59.1ms
+INFO:     192.168.101.214:55376 - "POST /hikvision HTTP/1.1" 200 OK
+2026-08-04 14:11:09,186 | INFO | app.services.camera_event_pipeline | [e601b4bf2412] Worker 3 usando HikvisionAdapter
+2026-08-04 14:11:09,188 | INFO | app.services.camera_event_pipeline | [74750c5dc7cf] OBJETO NORMALIZADO (hikvision):
+{
+  "schema_version": "1.0",
+  "event_id": "74750c5dc7cf",
+  "manufacturer": "hikvision",
+  "camera_id": "1",
+  "camera_name": "Camera 01",
+  "camera_ip": "192.168.101.214",
+  "event_type": "duration",
+  "state": "active",
+  "timestamp": "2026-08-04T17:11:11Z",
+  "attributes": {
+    "event_category": "duration",
+    "vendor_event_type": "duration",
+    "geometry": [],
+    "vendor_data": {
+      "vendor_state": "active"
+    }
+  },
+  "bounding_boxes": []
+}
+2026-08-04 14:11:09,188 | INFO | app.services.camera_event_pipeline | [74750c5dc7cf] Evento ignorado: não possui imagem
+2026-08-04 14:11:09,207 | INFO | app.services.camera_event_pipeline | [e601b4bf2412] OBJETO NORMALIZADO (hikvision):
+{
+  "schema_version": "1.0",
+  "event_id": "e601b4bf2412",
+  "manufacturer": "hikvision",
+  "camera_id": "1",
+  "camera_name": "Camera 01",
+  "camera_ip": "192.168.101.214",
+  "event_type": "person_detection",
+  "state": "active",
+  "timestamp": "2026-08-04T17:11:11Z",
+  "target_type": "person",
+  "attributes": {
+    "event_category": "intrusion",
+    "vendor_event_type": "fielddetection",
+    "rule_id": "2",
+    "sensitivity": 50.0,
+    "geometry_type": "region",
+    "geometry": [
+      {
+        "x": 0.541,
+        "y": 0.654
+      },
+      {
+        "x": 0.542,
+        "y": 0.411
+      },
+      {
+        "x": 0.998,
+        "y": 0.391
+      },
+      {
+        "x": 0.999,
+        "y": 0.605
+      }
+    ],
+    "vendor_data": {
+      "vendor_target_type": "human",
+      "vendor_state": "active"
+    }
+  },
+  "bounding_boxes": [
+    {
+      "source": "targetrect",
+      "x": 138,
+      "y": 305,
+      "width": 148,
+      "height": 162,
+      "x2": 286,
+      "y2": 467,
+      "image_ratio": 0.026
+    }
+  ],
+  "selected_bounding_box": {
+    "source": "targetrect",
+    "x": 138,
+    "y": 305,
+    "width": 148,
+    "height": 162,
+    "x2": 286,
+    "y2": 467,
+    "image_ratio": 0.026
+  },
+  "image": {
+    "width": 1280,
+    "height": 720,
+    "format": "jpeg",
+    "original_path": "imagens_eventos/20260804T171111Z_fielddetection_e601b4bf2412_original.jpg",
+    "annotated_path": "imagens_eventos/20260804T171111Z_fielddetection_e601b4bf2412_marcada.jpg"
+  }
+}
+2026-08-04 14:11:09,207 | INFO | app.services.camera_event_pipeline | [e601b4bf2412] Rastreamento em lote: pessoas=1 ids=[('camera-01-957df54b', 'suppressed')]
+2026-08-04 14:11:09,208 | INFO | app.services.camera_event_pipeline | [e601b4bf2412] Contexto da cena: pessoas=1 esquerda=1 centro=0 direita=0 muito_proximos=0 proximos=0 separados=0
+2026-08-04 14:11:09,208 | INFO | app.services.camera_event_pipeline | [e601b4bf2412] Descrição da cena: Uma pessoa identificada à esquerda da cena.
+2026-08-04 14:11:09,236 | INFO | app.services.camera_event_pipeline | [e601b4bf2412] Cena renderizada: boxes=1 dimensoes=1280x720 base64=275360 caracteres
+2026-08-04 14:11:09,538 | INFO | app.services.camera_event_pipeline | [e601b4bf2412] Aparência estável: pessoa=camera-01-957df54b cor=cinza posição=esquerda tamanho=pequeno área_média=2.84% amostras=3
+2026-08-04 14:11:09,538 | INFO | app.services.camera_event_pipeline | [e601b4bf2412] Movimento: pessoa=camera-01-957df54b horizontal=direita vertical=baixo tendencia=aproximando velocidade=27.72px_s distancia_total=760.91px tempo=13.69s amostras=4
+2026-08-04 14:11:09,572 | INFO | app.services.camera_event_pipeline | [e601b4bf2412] Atualização parcial: pessoa=camera-01-957df54b indice=1/1 deteccoes=4 amostras=3 movimento=direita/baixo velocidade=27.72px_s boxes=1 paineis=1
+2026-08-04 14:11:09,572 | INFO | app.services.camera_event_pipeline | [e601b4bf2412] Evento repetido suprimido: pessoa=camera-01-957df54b indice=1/1 amostras=3
+2026-08-04 14:11:11,772 | INFO | root | [HIKVISION][9c554eec5844] Recebido: bytes=676 fila=1/1000 resposta=0.14ms
+INFO:     192.168.101.214:55380 - "POST /hikvision HTTP/1.1" 200 OK
+2026-08-04 14:11:11,773 | INFO | app.services.camera_event_pipeline | [9c554eec5844] Worker 2 usando HikvisionAdapter
+2026-08-04 14:11:11,773 | INFO | app.services.camera_event_pipeline | [9c554eec5844] OBJETO NORMALIZADO (hikvision):
+{
+  "schema_version": "1.0",
+  "event_id": "9c554eec5844",
+  "manufacturer": "hikvision",
+  "camera_id": "1",
+  "camera_name": "Camera 01",
+  "camera_ip": "192.168.101.214",
+  "event_type": "duration",
+  "state": "active",
+  "timestamp": "2026-08-04T17:11:14Z",
+  "attributes": {
+    "event_category": "duration",
+    "vendor_event_type": "duration",
+    "geometry": [],
+    "vendor_data": {
+      "vendor_state": "active"
+    }
+  },
+  "bounding_boxes": []
+}
+2026-08-04 14:11:11,774 | INFO | app.services.camera_event_pipeline | [9c554eec5844] Evento ignorado: não possui imagem
+2026-08-04 14:11:12,450 | INFO | root | [HIKVISION][2e9657173b30] Recebido: bytes=198312 fila=1/1000 resposta=47.67ms
+INFO:     192.168.101.214:55382 - "POST /hikvision HTTP/1.1" 200 OK
+2026-08-04 14:11:12,450 | INFO | app.services.camera_event_pipeline | [2e9657173b30] Worker 4 usando HikvisionAdapter
+2026-08-04 14:11:12,471 | INFO | app.services.camera_event_pipeline | [2e9657173b30] OBJETO NORMALIZADO (hikvision):
+{
+  "schema_version": "1.0",
+  "event_id": "2e9657173b30",
+  "manufacturer": "hikvision",
+  "camera_id": "1",
+  "camera_name": "Camera 01",
+  "camera_ip": "192.168.101.214",
+  "event_type": "person_detection",
+  "state": "active",
+  "timestamp": "2026-08-04T17:11:14Z",
+  "target_type": "person",
+  "attributes": {
+    "event_category": "intrusion",
+    "vendor_event_type": "fielddetection",
+    "rule_id": "2",
+    "sensitivity": 50.0,
+    "geometry_type": "region",
+    "geometry": [
+      {
+        "x": 0.541,
+        "y": 0.654
+      },
+      {
+        "x": 0.542,
+        "y": 0.411
+      },
+      {
+        "x": 0.998,
+        "y": 0.391
+      },
+      {
+        "x": 0.999,
+        "y": 0.605
+      }
+    ],
+    "vendor_data": {
+      "vendor_target_type": "human",
+      "vendor_state": "active"
+    }
+  },
+  "bounding_boxes": [
+    {
+      "source": "targetrect",
+      "x": 45,
+      "y": 232,
+      "width": 113,
+      "height": 182,
+      "x2": 158,
+      "y2": 414,
+      "image_ratio": 0.0223
+    }
+  ],
+  "selected_bounding_box": {
+    "source": "targetrect",
+    "x": 45,
+    "y": 232,
+    "width": 113,
+    "height": 182,
+    "x2": 158,
+    "y2": 414,
+    "image_ratio": 0.0223
+  },
+  "image": {
+    "width": 1280,
+    "height": 720,
+    "format": "jpeg",
+    "original_path": "imagens_eventos/20260804T171114Z_fielddetection_2e9657173b30_original.jpg",
+    "annotated_path": "imagens_eventos/20260804T171114Z_fielddetection_2e9657173b30_marcada.jpg"
+  }
+}
+2026-08-04 14:11:12,471 | INFO | app.services.camera_event_pipeline | [2e9657173b30] Rastreamento em lote: pessoas=1 ids=[('camera-01-957df54b', 'updated')]
+2026-08-04 14:11:12,472 | INFO | app.services.camera_event_pipeline | [2e9657173b30] Contexto da cena: pessoas=1 esquerda=1 centro=0 direita=0 muito_proximos=0 proximos=0 separados=0
+2026-08-04 14:11:12,472 | INFO | app.services.camera_event_pipeline | [2e9657173b30] Descrição da cena: Uma pessoa identificada à esquerda da cena.
+2026-08-04 14:11:12,500 | INFO | app.services.camera_event_pipeline | [2e9657173b30] Cena renderizada: boxes=1 dimensoes=1280x720 base64=276628 caracteres
+2026-08-04 14:11:12,841 | INFO | app.services.camera_event_pipeline | [2e9657173b30] Aparência estável: pessoa=camera-01-957df54b cor=indefinida posição=esquerda tamanho=pequeno área_média=2.69% amostras=4
+2026-08-04 14:11:12,841 | INFO | app.services.camera_event_pipeline | [2e9657173b30] Movimento: pessoa=camera-01-957df54b horizontal=esquerda vertical=cima tendencia=afastando velocidade=38.51px_s distancia_total=888.11px tempo=16.99s amostras=5
+2026-08-04 14:11:12,874 | INFO | app.services.camera_event_pipeline | [2e9657173b30] Pessoa enviada ao painel: pessoa=camera-01-957df54b status=updated indice=1/1 paineis=1
+2026-08-04 14:11:12,874 | INFO | app.services.camera_event_pipeline | [2e9657173b30] Payload pronto; Kafka desativado: pessoa=camera-01-957df54b
+
+===== CLASSIFICADOR DE CENA =====
+from __future__ import annotations
+
+import colorsys
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from statistics import median
+from typing import Literal
+
+from PIL import Image, ImageFilter
+
+from app.services.person_detector_yolo import (
+    obter_rgb_roupa_segmentada,
+)
+
+
+PosicaoHorizontal = Literal[
+    "esquerda",
+    "centro",
+    "direita",
+]
+
+TamanhoNoQuadro = Literal[
+    "pequeno",
+    "medio",
+    "grande",
+]
+
+
+@dataclass(frozen=True)
+class PersonVisualAnalysis:
+    cor_roupa_aproximada: str
+
+    rgb_representativo: tuple[
+        int,
+        int,
+        int,
+    ]
+
+    posicao_horizontal: PosicaoHorizontal
+    tamanho_no_quadro: TamanhoNoQuadro
+    percentual_quadro: float
+    descricao: str
+
+    def to_dict(self) -> dict:
+        dados = asdict(self)
+
+        dados["rgb_representativo"] = list(
+            self.rgb_representativo
+        )
+
+        return dados
+
+
+def analisar_pessoa(
+    caminho_imagem: str | Path,
+    x: int,
+    y: int,
+    largura: int,
+    altura: int,
+) -> PersonVisualAnalysis:
+    caminho = Path(caminho_imagem)
+
+    if not caminho.is_file():
+        raise FileNotFoundError(
+            f"Imagem não encontrada: {caminho}"
+        )
+
+    if largura <= 0 or altura <= 0:
+        raise ValueError(
+            "A bounding box deve possuir largura "
+            "e altura positivas"
+        )
+
+    with Image.open(caminho) as imagem_aberta:
+        imagem = imagem_aberta.convert("RGB")
+
+        largura_imagem, altura_imagem = (
+            imagem.size
+        )
+
+        x1 = max(
+            0,
+            min(
+                int(x),
+                largura_imagem - 1,
+            ),
+        )
+
+        y1 = max(
+            0,
+            min(
+                int(y),
+                altura_imagem - 1,
+            ),
+        )
+
+        x2 = max(
+            x1 + 1,
+            min(
+                int(x + largura),
+                largura_imagem,
+            ),
+        )
+
+        y2 = max(
+            y1 + 1,
+            min(
+                int(y + altura),
+                altura_imagem,
+            ),
+        )
+
+        largura_pessoa = x2 - x1
+        altura_pessoa = y2 - y1
+
+        rgb = obter_rgb_roupa_segmentada(
+            caminho_imagem=caminho,
+            x=x1,
+            y=y1,
+            largura=largura_pessoa,
+            altura=altura_pessoa,
+        )
+
+        # Fallback: mantém o método antigo quando o
+        # YOLO não encontra uma máscara correspondente.
+        if rgb is None:
+            regiao_roupa = _recortar_regiao_roupa(
+                imagem=imagem,
+                x1=x1,
+                y1=y1,
+                largura=largura_pessoa,
+                altura=altura_pessoa,
+            )
+
+            rgb = _obter_cor_representativa(
+                regiao_roupa
+            )
+
+        cor = classificar_cor_rgb(
+            rgb
+        )
+
+        posicao = _classificar_posicao(
+            centro_x=(
+                x1 + largura_pessoa / 2
+            ),
+            largura_imagem=largura_imagem,
+        )
+
+        percentual_quadro = round(
+            (
+                largura_pessoa
+                * altura_pessoa
+            )
+            / (
+                largura_imagem
+                * altura_imagem
+            )
+            * 100,
+            2,
+        )
+
+        tamanho = _classificar_tamanho(
+            percentual_quadro
+        )
+
+        descricao = _montar_descricao(
+            cor=cor,
+            posicao=posicao,
+            tamanho=tamanho,
+        )
+
+        return PersonVisualAnalysis(
+            cor_roupa_aproximada=cor,
+            rgb_representativo=rgb,
+            posicao_horizontal=posicao,
+            tamanho_no_quadro=tamanho,
+            percentual_quadro=percentual_quadro,
+            descricao=descricao,
+        )
+
+
+def _recortar_regiao_roupa(
+    imagem: Image.Image,
+    x1: int,
+    y1: int,
+    largura: int,
+    altura: int,
+) -> Image.Image:
+    """
+    Recorta a região central do tronco.
+
+    A área é mais estreita que a bounding box para
+    reduzir fundo, braços, rosto, mãos e calça.
+    """
+
+    roupa_x1 = int(
+        x1 + largura * 0.27
+    )
+
+    roupa_x2 = int(
+        x1 + largura * 0.73
+    )
+
+    roupa_y1 = int(
+        y1 + altura * 0.25
+    )
+
+    roupa_y2 = int(
+        y1 + altura * 0.58
+    )
+
+    roupa_x2 = max(
+        roupa_x1 + 1,
+        roupa_x2,
+    )
+
+    roupa_y2 = max(
+        roupa_y1 + 1,
+        roupa_y2,
+    )
+
+    return imagem.crop(
+        (
+            roupa_x1,
+            roupa_y1,
+            roupa_x2,
+            roupa_y2,
+        )
+    )
+
+
+def _obter_cor_representativa(
+    regiao: Image.Image,
+) -> tuple[int, int, int]:
+    """
+    Calcula uma cor robusta da roupa.
+
+    O método anterior descartava apenas os pixels
+    claros, deixando o resultado artificialmente
+    escuro. Agora são removidas pequenas parcelas
+    das sombras mais escuras e dos reflexos mais
+    claros antes de calcular a mediana RGB.
+    """
+
+    regiao_reduzida = regiao.resize(
+        (64, 64),
+        Image.Resampling.LANCZOS,
+    )
+
+    regiao_suavizada = (
+        regiao_reduzida.filter(
+            ImageFilter.MedianFilter(
+                size=3
+            )
+        )
+    )
+
+    pixels = list(
+        regiao_suavizada.getdata()
+    )
+
+    if not pixels:
+        return (0, 0, 0)
+
+    pixels_ordenados = sorted(
+        pixels,
+        key=_calcular_luminancia,
+    )
+
+    quantidade = len(
+        pixels_ordenados
+    )
+
+    corte = int(
+        quantidade * 0.08
+    )
+
+    if (
+        corte > 0
+        and quantidade - corte > corte
+    ):
+        candidatos = pixels_ordenados[
+            corte:quantidade - corte
+        ]
+    else:
+        candidatos = pixels_ordenados
+
+    quantidade_minima = max(
+        100,
+        quantidade // 3,
+    )
+
+    if (
+        len(candidatos)
+        < quantidade_minima
+    ):
+        candidatos = pixels
+
+    vermelho = int(
+        round(
+            median(
+                pixel[0]
+                for pixel in candidatos
+            )
+        )
+    )
+
+    verde = int(
+        round(
+            median(
+                pixel[1]
+                for pixel in candidatos
+            )
+        )
+    )
+
+    azul = int(
+        round(
+            median(
+                pixel[2]
+                for pixel in candidatos
+            )
+        )
+    )
+
+    return (
+        vermelho,
+        verde,
+        azul,
+    )
+
+
+def _calcular_luminancia(
+    rgb: tuple[int, int, int],
+) -> float:
+    vermelho, verde, azul = rgb
+
+    return (
+        vermelho * 0.2126
+        + verde * 0.7152
+        + azul * 0.0722
+    )
+
+
+def classificar_cor_rgb(
+    rgb: tuple[int, int, int],
+) -> str:
+    """
+    Classifica uma cor RGB usando HSV, luminância
+    e diferença entre os canais.
+
+    A regra evita chamar qualquer cor escura de
+    preta. Tons escuros com saturação perceptível
+    são classificados como azul-escura,
+    verde-escura, vermelha-escura ou roxa-escura.
+    """
+
+    vermelho, verde, azul = (
+        max(0, min(255, int(canal)))
+        for canal in rgb
+    )
+
+    r = vermelho / 255
+    g = verde / 255
+    b = azul / 255
+
+    matiz, saturacao, brilho = (
+        colorsys.rgb_to_hsv(
+            r,
+            g,
+            b,
+        )
+    )
+
+    matiz_graus = (
+        matiz * 360
+    )
+
+    luminancia = _calcular_luminancia(
+        (
+            vermelho,
+            verde,
+            azul,
+        )
+    )
+
+    maior_canal = max(
+        vermelho,
+        verde,
+        azul,
+    )
+
+    menor_canal = min(
+        vermelho,
+        verde,
+        azul,
+    )
+
+    diferenca_canais = (
+        maior_canal
+        - menor_canal
+    )
+
+    # Zona de baixa iluminação em que preto e
+    # azul-marinho ficam visualmente indistinguíveis.
+    #
+    # Nessa faixa, pequenas diferenças entre canais
+    # podem ser apenas ruído, compressão JPEG ou
+    # iluminação da câmera. É mais seguro não
+    # inventar uma cor.
+    if (
+        brilho <= 0.20
+        and maior_canal <= 55
+        and 0.16 < saturacao < 0.38
+        and 5 < diferenca_canais < 18
+    ):
+        return "escura-indefinida"
+
+    canais_ordenados = sorted(
+        (
+            vermelho,
+            verde,
+            azul,
+        ),
+        reverse=True,
+    )
+
+    segundo_maior_canal = (
+        canais_ordenados[1]
+    )
+
+    vantagem_canal_dominante = (
+        maior_canal
+        - segundo_maior_canal
+    )
+
+    # Em regiões extremamente escuras, a matiz HSV
+    # fica instável e pequenos ruídos da câmera podem
+    # transformar preto em azul, verde ou vermelho.
+    #
+    # Só preserva uma cor muito escura quando existe
+    # sinal cromático suficiente nos pixels.
+    if brilho <= 0.18:
+        cor_escura_perceptivel = (
+            maior_canal >= 34
+            and saturacao >= 0.20
+            and diferenca_canais >= 8
+            and vantagem_canal_dominante >= 5
+        )
+
+        if not cor_escura_perceptivel:
+            return "preta"
+
+    # Preto verdadeiro ou preto iluminado.
+    if (
+        brilho <= 0.12
+        or (
+            brilho <= 0.28
+            and diferenca_canais <= 5
+        )
+        or (
+            luminancia <= 58
+            and saturacao <= 0.14
+        )
+    ):
+        return "preta"
+
+    # Branco e tons neutros.
+    if (
+        luminancia >= 218
+        and saturacao <= 0.18
+    ):
+        return "branca"
+
+    if saturacao <= 0.16:
+        if luminancia < 135:
+            return "cinza-escura"
+
+        return "cinza"
+
+    # Marrom e bege ficam na faixa de laranja,
+    # mas são separados pelo brilho.
+    if (
+        15 <= matiz_graus < 48
+        and saturacao >= 0.22
+    ):
+        if brilho <= 0.62:
+            return "marrom"
+
+        if (
+            saturacao <= 0.48
+            and brilho >= 0.66
+        ):
+            return "bege"
+
+        return "laranja"
+
+    cor_base = _classificar_por_matiz(
+        matiz_graus
+    )
+
+    # Preserva a cor de roupas escuras saturadas.
+    if brilho <= 0.42:
+        cores_escuras = {
+            "vermelha": "vermelha-escura",
+            "verde": "verde-escura",
+            "azul": "azul-escura",
+            "roxa": "roxa-escura",
+        }
+
+        return cores_escuras.get(
+            cor_base,
+            cor_base,
+        )
+
+    return cor_base
+
+
+def _classificar_por_matiz(
+    matiz_graus: float,
+) -> str:
+    if (
+        matiz_graus < 15
+        or matiz_graus >= 345
+    ):
+        return "vermelha"
+
+    if matiz_graus < 48:
+        return "laranja"
+
+    if matiz_graus < 72:
+        return "amarela"
+
+    if matiz_graus < 170:
+        return "verde"
+
+    if matiz_graus < 200:
+        return "azul"
+
+    if matiz_graus < 260:
+        return "azul"
+
+    if matiz_graus < 315:
+        return "roxa"
+
+    return "rosa"
+
+
+def _classificar_cor(
+    rgb: tuple[int, int, int],
+) -> str:
+    """
+    Mantém compatibilidade com testes ou imports
+    antigos que utilizavam a função privada.
+    """
+
+    return classificar_cor_rgb(
+        rgb
+    )
+
+===== MEMÓRIA DE APARÊNCIA =====
+import asyncio
+from collections import Counter
+from dataclasses import asdict, dataclass, field
+
+from app.services.scene_analyzer import (
+    PersonVisualAnalysis,
+)
+
+
+@dataclass(frozen=True)
+class StableAppearance:
+    cor_roupa_predominante: str
+
+    rgb_medio: tuple[
+        int,
+        int,
+        int,
+    ]
+
+    posicao_atual: str
+    tamanho_predominante: str
+    percentual_medio_quadro: float
+    quantidade_amostras: int
+    descricao: str
+
+    def to_dict(self) -> dict:
+        dados = asdict(self)
+
+        dados["rgb_medio"] = list(
+            self.rgb_medio
+        )
+
+        return dados
+
+
+@dataclass
+class _AppearanceState:
+    cores: Counter[str] = field(
+        default_factory=Counter
+    )
+
+    tamanhos: Counter[str] = field(
+        default_factory=Counter
+    )
+
+    soma_vermelho: int = 0
+    soma_verde: int = 0
+    soma_azul: int = 0
+
+    soma_percentual: float = 0.0
+    quantidade_amostras: int = 0
+
+    ultima_cor: str = "indefinida"
+
+    # Cor apresentada como resultado estável.
+    # É separada da última leitura para evitar
+    # alternância causada por iluminação e sombra.
+    cor_estavel: str = "indefinida"
+
+    ultima_posicao: str = "centro"
+    ultimo_tamanho: str = "medio"
+
+
+class AppearanceMemory:
+    def __init__(self) -> None:
+        self._sessoes: dict[
+            str,
+            _AppearanceState,
+        ] = {}
+
+        self._lock = asyncio.Lock()
+
+    @property
+    def quantidade_sessoes(self) -> int:
+        return len(self._sessoes)
+
+    async def registrar(
+        self,
+        pessoa_id: str,
+        analise: PersonVisualAnalysis,
+    ) -> StableAppearance:
+        if not pessoa_id:
+            raise ValueError(
+                "pessoa_id não pode ser vazio"
+            )
+
+        async with self._lock:
+            estado = self._sessoes.get(
+                pessoa_id
+            )
+
+            if estado is None:
+                estado = _AppearanceState()
+
+                self._sessoes[
+                    pessoa_id
+                ] = estado
+
+            estado.cores[
+                analise.cor_roupa_aproximada
+            ] += 1
+
+            estado.tamanhos[
+                analise.tamanho_no_quadro
+            ] += 1
+
+            vermelho, verde, azul = (
+                analise.rgb_representativo
+            )
+
+            estado.soma_vermelho += vermelho
+            estado.soma_verde += verde
+            estado.soma_azul += azul
+
+            estado.soma_percentual += (
+                analise.percentual_quadro
+            )
+
+            estado.quantidade_amostras += 1
+
+            estado.ultima_cor = (
+                analise.cor_roupa_aproximada
+            )
+
+            estado.ultima_posicao = (
+                analise.posicao_horizontal
+            )
+
+            estado.ultimo_tamanho = (
+                analise.tamanho_no_quadro
+            )
+
+            return self._montar_resultado(
+                estado
+            )
+
+    async def obter(
+        self,
+        pessoa_id: str,
+    ) -> StableAppearance | None:
+        async with self._lock:
+            estado = self._sessoes.get(
+                pessoa_id
+            )
+
+            if estado is None:
+                return None
+
+            return self._montar_resultado(
+                estado
+            )
+
+    async def finalizar(
+        self,
+        pessoa_id: str,
+    ) -> StableAppearance | None:
+        """
+        Retorna a aparência final e remove a sessão
+        daquela pessoa da memória.
+        """
+
+        async with self._lock:
+            estado = self._sessoes.pop(
+                pessoa_id,
+                None,
+            )
+
+            if estado is None:
+                return None
+
+            return self._montar_resultado(
+                estado
+            )
+
+    async def limpar(self) -> None:
+        async with self._lock:
+            self._sessoes.clear()
+
+    def _montar_resultado(
+        self,
+        estado: _AppearanceState,
+    ) -> StableAppearance:
+        quantidade = max(
+            1,
+            estado.quantidade_amostras,
+        )
+
+        cor_calculada = (
+            self._selecionar_cor_predominante(
+                estado
+            )
+        )
+
+        maior_quantidade_cor = max(
+            estado.cores.values(),
+            default=0,
+        )
+
+        # A cor só é divulgada depois de três
+        # amostras válidas e quando pelo menos
+        # dois terços delas concordarem.
+        cor_consistente = (
+            quantidade >= 3
+            and (
+                maior_quantidade_cor * 3
+                >= quantidade * 2
+            )
+        )
+
+        if cor_consistente:
+            cor_predominante = cor_calculada
+
+            estado.cor_estavel = (
+                cor_predominante
+            )
+        else:
+            cor_predominante = "indefinida"
+
+        tamanho_predominante = (
+            self._selecionar_predominante(
+                contagem=estado.tamanhos,
+                valor_mais_recente=(
+                    estado.ultimo_tamanho
+                ),
+            )
+        )
+
+        rgb_medio = (
+            round(
+                estado.soma_vermelho
+                / quantidade
+            ),
+            round(
+                estado.soma_verde
+                / quantidade
+            ),
+            round(
+                estado.soma_azul
+                / quantidade
+            ),
+        )
+
+        percentual_medio = round(
+            estado.soma_percentual
+            / quantidade,
+            2,
+        )
+
+        descricao = self._montar_descricao(
+            cor=cor_predominante,
+            posicao=estado.ultima_posicao,
+            tamanho=tamanho_predominante,
+            quantidade=quantidade,
+        )
+
+        return StableAppearance(
+            cor_roupa_predominante=(
+                cor_predominante
+            ),
+            rgb_medio=rgb_medio,
+            posicao_atual=(
+                estado.ultima_posicao
+            ),
+            tamanho_predominante=(
+                tamanho_predominante
+            ),
+            percentual_medio_quadro=(
+                percentual_medio
+            ),
+            quantidade_amostras=quantidade,
+            descricao=descricao,
+        )
+
+    def _selecionar_cor_predominante(
+        self,
+        estado: _AppearanceState,
+    ) -> str:
+        """
+        Estabiliza a classificação de roupas escuras
+        que alternam entre preta e uma cor escura
+        devido à iluminação, distância ou sombra.
+        """
+
+        contagem = estado.cores
+
+        if not contagem:
+            return estado.ultima_cor
+
+        resultado_padrao = (
+            self._selecionar_predominante(
+                contagem=contagem,
+                valor_mais_recente=(
+                    estado.ultima_cor
+                ),
+            )
+        )
+
+        cores_escuras = (
+            "azul-escura",
+            "verde-escura",
+            "vermelha-escura",
+            "roxa-escura",
+        )
+
+        quantidade_preta = contagem.get(
+            "preta",
+            0,
+        )
+
+        candidatas = [
+            (
+                cor,
+                contagem.get(cor, 0),
+            )
+            for cor in cores_escuras
+            if contagem.get(cor, 0) > 0
+        ]
+
+        if (
+            quantidade_preta == 0
+            or not candidatas
+        ):
+            return resultado_padrao
+
+        maior_quantidade_escura = max(
+            quantidade
+            for _, quantidade in candidatas
+        )
+
+        empatadas = [
+            cor
+            for cor, quantidade in candidatas
+            if (
+                quantidade
+                == maior_quantidade_escura
+            )
+        ]
+
+        if estado.cor_estavel in empatadas:
+            cor_escura = estado.cor_estavel
+        elif estado.ultima_cor in empatadas:
+            cor_escura = estado.ultima_cor
+        else:
+            cor_escura = empatadas[0]
+
+        cores_do_conflito = (
+            set(cores_escuras)
+            | {"preta"}
+        )
+
+        maior_outra_cor = max(
+            (
+                quantidade
+                for cor, quantidade
+                in contagem.items()
+                if cor not in cores_do_conflito
+            ),
+            default=0,
+        )
+
+        if maior_outra_cor > max(
+            quantidade_preta,
+            maior_quantidade_escura,
+        ):
+            return resultado_padrao
+
+        # Já estabilizou em azul-escura, verde-escura
+        # ou outra cor escura. Um quadro preto isolado
+        # não deve alterar imediatamente o resultado.
+        if estado.cor_estavel in cores_escuras:
+            cor_estavel = estado.cor_estavel
+
+            quantidade_cor_estavel = (
+                contagem.get(
+                    cor_estavel,
+                    0,
+                )
+            )
+
+            # Permite mudar entre cores escuras apenas
+            # quando a nova cor estiver duas amostras
+            # à frente da atual.
+            if (
+                cor_escura != cor_estavel
+                and maior_quantidade_escura
+                >= quantidade_cor_estavel + 2
+            ):
+                cor_estavel = cor_escura
+                quantidade_cor_estavel = (
+                    maior_quantidade_escura
+                )
+
+            # Volta para preta somente quando as
+            # leituras pretas estiverem duas amostras
+            # à frente da cor escura estabilizada.
+            if (
+                quantidade_preta
+                >= quantidade_cor_estavel + 2
+            ):
+                return "preta"
+
+            return cor_estavel
+
+        # Estava estabilizado como preto. Exige duas
+        # leituras da cor escura e empate ou vantagem
+        # para realizar a mudança.
+        if estado.cor_estavel == "preta":
+            if (
+                maior_quantidade_escura >= 2
+                and maior_quantidade_escura
+                >= quantidade_preta
+            ):
+                return cor_escura
+
+            return "preta"
+
+        # Estado inicial, antes de uma cor estável.
+        if (
+            maior_quantidade_escura >= 2
+            and maior_quantidade_escura
+            >= quantidade_preta
+        ):
+            return cor_escura
+
+        return resultado_padrao
+
+
+    @staticmethod
+    def _selecionar_predominante(
+        contagem: Counter[str],
+        valor_mais_recente: str,
+    ) -> str:
+        if not contagem:
+            return valor_mais_recente
+
+        maior_quantidade = max(
+            contagem.values()
+        )
+
+        empatados = [
+            valor
+            for valor, quantidade
+            in contagem.items()
+            if quantidade == maior_quantidade
+        ]
+
+        # Em caso de empate, utiliza o valor
+        # observado mais recentemente.
+        if valor_mais_recente in empatados:
+            return valor_mais_recente
+
+        return empatados[0]
+
+    @staticmethod
+    def _montar_descricao(
+        cor: str,
+        posicao: str,
+        tamanho: str,
+        quantidade: int,
+    ) -> str:
+        posicoes = {
+            "esquerda": "à esquerda",
+            "centro": "no centro",
+            "direita": "à direita",
+        }
+
+        tamanhos = {
+            "pequeno": "pequeno",
+            "medio": "médio",
+            "grande": "grande",
+        }
+
+        posicao_formatada = posicoes.get(
+            posicao,
+            posicao,
+        )
+
+        tamanho_formatado = tamanhos.get(
+            tamanho,
+            tamanho,
+        )
+
+        return (
+            "Pessoa com roupa predominantemente "
+            f"{cor}, localizada atualmente "
+            f"{posicao_formatada} da cena, "
+            f"com tamanho aparente "
+            f"{tamanho_formatado}. "
+            f"Resultado baseado em "
+            f"{quantidade} amostra(s)."
+        )
+
+
+appearance_memory = AppearanceMemory()
+===== DETECTOR E SEGMENTADOR YOLO =====
+from __future__ import annotations
+
+from collections import OrderedDict
+import logging
+from pathlib import Path
+from threading import Lock
+from typing import Any
+
+import numpy as np
+from PIL import Image
+from ultralytics import YOLO
+
+from app.domain.models.camera_event import BoundingBox
+
+
+logger = logging.getLogger(__name__)
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# Modelo de segmentação: fornece caixas e máscaras.
+MODEL_PATH = PROJECT_ROOT / "yolo11n-seg.pt"
+
+_modelo: YOLO | None = None
+
+_model_lock = Lock()
+_predict_lock = Lock()
+_cache_lock = Lock()
+
+# Guarda resultados recentes para não executar o YOLO
+# novamente quando a mesma imagem for analisada.
+_CACHE_MAXIMO = 4
+
+_resultados_cache: OrderedDict[
+    tuple[
+        str,
+        int,
+        int,
+        float,
+        float,
+        int,
+    ],
+    Any,
+] = OrderedDict()
+
+
+def _obter_modelo() -> YOLO:
+    global _modelo
+
+    if _modelo is not None:
+        return _modelo
+
+    with _model_lock:
+        if _modelo is None:
+            if not MODEL_PATH.is_file():
+                raise FileNotFoundError(
+                    f"Modelo YOLO não encontrado: "
+                    f"{MODEL_PATH}"
+                )
+
+            logger.info(
+                "Carregando modelo de segmentação: %s",
+                MODEL_PATH,
+            )
+
+            _modelo = YOLO(
+                str(MODEL_PATH)
+            )
+
+    return _modelo
+
+
+def _obter_classes_pessoa(
+    modelo: YOLO,
+) -> list[int]:
+    classes = [
+        indice
+        for indice, nome in modelo.names.items()
+        if str(nome).strip().lower() == "person"
+    ]
+
+    if not classes:
+        raise RuntimeError(
+            "Classe person não encontrada "
+            "no modelo YOLO."
+        )
+
+    return classes
+
+
+def _montar_chave_cache(
+    caminho: Path,
+    confianca_minima: float,
+    iou: float,
+    tamanho_imagem: int,
+) -> tuple[
+    str,
+    int,
+    int,
+    float,
+    float,
+    int,
+]:
+    estatisticas = caminho.stat()
+
+    return (
+        str(caminho.resolve()),
+        estatisticas.st_mtime_ns,
+        estatisticas.st_size,
+        round(confianca_minima, 4),
+        round(iou, 4),
+        tamanho_imagem,
+    )
+
+
+def _obter_resultado_yolo(
+    caminho: Path,
+    confianca_minima: float,
+    iou: float,
+    tamanho_imagem: int,
+):
+    chave = _montar_chave_cache(
+        caminho=caminho,
+        confianca_minima=confianca_minima,
+        iou=iou,
+        tamanho_imagem=tamanho_imagem,
+    )
+
+    with _cache_lock:
+        resultado_cache = (
+            _resultados_cache.get(chave)
+        )
+
+        if resultado_cache is not None:
+            _resultados_cache.move_to_end(
+                chave
+            )
+
+            return resultado_cache
+
+    modelo = _obter_modelo()
+
+    classes_pessoa = (
+        _obter_classes_pessoa(modelo)
+    )
+
+    # Evita vários workers executando o modelo
+    # simultaneamente e sobrecarregando a CPU.
+    with _predict_lock:
+        # Confere novamente porque outra thread pode
+        # ter terminado a previsão enquanto aguardávamos.
+        with _cache_lock:
+            resultado_cache = (
+                _resultados_cache.get(chave)
+            )
+
+            if resultado_cache is not None:
+                _resultados_cache.move_to_end(
+                    chave
+                )
+
+                return resultado_cache
+
+        resultados = modelo.predict(
+            source=str(caminho),
+            classes=classes_pessoa,
+            conf=confianca_minima,
+            iou=iou,
+            imgsz=tamanho_imagem,
+            device="cpu",
+            verbose=False,
+        )
+
+    if not resultados:
+        return None
+
+    resultado = resultados[0]
+
+    with _cache_lock:
+        _resultados_cache[chave] = resultado
+        _resultados_cache.move_to_end(chave)
+
+        while (
+            len(_resultados_cache)
+            > _CACHE_MAXIMO
+        ):
+            _resultados_cache.popitem(
+                last=False
+            )
+
+    return resultado
+
+
+def _limitar_coordenadas(
+    x1_float: float,
+    y1_float: float,
+    x2_float: float,
+    y2_float: float,
+    largura_imagem: int,
+    altura_imagem: int,
+) -> tuple[int, int, int, int]:
+    x1 = max(
+        0,
+        min(
+            round(x1_float),
+            largura_imagem - 1,
+        ),
+    )
+
+    y1 = max(
+        0,
+        min(
+            round(y1_float),
+            altura_imagem - 1,
+        ),
+    )
+
+    x2 = max(
+        x1 + 1,
+        min(
+            round(x2_float),
+            largura_imagem,
+        ),
+    )
+
+    y2 = max(
+        y1 + 1,
+        min(
+            round(y2_float),
+            altura_imagem,
+        ),
+    )
+
+    return x1, y1, x2, y2
+
+
+def detectar_pessoas_yolo(
+    caminho_imagem: str | Path,
+    confianca_minima: float = 0.35,
+    iou: float = 0.30,
+    tamanho_imagem: int = 960,
+) -> list[BoundingBox]:
+    caminho = Path(caminho_imagem)
+
+    if not caminho.is_file():
+        raise FileNotFoundError(
+            f"Imagem não encontrada: {caminho}"
+        )
+
+    resultado = _obter_resultado_yolo(
+        caminho=caminho,
+        confianca_minima=confianca_minima,
+        iou=iou,
+        tamanho_imagem=tamanho_imagem,
+    )
+
+    if resultado is None:
+        return []
+
+    caixas_resultado = resultado.boxes
+
+    if (
+        caixas_resultado is None
+        or len(caixas_resultado) == 0
+    ):
+        return []
+
+    altura_imagem, largura_imagem = (
+        resultado.orig_shape
+    )
+
+    area_imagem = (
+        largura_imagem
+        * altura_imagem
+    )
+
+    caixas: list[BoundingBox] = []
+
+    for caixa in caixas_resultado:
+        (
+            x1_float,
+            y1_float,
+            x2_float,
+            y2_float,
+        ) = caixa.xyxy[0].tolist()
+
+        x1, y1, x2, y2 = (
+            _limitar_coordenadas(
+                x1_float=x1_float,
+                y1_float=y1_float,
+                x2_float=x2_float,
+                y2_float=y2_float,
+                largura_imagem=largura_imagem,
+                altura_imagem=altura_imagem,
+            )
+        )
+
+        largura = x2 - x1
+        altura = y2 - y1
+        area = largura * altura
+
+        percentual = (
+            area
+            / area_imagem
+            * 100
+        )
+
+        if (
+            percentual < 0.05
+            or percentual >= 60
+        ):
+            continue
+
+        caixas.append(
+            BoundingBox(
+                origem="yolo_person_seg",
+                x=x1,
+                y=y1,
+                largura=largura,
+                altura=altura,
+                x2=x2,
+                y2=y2,
+                proporcao_imagem=(
+                    area / area_imagem
+                ),
+            )
+        )
+
+    caixas.sort(
+        key=lambda caixa: (
+            caixa.x
+            + caixa.largura / 2,
+            caixa.y
+            + caixa.altura / 2,
+        )
+    )
+
+    return caixas
+
+
+def _calcular_sobreposicao(
+    referencia: tuple[
+        int,
+        int,
+        int,
+        int,
+    ],
+    detectada: tuple[
+        int,
+        int,
+        int,
+        int,
+    ],
+) -> tuple[float, float, float]:
+    ref_x1, ref_y1, ref_x2, ref_y2 = (
+        referencia
+    )
+
+    det_x1, det_y1, det_x2, det_y2 = (
+        detectada
+    )
+
+    inter_x1 = max(ref_x1, det_x1)
+    inter_y1 = max(ref_y1, det_y1)
+    inter_x2 = min(ref_x2, det_x2)
+    inter_y2 = min(ref_y2, det_y2)
+
+    largura_intersecao = max(
+        0,
+        inter_x2 - inter_x1,
+    )
+
+    altura_intersecao = max(
+        0,
+        inter_y2 - inter_y1,
+    )
+
+    area_intersecao = (
+        largura_intersecao
+        * altura_intersecao
+    )
+
+    area_referencia = max(
+        0,
+        ref_x2 - ref_x1,
+    ) * max(
+        0,
+        ref_y2 - ref_y1,
+    )
+
+    area_detectada = max(
+        0,
+        det_x2 - det_x1,
+    ) * max(
+        0,
+        det_y2 - det_y1,
+    )
+
+    if (
+        area_referencia <= 0
+        or area_detectada <= 0
+        or area_intersecao <= 0
+    ):
+        return 0.0, 0.0, 0.0
+
+    area_uniao = (
+        area_referencia
+        + area_detectada
+        - area_intersecao
+    )
+
+    valor_iou = (
+        area_intersecao / area_uniao
+        if area_uniao > 0
+        else 0.0
+    )
+
+    cobertura_referencia = (
+        area_intersecao
+        / area_referencia
+    )
+
+    cobertura_detectada = (
+        area_intersecao
+        / area_detectada
+    )
+
+    return (
+        valor_iou,
+        cobertura_referencia,
+        cobertura_detectada,
+    )
+
+
+def obter_rgb_roupa_segmentada(
+    caminho_imagem: str | Path,
+    x: int,
+    y: int,
+    largura: int,
+    altura: int,
+    confianca_minima: float = 0.35,
+    iou: float = 0.30,
+    tamanho_imagem: int = 960,
+) -> tuple[int, int, int] | None:
+    """
+    Obtém a cor da roupa usando a máscara da pessoa.
+
+    A bounding box recebida é usada para escolher a
+    pessoa correspondente quando existem várias
+    pessoas na mesma imagem.
+
+    Retorna None quando a segmentação não encontra
+    uma pessoa correspondente. Nesse caso, o
+    scene_analyzer utiliza o método antigo.
+    """
+
+    caminho = Path(caminho_imagem)
+
+    if not caminho.is_file():
+        raise FileNotFoundError(
+            f"Imagem não encontrada: {caminho}"
+        )
+
+    if largura <= 0 or altura <= 0:
+        return None
+
+    resultado = _obter_resultado_yolo(
+        caminho=caminho,
+        confianca_minima=confianca_minima,
+        iou=iou,
+        tamanho_imagem=tamanho_imagem,
+    )
+
+    if (
+        resultado is None
+        or resultado.boxes is None
+        or resultado.masks is None
+        or len(resultado.boxes) == 0
+    ):
+        return None
+
+    altura_imagem, largura_imagem = (
+        resultado.orig_shape
+    )
+
+    referencia_x1 = max(
+        0,
+        min(
+            int(x),
+            largura_imagem - 1,
+        ),
+    )
+
+    referencia_y1 = max(
+        0,
+        min(
+            int(y),
+            altura_imagem - 1,
+        ),
+    )
+
+    referencia_x2 = max(
+        referencia_x1 + 1,
+        min(
+            int(x + largura),
+            largura_imagem,
+        ),
+    )
+
+    referencia_y2 = max(
+        referencia_y1 + 1,
+        min(
+            int(y + altura),
+            altura_imagem,
+        ),
+    )
+
+    referencia = (
+        referencia_x1,
+        referencia_y1,
+        referencia_x2,
+        referencia_y2,
+    )
+
+    caixas_numpy = (
+        resultado.boxes.xyxy
+        .cpu()
+        .numpy()
+    )
+
+    confiancas = (
+        resultado.boxes.conf
+        .cpu()
+        .numpy()
+    )
+
+    melhor_indice: int | None = None
+    melhor_caixa: tuple[
+        int,
+        int,
+        int,
+        int,
+    ] | None = None
+
+    melhor_pontuacao = (
+        -1.0,
+        -1.0,
+        -1.0,
+        -1.0,
+    )
+
+    for indice, caixa_numpy in enumerate(
+        caixas_numpy
+    ):
+        detectada = _limitar_coordenadas(
+            x1_float=float(caixa_numpy[0]),
+            y1_float=float(caixa_numpy[1]),
+            x2_float=float(caixa_numpy[2]),
+            y2_float=float(caixa_numpy[3]),
+            largura_imagem=largura_imagem,
+            altura_imagem=altura_imagem,
+        )
+
+        (
+            valor_iou,
+            cobertura_referencia,
+            cobertura_detectada,
+        ) = _calcular_sobreposicao(
+            referencia=referencia,
+            detectada=detectada,
+        )
+
+        corresponde = (
+            valor_iou >= 0.15
+            or cobertura_referencia >= 0.45
+            or cobertura_detectada >= 0.45
+        )
+
+        if not corresponde:
+            continue
+
+        pontuacao = (
+            max(
+                valor_iou,
+                cobertura_referencia,
+                cobertura_detectada,
+            ),
+            cobertura_referencia,
+            valor_iou,
+            float(confiancas[indice]),
+        )
+
+        if pontuacao > melhor_pontuacao:
+            melhor_pontuacao = pontuacao
+            melhor_indice = indice
+            melhor_caixa = detectada
+
+    if (
+        melhor_indice is None
+        or melhor_caixa is None
+    ):
+        return None
+
+    mascara = (
+        resultado.masks.data[
+            melhor_indice
+        ]
+        .cpu()
+        .numpy()
+    )
+
+    if mascara.shape != (
+        altura_imagem,
+        largura_imagem,
+    ):
+        mascara_imagem = Image.fromarray(
+            (
+                mascara * 255
+            ).astype(np.uint8)
+        )
+
+        mascara_imagem = mascara_imagem.resize(
+            (
+                largura_imagem,
+                altura_imagem,
+            ),
+            Image.Resampling.NEAREST,
+        )
+
+        mascara = (
+            np.asarray(mascara_imagem)
+            > 127
+        )
+    else:
+        mascara = mascara > 0.5
+
+    (
+        pessoa_x1,
+        pessoa_y1,
+        pessoa_x2,
+        pessoa_y2,
+    ) = melhor_caixa
+
+    largura_pessoa = (
+        pessoa_x2 - pessoa_x1
+    )
+
+    altura_pessoa = (
+        pessoa_y2 - pessoa_y1
+    )
+
+    # Mesma região que funcionou no teste real:
+    # parte central e inferior da camisa.
+    torso_x1 = int(
+        pessoa_x1
+        + largura_pessoa * 0.18
+    )
+
+    torso_x2 = int(
+        pessoa_x1
+        + largura_pessoa * 0.82
+    )
+
+    torso_y1 = int(
+        pessoa_y1
+        + altura_pessoa * 0.42
+    )
+
+    torso_y2 = int(
+        pessoa_y1
+        + altura_pessoa * 0.72
+    )
+
+    torso_x1 = max(
+        0,
+        min(
+            torso_x1,
+            largura_imagem - 1,
+        ),
+    )
+
+    torso_y1 = max(
+        0,
+        min(
+            torso_y1,
+            altura_imagem - 1,
+        ),
+    )
+
+    torso_x2 = max(
+        torso_x1 + 1,
+        min(
+            torso_x2,
+            largura_imagem,
+        ),
+    )
+
+    torso_y2 = max(
+        torso_y1 + 1,
+        min(
+            torso_y2,
+            altura_imagem,
+        ),
+    )
+
+    regiao_valida = np.zeros(
+        (
+            altura_imagem,
+            largura_imagem,
+        ),
+        dtype=bool,
+    )
+
+    regiao_valida[
+        torso_y1:torso_y2,
+        torso_x1:torso_x2,
+    ] = True
+
+    regiao_valida &= mascara
+
+    with Image.open(caminho) as imagem_aberta:
+        imagem_rgb = np.asarray(
+            imagem_aberta.convert("RGB")
+        )
+
+    pixels = imagem_rgb[
+        regiao_valida
+    ]
+
+    if len(pixels) < 50:
+        return None
+
+    pixels_float = pixels.astype(
+        np.float32
+    )
+
+    luminancia = (
+        pixels_float[:, 0] * 0.2126
+        + pixels_float[:, 1] * 0.7152
+        + pixels_float[:, 2] * 0.0722
+    )
+
+    pixels = pixels[
+        (luminancia >= 20)
+        & (luminancia <= 235)
+    ]
+
+    if len(pixels) < 50:
+        return None
+
+    rgb = tuple(
+        int(round(valor))
+        for valor in np.median(
+            pixels,
+            axis=0,
+        )
+    )
+
+    logger.debug(
+        "Cor segmentada: imagem=%s rgb=%s "
+
+===== ANÁLISE DE APARÊNCIA NO PIPELINE =====
+                and y1 == caixa.y
+                and largura == caixa.largura
+                and altura == caixa.altura
+            ):
+                caixa_ajustada = caixa
+            else:
+                caixa_ajustada = caixa.model_copy(
+                    update={
+                        "x": x1,
+                        "y": y1,
+                        "largura": largura,
+                        "altura": altura,
+                        "x2": x2,
+                        "y2": y2,
+                    }
+                )
+
+            caixas_validas.append(caixa_ajustada)
+
+        if not caixas_validas and evento.bounding_box_escolhida is not None:
+            caixas_validas.append(evento.bounding_box_escolhida)
+
+        caixas_validas.sort(
+            key=lambda caixa: (
+                caixa.x + caixa.largura / 2,
+                caixa.y + caixa.altura / 2,
+            )
+        )
+        return caixas_validas
+
+    async def _analisar_aparencia(
+        self,
+        evento: CameraEvent,
+        bounding_box: BoundingBox,
+        pessoa_id: str,
+        pacote_id: str,
+    ):
+        try:
+            if evento.imagem is None or not evento.imagem.caminho_original:
+                logger.info(
+                    "[%s] Imagem sem caminho original; aparência não analisada",
+                    pacote_id,
+                )
+                return None
+
+            percentual_caixa = (
+                float(
+                    bounding_box.proporcao_imagem
+                    or 0.0
+                )
+                * 100
+            )
+
+            # Uma pessoa muito pequena não possui
+            # pixels de roupa suficientes para uma
+            # classificação confiável.
+            if (
+                bounding_box.largura < 80
+                or bounding_box.altura < 160
+                or percentual_caixa < 2.00
+            ):
+                logger.info(
+                    "[%s] Aparência ignorada: "
+                    "caixa pequena pessoa=%s "
+                    "dimensoes=%sx%s area=%.2f%%",
+                    pacote_id,
+                    pessoa_id,
+                    bounding_box.largura,
+                    bounding_box.altura,
+                    percentual_caixa,
+                )
+
+                return await appearance_memory.obter(
+                    pessoa_id
+                )
+
+            analise_visual = await asyncio.to_thread(
+                analisar_pessoa,
+                caminho_imagem=evento.imagem.caminho_original,
+                x=bounding_box.x,
+                y=bounding_box.y,
+                largura=bounding_box.largura,
+                altura=bounding_box.altura,
+            )
+            # Uma leitura ambígua não entra na
+            # votação da memória. Caso já exista uma
+            # aparência confiável, ela é preservada.
+            if (
+                analise_visual.cor_roupa_aproximada
+                == "escura-indefinida"
+            ):
+                logger.info(
+                    "[%s] Cor escura indefinida: "
+                    "pessoa=%s rgb=%s; "
+                    "mantendo aparência anterior",
+                    pacote_id,
+                    pessoa_id,
+                    analise_visual.rgb_representativo,
+                )
+
+                return await appearance_memory.obter(
+                    pessoa_id
+                )
+
+            aparencia_estavel = await appearance_memory.registrar(
+                pessoa_id=pessoa_id,
+                analise=analise_visual,
+            )
+            logger.info(
+                "[%s] Aparência estável: pessoa=%s cor=%s posição=%s "
+                "tamanho=%s área_média=%s%% amostras=%s",
+                pacote_id,
+                pessoa_id,
+                aparencia_estavel.cor_roupa_predominante,
+                aparencia_estavel.posicao_atual,
+                aparencia_estavel.tamanho_predominante,
+                aparencia_estavel.percentual_medio_quadro,
+                aparencia_estavel.quantidade_amostras,
+            )
+            return aparencia_estavel
+        except Exception:
+
+===== PROCESSAMENTO PRINCIPAL DO PIPELINE =====
+        except Exception:
+            logger.exception(
+                "[%s] Não foi possível renderizar a cena com boxes",
+                pacote_id,
+            )
+            return None
+
+    async def _publicar_atualizacao_parcial(
+        self,
+        camera: str,
+        decisao: TrackingDecision,
+        aparencia_estavel,
+        movimento,
+        contexto_cena,
+        cena_renderizada,
+        imagem_recorte_base64: str | None,
+        indice_na_cena: int,
+        total_pessoas_cena: int,
+        pacote_id: str,
+    ) -> None:
+        atualizacao_parcial = {
+            "evento_id": decisao.evento_id,
+            "pessoa_id": decisao.pessoa_id,
+            "status": "appearance_updated",
+            "quantidade_deteccoes": decisao.quantidade_deteccoes,
+            "camera": camera,
+            "imagem": imagem_recorte_base64,
+            "aparencia": (
+                aparencia_estavel.to_dict()
+                if aparencia_estavel is not None
+                else None
+            ),
+            "movimento": (
+                movimento.to_dict()
+                if movimento is not None
+                else None
+            ),
+            "contexto_cena": (
+                contexto_cena.to_dict() if contexto_cena is not None else None
+            ),
+            "imagem_cena": (
+                cena_renderizada.imagem_base64
+                if cena_renderizada is not None
+                else None
+            ),
+            "quantidade_boxes_cena": (
+                cena_renderizada.quantidade_boxes
+                if cena_renderizada is not None
+                else 0
+            ),
+            "indice_na_cena": indice_na_cena,
+            "total_pessoas_cena": total_pessoas_cena,
+        }
+        await event_hub.publicar(atualizacao_parcial)
+        logger.info(
+            "[%s] Atualização parcial: pessoa=%s indice=%s/%s "
+            "deteccoes=%s amostras=%s movimento=%s/%s velocidade=%spx_s "
+            "boxes=%s paineis=%s",
+            pacote_id,
+            decisao.pessoa_id,
+            indice_na_cena,
+            total_pessoas_cena,
+            decisao.quantidade_deteccoes,
+            (
+                aparencia_estavel.quantidade_amostras
+                if aparencia_estavel is not None
+                else 0
+            ),
+            (
+                movimento.movimento_horizontal
+                if movimento is not None
+                else "-"
+            ),
+            (
+                movimento.movimento_vertical
+                if movimento is not None
+                else "-"
+            ),
+            (
+                movimento.velocidade_pixels_segundo
+                if movimento is not None
+                else 0
+            ),
+            (
+                cena_renderizada.quantidade_boxes
+                if cena_renderizada is not None
+                else 0
+            ),
+            event_hub.total_conexoes,
+        )
+
+    async def _processar_pessoa(
+        self,
+        evento: CameraEvent,
+        camera: str,
+        bounding_box: BoundingBox,
+        decisao: TrackingDecision,
+        contexto_cena,
+        cena_renderizada,
+        indice_na_cena: int,
+        total_pessoas_cena: int,
+        pacote_id: str,
+        imagem_background_base64: str | None,
+    ) -> str | None:
+        aparencia_estavel = await self._analisar_aparencia(
+            evento=evento,
+            bounding_box=bounding_box,
+            pessoa_id=decisao.pessoa_id,
+            pacote_id=pacote_id,
+        )
+
+        movimento = await person_movement_memory.registrar(
+            pessoa_id=decisao.pessoa_id,
+            bbox=decisao.bbox,
+        )
+        logger.info(
+            "[%s] Movimento: pessoa=%s horizontal=%s vertical=%s "
+            "tendencia=%s velocidade=%spx_s distancia_total=%spx "
+            "tempo=%ss amostras=%s",
+            pacote_id,
+            decisao.pessoa_id,
+            movimento.movimento_horizontal,
+            movimento.movimento_vertical,
+            movimento.tendencia_distancia,
+            movimento.velocidade_pixels_segundo,
+            movimento.distancia_total_pixels,
+            movimento.tempo_observado_segundos,
+            movimento.quantidade_amostras,
+        )
+
+        if not decisao.deve_processar:
+            imagem_recorte_base64 = None
+
+            if (
+                evento.imagem is not None
+                and evento.imagem.caminho_original
+            ):
+                try:
+                    imagem_recorte_base64 = (
+                        await asyncio.to_thread(
+                            recortar_deteccao_base64,
+                            evento.imagem.caminho_original,
+                            bounding_box,
+                        )
+                    )
+                except Exception:
+                    logger.exception(
+                        "[%s] Não foi possível atualizar "
+                        "o recorte da pessoa=%s",
+                        pacote_id,
+                        decisao.pessoa_id,
+                    )
+
+            await self._publicar_atualizacao_parcial(
+                camera=camera,
+                decisao=decisao,
+                aparencia_estavel=aparencia_estavel,
+                movimento=movimento,
+                contexto_cena=contexto_cena,
+                cena_renderizada=cena_renderizada,
+                imagem_recorte_base64=(
+                    imagem_recorte_base64
+                ),
+                indice_na_cena=indice_na_cena,
+                total_pessoas_cena=total_pessoas_cena,
+                pacote_id=pacote_id,
+            )
+            logger.info(
+                "[%s] Evento repetido suprimido: pessoa=%s indice=%s/%s amostras=%s",
+                pacote_id,
+                decisao.pessoa_id,
+                indice_na_cena,
+                total_pessoas_cena,
+                (
+                    aparencia_estavel.quantidade_amostras
+                    if aparencia_estavel is not None
+                    else 0
+                ),
+            )
+            return imagem_background_base64
+
+        if evento.imagem is None or not evento.imagem.caminho_original:
+            logger.info("[%s] Pessoa ignorada: caminho original ausente", pacote_id)
+            return imagem_background_base64
+
+        if imagem_background_base64 is None:
+            imagem_background_base64 = await asyncio.to_thread(
+                arquivo_para_base64,
+                evento.imagem.caminho_original,
+            )
+
+
+===== TESTES DE COR =====
+
+=======================================================
+CAMISA AZUL-ESCURA COM SOMBRA
+Amostra 1: leitura=preta         estável=indefinida
+Amostra 2: leitura=azul-escura   estável=indefinida
+Amostra 3: leitura=preta         estável=preta
+Amostra 4: leitura=azul-escura   estável=indefinida
+Amostra 5: leitura=preta         estável=indefinida
+Traceback (most recent call last):
+  File "/home/matheus-gomes/Documentos/minha-api-lab/testar_estabilidade_cor.py", line 126, in <module>
+    asyncio.run(main())
+  File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/matheus-gomes/Documentos/minha-api-lab/testar_estabilidade_cor.py", line 80, in main
+    assert alternando == [
+           ^^^^^^^^^^^^^^^
+AssertionError
+
+===== TESTE DA MEMÓRIA =====
+===== PRIMEIRA AMOSTRA =====
+{
+  "cor_roupa_predominante": "indefinida",
+  "rgb_medio": [
+    25,
+    25,
+    25
+  ],
+  "posicao_atual": "centro",
+  "tamanho_predominante": "medio",
+  "percentual_medio_quadro": 9.2,
+  "quantidade_amostras": 1,
+  "descricao": "Pessoa com roupa predominantemente indefinida, localizada atualmente no centro da cena, com tamanho aparente médio. Resultado baseado em 1 amostra(s)."
+}
+
+===== SEGUNDA AMOSTRA =====
+{
+  "cor_roupa_predominante": "indefinida",
+  "rgb_medio": [
+    55,
+    55,
+    55
+  ],
+  "posicao_atual": "centro",
+  "tamanho_predominante": "medio",
+  "percentual_medio_quadro": 8.3,
+  "quantidade_amostras": 2,
+  "descricao": "Pessoa com roupa predominantemente indefinida, localizada atualmente no centro da cena, com tamanho aparente médio. Resultado baseado em 2 amostra(s)."
+}
+
+===== RESULTADO ESTÁVEL =====
+{
+  "cor_roupa_predominante": "preta",
+  "rgb_medio": [
+    48,
+    48,
+    48
+  ],
+  "posicao_atual": "direita",
+  "tamanho_predominante": "medio",
+  "percentual_medio_quadro": 8.23,
+  "quantidade_amostras": 3,
+  "descricao": "Pessoa com roupa predominantemente preta, localizada atualmente à direita da cena, com tamanho aparente médio. Resultado baseado em 3 amostra(s)."
+}
+
+Teste concluído com sucesso.
+
+===== TESTE DO ANALISADOR =====
+===== ANÁLISE VISUAL =====
+{
+  "cor_roupa_aproximada": "preta",
+  "rgb_representativo": [
+    20,
+    20,
+    20
+  ],
+  "posicao_horizontal": "centro",
+  "tamanho_no_quadro": "grande",
+  "percentual_quadro": 17.32,
+  "descricao": "Pessoa com roupa predominantemente preta, localizada no centro da cena, ocupando uma grande parte do enquadramento."
+}
+
+Teste concluído com sucesso.

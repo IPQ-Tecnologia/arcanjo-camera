@@ -1,0 +1,47 @@
+<EventNotificationAlert version="2.0" xmlns="http://www.hikvision.com/ver20/XMLSchema">
+<ipAddress>192.168.101.214</ipAddress>
+<portNo>8000</portNo>
+<protocol>HTTP</protocol>
+<macAddress>e0:ca:3c:ba:56:9c</macAddress>
+<channelID>1</channelID>
+<dateTime>2026-07-15T14:44:06-03:00</dateTime>
+<activePostCount>1</activePostCount>
+<eventType>fielddetection</eventType>
+<eventState>active</eventState>
+<eventDescription>fielddetection alarm</eventDescription>
+<DetectionRegionList>
+<DetectionRegionEntry>
+<regionID>1</regionID>
+<sensitivityLevel>50</sensitivityLevel>
+<RegionCoordinatesList>
+<RegionCoordinates>
+<positionX>972</positionX>
+<positionY>936</positionY>
+</RegionCoordinates>
+<RegionCoordinates>
+<positionX>973</positionX>
+<positionY>64</positionY>
+</RegionCoordinates>
+<RegionCoordinates>
+<positionX>24</positionX>
+<positionY>52</positionY>
+</RegionCoordinates>
+<RegionCoordinates>
+<positionX>19</positionX>
+<positionY>966</positionY>
+</RegionCoordinates>
+</RegionCoordinatesList>
+<detectionTarget>human</detectionTarget>
+<TargetRect>
+<X>0.463</X>
+<Y>0.364</Y>
+<width>0.066</width>
+<height>0.257</height>
+</TargetRect>
+</DetectionRegionEntry>
+</DetectionRegionList>
+<channelName>Camera 01</channelName>
+<detectionPictureTransType>binary</detectionPictureTransType>
+<detectionPicturesNumber>1</detectionPicturesNumber>
+<isDataRetransmission>false</isDataRetransmission>
+</EventNotificationAlert>

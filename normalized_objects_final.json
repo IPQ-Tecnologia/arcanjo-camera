@@ -1,0 +1,145 @@
+{
+  "hikvision": {
+    "schema_version": "1.0",
+    "event_id": "8b22a8219209",
+    "manufacturer": "hikvision",
+    "camera_id": "1",
+    "camera_name": "Camera 01",
+    "camera_ip": "192.168.101.214",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-07-29T20:47:21Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "line_crossing",
+      "vendor_event_type": "linedetection",
+      "rule_id": "1",
+      "sensitivity": 70.0,
+      "geometry_type": "line",
+      "geometry": [
+        {
+          "x": 0.084,
+          "y": 0.605
+        },
+        {
+          "x": 1.0,
+          "y": 0.574
+        }
+      ],
+      "vendor_data": {
+        "vendor_target_type": "human",
+        "vendor_state": "active"
+      }
+    },
+    "bounding_boxes": [
+      {
+        "source": "targetrect",
+        "x": 59,
+        "y": 250,
+        "width": 145,
+        "height": 160,
+        "x2": 204,
+        "y2": 410,
+        "image_ratio": 0.0252
+      }
+    ],
+    "selected_bounding_box": {
+      "source": "targetrect",
+      "x": 59,
+      "y": 250,
+      "width": 145,
+      "height": 160,
+      "x2": 204,
+      "y2": 410,
+      "image_ratio": 0.0252
+    },
+    "image": {
+      "width": 1280,
+      "height": 720,
+      "format": "jpeg",
+      "original_path": "imagens_eventos/20260729T204721Z_linedetection_8b22a8219209_original.jpg",
+      "annotated_path": "imagens_eventos/20260729T204721Z_linedetection_8b22a8219209_marcada.jpg"
+    }
+  },
+  "dahua": {
+    "schema_version": "1.0",
+    "event_id": "a5d1ec86f1a8",
+    "manufacturer": "dahua",
+    "camera_id": "0",
+    "camera_name": "Dahua Canal 0",
+    "camera_ip": "192.168.101.211",
+    "event_type": "person_detection",
+    "state": "active",
+    "timestamp": "2026-07-29T20:47:21Z",
+    "target_type": "person",
+    "attributes": {
+      "event_category": "intrusion",
+      "vendor_action": "Appear",
+      "vendor_event_type": "CrossRegionDetection",
+      "source_event_id": "17375",
+      "rule_id": "17",
+      "rule_name": "IVS-1",
+      "object_id": "38694",
+      "group_id": "7178",
+      "geometry_type": "region",
+      "geometry": [
+        {
+          "x": 0.00988890245391283,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.01648150408985472
+        },
+        {
+          "x": 0.9854718593578318,
+          "y": 0.9920644609937737
+        },
+        {
+          "x": 0.00988890245391283,
+          "y": 0.9920644609937737
+        }
+      ],
+      "raw_bounding_box": [
+        5664.0,
+        2336.0,
+        6416.0,
+        6480.0
+      ],
+      "vendor_data": {
+        "vendor_target_type": "Human",
+        "vendor_state": "active",
+        "event_action": "Start"
+      }
+    },
+    "bounding_boxes": [
+      {
+        "source": "dahua_object_bounding_box",
+        "x": 1859,
+        "y": 433,
+        "width": 247,
+        "height": 769,
+        "x2": 2106,
+        "y2": 1202,
+        "image_ratio": 0.04648902529761905
+      }
+    ],
+    "selected_bounding_box": {
+      "source": "dahua_object_bounding_box",
+      "x": 1859,
+      "y": 433,
+      "width": 247,
+      "height": 769,
+      "x2": 2106,
+      "y2": 1202,
+      "image_ratio": 0.04648902529761905
+    },
+    "image": {
+      "width": 2688,
+      "height": 1520,
+      "format": "jpeg",
+      "original_path": "imagens_eventos/20260729T204721Z_CrossRegionDetection_a5d1ec86f1a8_original.jpg",
+      "annotated_path": "imagens_eventos/20260729T204721Z_CrossRegionDetection_a5d1ec86f1a8_marcada.jpg"
+    }
+  }
+}

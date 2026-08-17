@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<HttpHostNotificationList xmlns="http://www.hikvision.com/ver20/XMLSchema" version="2.0">
+  <HttpHostNotification version="2.0">
+    <id>1</id>
+    <url>/hikvision</url>
+    <protocolType>HTTP</protocolType>
+    <parameterFormatType>XML</parameterFormatType>
+    <addressingFormatType>ipaddress</addressingFormatType>
+    <ipAddress>192.168.101.75</ipAddress>
+    <portNo>8000</portNo>
+    <userName />
+    <httpAuthenticationMethod>none</httpAuthenticationMethod>
+    <httpBroken>true</httpBroken>
+  </HttpHostNotification>
+  <HttpHostNotification version="2.0">
+    <id>2</id>
+    <url>/</url>
+    <protocolType>HTTP</protocolType>
+    <parameterFormatType>XML</parameterFormatType>
+    <addressingFormatType>ipaddress</addressingFormatType>
+    <ipAddress>0.0.0.0</ipAddress>
+    <portNo>80</portNo>
+    <userName />
+    <httpAuthenticationMethod>none</httpAuthenticationMethod>
+    <httpBroken>true</httpBroken>
+  </HttpHostNotification>
+  <HttpHostNotification version="2.0">
+    <id>3</id>
+    <url>/</url>
+    <protocolType>HTTP</protocolType>
+    <parameterFormatType>XML</parameterFormatType>
+    <addressingFormatType>ipaddress</addressingFormatType>
+    <ipAddress>0.0.0.0</ipAddress>
+    <portNo>80</portNo>
+    <userName />
+    <httpAuthenticationMethod>none</httpAuthenticationMethod>
+    <httpBroken>true</httpBroken>
+  </HttpHostNotification>
+</HttpHostNotificationList>

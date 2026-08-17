@@ -1,0 +1,591 @@
+===== MODELOS DE DOMÍNIO =====
+from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+
+class BoundingBox(BaseModel):
+    origem: str | None = None
+
+    x: int
+    y: int
+
+    largura: int
+    altura: int
+
+    x2: int
+    y2: int
+
+    proporcao_imagem: float | None = None
+
+
+class ImageData(BaseModel):
+    largura: int | None = None
+    altura: int | None = None
+
+    formato: str | None = None
+
+    caminho_original: str | None = None
+    caminho_marcada: str | None = None
+
+
+class CameraEvent(BaseModel):
+    schema_version: str = "1.0"
+
+    evento_id: str
+
+    fabricante: str
+    modelo_camera: str | None = None
+
+    camera_id: str | None = None
+    nome_camera: str | None = None
+    ip_camera: str | None = None
+
+    tipo_evento: str
+    estado: str | None = None
+    data_hora: datetime
+
+    alvo_detectado: str | None = None
+
+    bounding_boxes: list[BoundingBox] = Field(
+        default_factory=list
+    )
+
+    bounding_box_escolhida: BoundingBox | None = None
+
+    imagem: ImageData | None = None
+
+    dados_extras: dict[str, Any] = Field(
+        default_factory=dict
+    )
+
+
+class RawCameraPackage(BaseModel):
+    evento_id: str
+    recebido_em: datetime
+
+    content_type: str
+    ip_camera: str | None = None
+
+    caminho_pacote: str
+===== PARTE FINAL DO HIKVISION ADAPTER =====
+class HikvisionAdapter(CameraAdapter):
+    fabricante = "hikvision"
+
+    def consegue_processar(
+        self,
+        content_type: str,
+        body: bytes,
+    ) -> bool:
+        body_lower = body.lower()
+
+        return (
+            b"hikvision.com" in body_lower
+            or b"eventnotificationalert" in body_lower
+            or b"<eventtype>" in body_lower
+        )
+
+    def normalizar(
+        self,
+        pacote: RawCameraPackage,
+        body: bytes,
+    ) -> CameraEvent:
+        content_type = pacote.content_type or ""
+        tipo_conteudo = content_type.lower()
+
+        xml_direto = (
+            "application/xml" in tipo_conteudo
+            or "text/xml" in tipo_conteudo
+        )
+
+        imagem: bytes | None = None
+
+        if xml_direto:
+            formato_pacote = "xml_direto"
+            xml = limpar_xml_direto(body)
+        else:
+            formato_pacote = "multipart"
+            boundary = obter_boundary(content_type, body)
+
+            if not boundary:
+                raise ValueError("Boundary não encontrado")
+
+            xml = extrair_xml(body, boundary)
+            imagem = extrair_imagem(body, boundary)
+
+            if xml is None:
+                raise ValueError("XML não encontrado no multipart")
+
+        raiz = ET.fromstring(xml)
+
+        tipo_evento = pegar_texto(
+            raiz,
+            "ns:eventType",
+            NAMESPACE_HIKVISION,
+        ) or "desconhecido"
+
+        data_hora_texto = pegar_texto(
+            raiz,
+            "ns:dateTime",
+            NAMESPACE_HIKVISION,
+        )
+        data_hora = converter_data_utc(data_hora_texto)
+
+        estado = pegar_texto(
+            raiz,
+            "ns:eventState",
+            NAMESPACE_HIKVISION,
+        )
+        nome_camera = pegar_texto(
+            raiz,
+            "ns:channelName",
+            NAMESPACE_HIKVISION,
+        )
+        camera_id = pegar_texto(
+            raiz,
+            "ns:channelID",
+            NAMESPACE_HIKVISION,
+        )
+        modelo_camera = pegar_texto_por_nome_local(
+            raiz,
+            ("deviceModel", "model", "modelName"),
+        )
+        alvo_detectado = pegar_texto(
+            raiz,
+            ".//ns:detectionTarget",
+            NAMESPACE_HIKVISION,
+        )
+
+        boxes_xml = extrair_bounding_boxes(raiz)
+        boxes_pixels: list[dict] = []
+        box_escolhido: dict | None = None
+
+        largura_img = None
+        altura_img = None
+        caminho_original = None
+        caminho_marcada = None
+        image_data = None
+
+        if imagem is not None:
+            with Image.open(io.BytesIO(imagem)) as imagem_pil:
+                largura_img, altura_img = imagem_pil.size
+
+            boxes_pixels = converter_boxes_para_pixels(
+                boxes_xml,
+                raiz,
+                largura_img,
+                altura_img,
+            )
+            box_escolhido = escolher_bounding_box(boxes_pixels)
+
+            nome_base = criar_nome_base(
+                data_hora,
+                tipo_evento,
+                pacote.evento_id,
+            )
+
+            caminho_original = salvar_imagem_original(
+                imagem,
+                nome_base,
+            )
+            caminho_marcada = salvar_imagem_marcada(
+                imagem,
+                nome_base,
+                box_escolhido,
+            )
+
+            image_data = ImageData(
+                largura=largura_img,
+                altura=altura_img,
+                formato="jpeg",
+                caminho_original=caminho_original,
+                caminho_marcada=caminho_marcada,
+            )
+
+        boxes_modelo = [
+            converter_box_modelo(box)
+            for box in boxes_pixels
+        ]
+
+        return CameraEvent(
+            evento_id=pacote.evento_id,
+            fabricante=self.fabricante,
+            modelo_camera=modelo_camera,
+            camera_id=camera_id,
+            nome_camera=nome_camera,
+            ip_camera=pacote.ip_camera,
+            tipo_evento=tipo_evento,
+            estado=estado,
+            data_hora=data_hora,
+            alvo_detectado=alvo_detectado,
+            bounding_boxes=[
+                box
+                for box in boxes_modelo
+                if box is not None
+            ],
+            bounding_box_escolhida=converter_box_modelo(
+                box_escolhido
+            ),
+            imagem=image_data,
+            dados_extras={
+                "formato_pacote": formato_pacote,
+                "imagem_recebida": imagem is not None,
+                "quantidade_bounding_boxes": len(boxes_pixels),
+                "bounding_boxes_xml": boxes_xml,
+                "content_type": content_type,
+            },
+        )
+
+===== WORKER DO PIPELINE =====
+            pacote_id,
+            decisao.pessoa_id,
+            decisao.status,
+            indice_na_cena,
+            total_pessoas_cena,
+            event_hub.total_conexoes,
+        )
+
+        if not settings.kafka_enabled:
+            logger.info(
+                "[%s] Payload pronto; Kafka desativado: pessoa=%s",
+                pacote_id,
+                decisao.pessoa_id,
+            )
+            return imagem_background_base64
+
+        resultado = await self.publisher.publicar(
+            topico=self.topic,
+            evento_id=decisao.evento_id,
+            dados=mensagem.model_dump(mode="json"),
+        )
+        logger.info(
+            "[%s] Pessoa publicada em %s p=%s offset=%s pessoa=%s indice=%s/%s",
+            pacote_id,
+            resultado["topico"],
+            resultado["particao"],
+            resultado["offset"],
+            decisao.pessoa_id,
+            indice_na_cena,
+            total_pessoas_cena,
+        )
+        return imagem_background_base64
+
+    async def _worker(self, numero: int) -> None:
+        logger.info("Worker %s iniciado", numero)
+
+        while True:
+            pacote, body = await self.queue.get()
+
+            try:
+                adapter = camera_adapter_factory.encontrar_adapter(
+                    content_type=pacote.content_type,
+                    body=body,
+                )
+                logger.info(
+                    "[%s] Worker %s usando %s",
+                    pacote.evento_id,
+                    numero,
+                    adapter.__class__.__name__,
+                )
+
+                evento = await asyncio.to_thread(adapter.normalizar, pacote, body)
+                if evento.imagem is None:
+                    logger.info(
+                        "[%s] Evento ignorado: não possui imagem",
+                        pacote.evento_id,
+                    )
+                    continue
+
+                bounding_boxes = self._selecionar_boxes_pessoas(evento)
+                if not bounding_boxes:
+                    logger.info(
+                        "[%s] Evento ignorado: não possui boxes válidas de pessoas",
+                        pacote.evento_id,
+                    )
+                    continue
+
+                camera = (
+                    evento.nome_camera
+                    or evento.camera_id
+                    or evento.ip_camera
+                    or "Camera desconhecida"
+                )
+                caixas_rastreamento = [
+                    DetectionBox(
+                        x=caixa.x,
+                        y=caixa.y,
+                        largura=caixa.largura,
+                        altura=caixa.altura,
+                    )
+                    for caixa in bounding_boxes
+                ]
+                decisoes = await person_tracker.registrar_lote(
+                    camera=camera,
+                    evento_id=evento.evento_id,
+                    bboxes=caixas_rastreamento,
+                )
+
+                if len(decisoes) != len(bounding_boxes):
+                    raise RuntimeError(
+                        "Quantidade de decisões diferente da quantidade de boxes"
+                    )
+
+                total_pessoas = len(bounding_boxes)
+                logger.info(
+                    "[%s] Rastreamento em lote: pessoas=%s ids=%s",
+                    pacote.evento_id,
+                    total_pessoas,
+                    [
+                        (decisao.pessoa_id, decisao.status)
+                        for decisao in decisoes
+                    ],
+                )
+
+                contexto_cena = await self._analisar_contexto_cena(
+                    evento=evento,
+                    bounding_boxes=bounding_boxes,
+                    pacote_id=pacote.evento_id,
+                )
+                cena_renderizada = await self._renderizar_cena(
+                    evento=evento,
+                    bounding_boxes=bounding_boxes,
+                    pacote_id=pacote.evento_id,
+                )
+
+                imagem_background_base64: str | None = None
+                for indice, (bounding_box, decisao) in enumerate(
+                    zip(bounding_boxes, decisoes, strict=True),
+                    start=1,
+                ):
+                    imagem_background_base64 = await self._processar_pessoa(
+                        evento=evento,
+                        camera=camera,
+                        bounding_box=bounding_box,
+                        decisao=decisao,
+                        contexto_cena=contexto_cena,
+                        cena_renderizada=cena_renderizada,
+                        indice_na_cena=indice,
+                        total_pessoas_cena=total_pessoas,
+                        pacote_id=pacote.evento_id,
+                        imagem_background_base64=imagem_background_base64,
+                    )
+
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                logger.exception("[%s] Erro no processamento", pacote.evento_id)
+            finally:
+                self.queue.task_done()
+
+===== PACOTE JSON DAHUA =====
+Arquivo: capturas_dahua/20260724T190234_003335Z_04fcd766cf53_pacote.bin
+{
+  "Action": "Start",
+  "Code": "CrossRegionDetection",
+  "Data": {
+    "Action": "Appear",
+    "Class": "Normal",
+    "CountInGroup": 1,
+    "DetectRegion": [
+      [
+        81,
+        135
+      ],
+      [
+        8072,
+        135
+      ],
+      [
+        8072,
+        8126
+      ],
+      [
+        81,
+        8126
+      ]
+    ],
+    "EventID": 21391,
+    "GroupID": 470,
+    "Name": "IVS-1",
+    "Object": {
+      "Action": "Appear",
+      "BelongID": 0,
+      "BoundingBox": [
+        1632,
+        3104,
+        2080,
+        5232
+      ],
+      "Center": [
+        1856,
+        4168
+      ],
+      "Confidence": 0,
+      "DirectionRun": 0,
+      "FusionInfo": {
+        "BelongID": 0,
+        "CartPosX": 0.0,
+        "CartPosY": 0.0,
+        "GpsPosValid": 0,
+        "GpsPostion": {
+          "Latitude": 0.0,
+          "Longitude": 0.0
+        },
+        "ObjectSource": 0,
+        "RadarCoorXyValid": 0,
+        "Speed": 0.0,
+        "SpeedValid": 0,
+        "SpeedX": 0.0,
+        "SpeedY": 0.0
+      },
+      "HasMask": 0,
+      "LowerBodyColor": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "ObjectID": 28830,
+      "ObjectType": "Human",
+      "RelativeID": 0,
+      "Speed": 0,
+      "humanTripLineDirection": 0
+    },
+    "PTS": 43057165340.0,
+    "RealUTC": 1784919753,
+    "RuleID": 17,
+    "Track": [],
+    "UTC": 1784908953,
+    "UTCMS": 919
+  },
+  "Index": 0
+}
+
+===== PACOTE MULTIPART DAHUA =====
+Arquivo: capturas_dahua/20260724T190234_392352Z_97ca2844488f_pacote.bin
+Tamanho total: 496868
+Primeira linha: b'--myboundary'
+Quantidade de partes: 4
+
+--- PARTE 2 ---
+Content-Type: text/plain
+Content-Length: 2156
+Bytes do conteúdo: 2155
+{
+  "Ack": true,
+  "Channel": 0,
+  "EOF": 1,
+  "Events": [
+    {
+      "Action": "Start",
+      "Code": "CrossRegionDetection",
+      "Data": {
+        "Action": "Appear",
+        "Class": "Normal",
+        "CountInGroup": 1,
+        "DetectRegion": [
+          [
+            81,
+            135
+          ],
+          [
+            8072,
+            135
+          ],
+          [
+            8072,
+            8126
+          ],
+          [
+            81,
+            8126
+          ]
+        ],
+        "EventID": 21391,
+        "GroupID": 470,
+        "Name": "IVS-1",
+        "Object": {
+          "Action": "Appear",
+          "BelongID": 0,
+          "BoundingBox": [
+            1632,
+            3104,
+            2080,
+            5232
+          ],
+          "Center": [
+            1856,
+            4168
+          ],
+          "Confidence": 0,
+          "DirectionRun": 0,
+          "FusionInfo": {
+            "BelongID": 0,
+            "CartPosX": 0.0,
+            "CartPosY": 0.0,
+            "GpsPosValid": 0,
+            "GpsPostion": {
+              "Latitude": 0.0,
+              "Longitude": 0.0
+            },
+            "ObjectSource": 0,
+            "RadarCoorXyValid": 0,
+            "Speed": 0.0,
+            "SpeedValid": 0,
+            "SpeedX": 0.0,
+            "SpeedY": 0.0
+          },
+          "HasMask": 0,
+          "LowerBodyColor": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "ObjectID": 28830,
+          "ObjectType": "Human",
+          "RelativeID": 0,
+          "Speed": 0,
+          "humanTripLineDirection": 0
+        },
+        "PTS": 43057165340.0,
+        "RealUTC": 1784919753,
+        "RuleID": 17,
+        "Track": [],
+        "UTC": 1784908953,
+        "UTCMS": 919
+      },
+      "Index": 0
+    }
+  ],
+  "Flags": [
+    "Event"
+  ],
+  "Image": [
+    {
+      "Length": 494560,
+      "Offset": 0,
+      "Type": "SceneImage"
+    }
+  ],
+  "Length": 494560,
+  "PicID": [
+    1784908954,
+    0
+  ],
+  "PictureType": 0,
+  "Resolution": [
+    2688,
+    1520
+  ],
+  "SOF": 1,
+  "Time": "2026-07-24 16:02:34",
+  "Transfer": "Realtime"
+}
+
+--- PARTE 3 ---
+Content-Type: image/jpeg
+Content-Length: 494560
+Bytes do conteúdo: 494560
+Assinatura JPEG: b'\xff\xd8\xff\xe0\x00\x10JFIF'

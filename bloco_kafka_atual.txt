@@ -1,0 +1,311 @@
+        except ValueError as erro:
+            logger.info(
+                "[%s] Pessoa ignorada: pessoa=%s erro=%s",
+                pacote_id,
+                decisao.pessoa_id,
+                erro,
+            )
+            return imagem_background_base64
+
+        payload_face_kafka = None
+
+        if resultado_face is not None:
+            evento_normalizado = evento.model_dump(
+                mode="json",
+                by_alias=True,
+                exclude_none=True,
+            )
+
+            atributos_normalizados = (
+                evento_normalizado.get(
+                    "attributes"
+                )
+                or {}
+            )
+
+            dados_fabricante = (
+                atributos_normalizados.get(
+                    "vendor_data"
+                )
+                or {}
+            )
+
+            vendor_event_type = (
+                atributos_normalizados.get(
+                    "vendor_event_type"
+                )
+                or dados_fabricante.get(
+                    "vendor_event_type"
+                )
+                or evento_normalizado.get(
+                    "event_type"
+                )
+            )
+
+            device_face = {
+                "id": evento_normalizado.get(
+                    "camera_id"
+                ),
+                "name": evento_normalizado.get(
+                    "camera_name"
+                ),
+                "manufacturer": (
+                    evento_normalizado.get(
+                        "manufacturer"
+                    )
+                ),
+                "model": evento_normalizado.get(
+                    "camera_model"
+                ),
+                "ip": evento_normalizado.get(
+                    "camera_ip"
+                ),
+            }
+
+            device_face = {
+                chave: valor
+                for chave, valor
+                in device_face.items()
+                if valor is not None
+            }
+
+            event_face = {
+                "type": "face_capture",
+                "source_type": (
+                    evento_normalizado.get(
+                        "event_type"
+                    )
+                ),
+                "vendor_type": (
+                    vendor_event_type
+                ),
+                "state": evento_normalizado.get(
+                    "state"
+                ),
+                "captured_at": (
+                    evento_normalizado.get(
+                        "timestamp"
+                    )
+                    or mensagem.event.datetime
+                ),
+                "attributes": (
+                    atributos_normalizados
+                ),
+            }
+
+            event_face = {
+                chave: valor
+                for chave, valor
+                in event_face.items()
+                if valor is not None
+            }
+
+            payload_face_kafka = {
+                "external_event_id": (
+                    decisao.evento_id
+                ),
+                "device": device_face,
+                "event": event_face,
+                "images": {
+                    "image_quality": (
+                        resultado_face.score
+                    ),
+                    "bounding_box": {
+                        "left": resultado_face.x,
+                        "top": resultado_face.y,
+                        "right": (
+                            resultado_face.x
+                            + resultado_face.largura
+                        ),
+                        "bottom": (
+                            resultado_face.y
+                            + resultado_face.altura
+                        ),
+                        "width": (
+                            resultado_face.largura
+                        ),
+                        "height": (
+                            resultado_face.altura
+                        ),
+                        "coordinate_space": "pixels",
+                        "reference": "background",
+                    },
+                    "face": {
+                        "base64": (
+                            resultado_face
+                            .imagem_base64
+                        ),
+                        "ref": (
+                            resultado_face
+                            .caminho_arquivo
+                        ),
+                    },
+                    "background": {
+                        "width": (
+                            evento.imagem.largura
+                        ),
+                        "height": (
+                            evento.imagem.altura
+                        ),
+                        "base64": (
+                            imagem_background_base64
+                        ),
+                        "ref": (
+                            evento
+                            .imagem
+                            .caminho_original
+                        ),
+                    },
+                },
+            }
+
+            logger.info(
+                "[%s] Payload facial pronto: "
+                "topico=nelore-face-capture "
+                "qualidade=%.4f "
+                "source_type=%s "
+                "vendor_type=%s",
+                pacote_id,
+                resultado_face.score,
+                event_face.get(
+                    "source_type"
+                ),
+                event_face.get(
+                    "vendor_type"
+                ),
+            )
+
+        evento_painel = {
+            "evento_id": decisao.evento_id,
+            "pessoa_id": decisao.pessoa_id,
+            "status": decisao.status,
+            "quantidade_deteccoes": decisao.quantidade_deteccoes,
+            "camera": mensagem.device.name,
+            "tipo": mensagem.event.type,
+            "datetime": mensagem.event.datetime,
+            "attributes": (
+                mensagem.event.attributes.model_dump(
+                    mode="json"
+                )
+                if mensagem.event.attributes is not None
+                else None
+            ),
+            "imagem": mensagem.event.images.detection,
+            "imagem_rosto": imagem_rosto_base64,
+            "aparencia": (
+                aparencia_estavel.to_dict()
+                if aparencia_estavel is not None
+                else None
+            ),
+            "movimento": movimento.to_dict(),
+            "contexto_cena": (
+                contexto_cena.to_dict() if contexto_cena is not None else None
+            ),
+            "imagem_cena": (
+                cena_renderizada.imagem_base64
+                if cena_renderizada is not None
+                else None
+            ),
+            "quantidade_boxes_cena": (
+                cena_renderizada.quantidade_boxes
+                if cena_renderizada is not None
+                else 0
+            ),
+            "indice_na_cena": indice_na_cena,
+            "total_pessoas_cena": total_pessoas_cena,
+        }
+        await event_hub.publicar(evento_painel)
+        logger.info(
+            "[%s] Pessoa enviada ao painel: pessoa=%s status=%s indice=%s/%s paineis=%s",
+            pacote_id,
+            decisao.pessoa_id,
+            decisao.status,
+            indice_na_cena,
+            total_pessoas_cena,
+            event_hub.total_conexoes,
+        )
+
+        if not settings.kafka_enabled:
+            logger.info(
+                "[%s] Payload pronto; Kafka desativado: pessoa=%s",
+                pacote_id,
+                decisao.pessoa_id,
+            )
+            return imagem_background_base64
+
+        if payload_face_kafka is not None:
+            try:
+                resultado_face_kafka = (
+                    await self.publisher.publicar(
+                        topico=(
+                            "nelore-face-capture"
+                        ),
+                        evento_id=(
+                            decisao.evento_id
+                        ),
+                        dados=(
+                            payload_face_kafka
+                        ),
+                    )
+                )
+
+                logger.info(
+                    "[%s] Face publicada em %s "
+                    "p=%s offset=%s "
+                    "pessoa=%s",
+                    pacote_id,
+                    resultado_face_kafka[
+                        "topico"
+                    ],
+                    resultado_face_kafka[
+                        "particao"
+                    ],
+                    resultado_face_kafka[
+                        "offset"
+                    ],
+                    decisao.pessoa_id,
+                )
+
+            except Exception:
+                logger.exception(
+                    "[%s] Erro ao publicar "
+                    "captura facial no tópico "
+                    "nelore-face-capture: "
+                    "pessoa=%s",
+                    pacote_id,
+                    decisao.pessoa_id,
+                )
+
+        resultado = await self.publisher.publicar(
+            topico=self.topic,
+            evento_id=decisao.evento_id,
+            dados=mensagem.model_dump(
+                mode="json",
+                by_alias=True,
+                exclude_none=True,
+            ),
+        )
+        logger.info(
+            "[%s] Pessoa publicada em %s p=%s offset=%s pessoa=%s indice=%s/%s",
+            pacote_id,
+            resultado["topico"],
+            resultado["particao"],
+            resultado["offset"],
+            decisao.pessoa_id,
+            indice_na_cena,
+            total_pessoas_cena,
+        )
+        return imagem_background_base64
+
+    async def _worker(self, numero: int) -> None:
+        logger.info("Worker %s iniciado", numero)
+
+        while True:
+            pacote, body = await self.queue.get()
+
+            try:
+                adapter = camera_adapter_factory.encontrar_adapter(
+                    content_type=pacote.content_type,
+                    body=body,
+                )
+                logger.info(

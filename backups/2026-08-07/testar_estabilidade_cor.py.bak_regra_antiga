@@ -1,0 +1,126 @@
+import asyncio
+
+from app.services.appearance_memory import (
+    AppearanceMemory,
+)
+from app.services.scene_analyzer import (
+    PersonVisualAnalysis,
+)
+
+
+def criar_analise(
+    cor: str,
+    rgb: tuple[int, int, int],
+) -> PersonVisualAnalysis:
+    return PersonVisualAnalysis(
+        cor_roupa_aproximada=cor,
+        rgb_representativo=rgb,
+        posicao_horizontal="esquerda",
+        tamanho_no_quadro="medio",
+        percentual_quadro=4.0,
+        descricao="Teste",
+    )
+
+
+async def executar_sequencia(
+    nome: str,
+    amostras: list[
+        tuple[
+            str,
+            tuple[int, int, int],
+        ]
+    ],
+) -> list[str]:
+    memoria = AppearanceMemory()
+    resultados: list[str] = []
+
+    print(
+        "\n" + "=" * 55
+    )
+    print(nome)
+
+    for indice, (cor, rgb) in enumerate(
+        amostras,
+        start=1,
+    ):
+        resultado = await memoria.registrar(
+            pessoa_id="pessoa-teste",
+            analise=criar_analise(
+                cor,
+                rgb,
+            ),
+        )
+
+        resultados.append(
+            resultado.cor_roupa_predominante
+        )
+
+        print(
+            f"Amostra {indice}: "
+            f"leitura={cor:<13} "
+            f"estável="
+            f"{resultado.cor_roupa_predominante}"
+        )
+
+    return resultados
+
+
+async def main() -> None:
+    alternando = await executar_sequencia(
+        "CAMISA AZUL-ESCURA COM SOMBRA",
+        [
+            ("preta", (42, 43, 39)),
+            ("azul-escura", (26, 29, 36)),
+            ("preta", (39, 38, 34)),
+            ("azul-escura", (30, 32, 38)),
+            ("preta", (40, 39, 35)),
+        ],
+    )
+
+    assert alternando == [
+        "preta",
+        "preta",
+        "preta",
+        "azul-escura",
+        "azul-escura",
+    ]
+
+    preta_real = await executar_sequencia(
+        "CAMISA PRETA COM UMA LEITURA RUIDOSA",
+        [
+            ("preta", (20, 20, 20)),
+            ("preta", (22, 22, 21)),
+            ("azul-escura", (20, 23, 29)),
+            ("preta", (18, 18, 18)),
+        ],
+    )
+
+    assert preta_real == [
+        "preta",
+        "preta",
+        "preta",
+        "preta",
+    ]
+
+    azul_real = await executar_sequencia(
+        "CAMISA AZUL DETECTADA DESDE O INÍCIO",
+        [
+            ("azul-escura", (29, 33, 38)),
+            ("preta", (39, 39, 36)),
+            ("azul-escura", (27, 31, 39)),
+        ],
+    )
+
+    assert azul_real == [
+        "azul-escura",
+        "azul-escura",
+        "azul-escura",
+    ]
+
+    print(
+        "\nTodos os testes de estabilidade passaram."
+    )
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

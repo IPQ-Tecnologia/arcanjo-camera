@@ -1,0 +1,491 @@
+===== CAMERA EVENT =====
+from datetime import datetime
+from typing import Any
+
+from pydantic import BaseModel, Field
+
+
+class BoundingBox(BaseModel):
+    origem: str | None = None
+
+    x: int
+    y: int
+
+    largura: int
+    altura: int
+
+    x2: int
+    y2: int
+
+    proporcao_imagem: float | None = None
+
+
+class ImageData(BaseModel):
+    largura: int | None = None
+    altura: int | None = None
+
+    formato: str | None = None
+
+    caminho_original: str | None = None
+    caminho_marcada: str | None = None
+
+
+class CameraEvent(BaseModel):
+    schema_version: str = "1.0"
+
+    evento_id: str
+
+    fabricante: str
+    modelo_camera: str | None = None
+
+    camera_id: str | None = None
+    nome_camera: str | None = None
+    ip_camera: str | None = None
+
+    tipo_evento: str
+    estado: str | None = None
+    data_hora: datetime
+
+    alvo_detectado: str | None = None
+
+    bounding_boxes: list[BoundingBox] = Field(
+        default_factory=list
+    )
+
+    bounding_box_escolhida: BoundingBox | None = None
+
+    imagem: ImageData | None = None
+
+    dados_extras: dict[str, Any] = Field(
+        default_factory=dict
+    )
+
+
+class RawCameraPackage(BaseModel):
+    evento_id: str
+    recebido_em: datetime
+
+    content_type: str
+    ip_camera: str | None = None
+
+    caminho_pacote: str
+===== ALARM DETECTION MESSAGE =====
+from pydantic import BaseModel
+
+
+class AlarmDevice(BaseModel):
+    name: str
+
+
+class AlarmImages(BaseModel):
+    background: str
+    detection: str
+
+
+class AlarmEventData(BaseModel):
+    id: str
+    type: str
+    timestamp: int
+    datetime: str
+    images: AlarmImages
+
+
+class AlarmDetectionMessage(BaseModel):
+    device: AlarmDevice
+    event: AlarmEventData
+===== MONTAGEM DO PAYLOAD =====
+198-            caminho_imagem=(
+199-                caminho_original
+200-            ),
+201-            bounding_box=(
+202-                caixa_selecionada
+203-            ),
+204-        )
+205-    )
+206-
+207-    nome_camera = (
+208-        evento.nome_camera
+209-        or evento.camera_id
+210-        or "camera-desconhecida"
+211-    )
+212-
+213-    id_final = (
+214-        evento_id
+215-        or evento.evento_id
+216-    )
+217-
+218:    return AlarmDetectionMessage(
+219-        device=AlarmDevice(
+220-            name=nome_camera
+221-        ),
+222-        event=AlarmEventData(
+223-            id=id_final,
+224-            type=evento.tipo_evento,
+225-            timestamp=(
+226-                data_para_milisegundos(
+227-                    evento.data_hora
+228-                )
+229-            ),
+230-            datetime=(
+231-                data_para_iso8601(
+232-                    evento.data_hora
+233-                )
+234-            ),
+235-            images=AlarmImages(
+236-                background=(
+237-                    imagem_background_base64
+238-                ),
+239-                detection=(
+240-                    imagem_detection
+241-                ),
+242-            ),
+243-        ),
+244-    )
+
+===== RETORNO HIKVISION =====
+614-
+615-            nome_base = criar_nome_base(
+616-                data_hora,
+617-                tipo_evento,
+618-                pacote.evento_id,
+619-            )
+620-
+621-            caminho_original = salvar_imagem_original(
+622-                imagem,
+623-                nome_base,
+624-            )
+625-            caminho_marcada = salvar_imagem_marcada(
+626-                imagem,
+627-                nome_base,
+628-                box_escolhido,
+629-            )
+630-
+631-            image_data = ImageData(
+632-                largura=largura_img,
+633-                altura=altura_img,
+634-                formato="jpeg",
+635-                caminho_original=caminho_original,
+636-                caminho_marcada=caminho_marcada,
+637-            )
+638-
+639-        boxes_modelo = [
+640-            converter_box_modelo(box)
+641-            for box in boxes_pixels
+642-        ]
+643-
+644:        return CameraEvent(
+645-            evento_id=pacote.evento_id,
+646-            fabricante=self.fabricante,
+647-            modelo_camera=modelo_camera,
+648-            camera_id=camera_id,
+649-            nome_camera=nome_camera,
+650-            ip_camera=pacote.ip_camera,
+651-            tipo_evento=tipo_evento,
+652-            estado=estado,
+653-            data_hora=data_hora,
+654-            alvo_detectado=alvo_detectado,
+655-            bounding_boxes=[
+656-                box
+657-                for box in boxes_modelo
+658-                if box is not None
+659-            ],
+660-            bounding_box_escolhida=converter_box_modelo(
+661-                box_escolhido
+662-            ),
+663-            imagem=image_data,
+664-            dados_extras={
+665-                "formato_pacote": formato_pacote,
+666-                "imagem_recebida": imagem is not None,
+667-                "quantidade_bounding_boxes": len(boxes_pixels),
+668-                "bounding_boxes_xml": boxes_xml,
+669-                "content_type": content_type,
+670-            },
+671-        )
+
+===== RETORNO DAHUA =====
+606-                data_hora,
+607-                tipo_evento,
+608-                pacote.evento_id,
+609-            )
+610-
+611-            (
+612-                caminho_original,
+613-                caminho_marcada,
+614-                largura_img,
+615-                altura_img,
+616-            ) = salvar_imagens(
+617-                imagem,
+618-                nome_base,
+619-                bounding_box,
+620-            )
+621-
+622-            image_data = ImageData(
+623-                largura=largura_img,
+624-                altura=altura_img,
+625-                formato="jpeg",
+626-                caminho_original=caminho_original,
+627-                caminho_marcada=caminho_marcada,
+628-            )
+629-
+630-        bounding_boxes = (
+631-            [bounding_box]
+632-            if bounding_box is not None
+633-            else []
+634-        )
+635-
+636:        return CameraEvent(
+637-            evento_id=pacote.evento_id,
+638-            fabricante=self.fabricante,
+639-            modelo_camera=None,
+640-            camera_id=camera_id,
+641-            nome_camera=nome_camera,
+642-            ip_camera=pacote.ip_camera,
+643-            tipo_evento=tipo_evento,
+644-            estado=estado,
+645-            data_hora=data_hora,
+646-            alvo_detectado=alvo_detectado,
+647-            bounding_boxes=bounding_boxes,
+648-            bounding_box_escolhida=bounding_box,
+649-            imagem=image_data,
+650-            dados_extras={
+651-                "formato_pacote": formato_pacote,
+652-                "content_type": content_type,
+653-                "acao_original": acao_original,
+654-                "nome_regra": nome_regra,
+655-                "event_id_dahua": dados.get("EventID"),
+656-                "group_id": dados.get("GroupID"),
+657-                "rule_id": dados.get("RuleID"),
+658-                "object_id": objeto.get("ObjectID"),
+659-                "confidence": objeto.get("Confidence"),
+660-                "bounding_box_bruta": bbox_bruta,
+661-                "imagem_recebida": imagem is not None,
+662-                "resolucao_payload": payload.get(
+663-                    "Resolution"
+664-                ),
+665-            },
+666-        )
+
+===== EVENTO DO PAINEL =====
+114-    async def _monitorar_saidas(self) -> None:
+115-        logger.info("Monitor automático de saídas iniciado")
+116-
+117-        while True:
+118-            try:
+119-                await asyncio.sleep(1)
+120-                saidas = await person_tracker.coletar_saidas()
+121-
+122-                for saida in saidas:
+123-                    aparencia_final = await appearance_memory.finalizar(
+124-                        saida.pessoa_id
+125-                    )
+126-                    movimento_final = await person_movement_memory.finalizar(
+127-                        saida.pessoa_id
+128-                    )
+129-                    momento_saida = (
+130-                        datetime.now(timezone.utc)
+131-                        .isoformat()
+132-                        .replace("+00:00", "Z")
+133-                    )
+134:                    evento_painel = {
+135-                        "evento_id": saida.evento_id,
+136-                        "pessoa_id": saida.pessoa_id,
+137-                        "status": "exited",
+138-                        "quantidade_deteccoes": saida.quantidade_deteccoes,
+139-                        "camera": saida.camera,
+140-                        "tipo": None,
+141-                        "datetime": momento_saida,
+142-                        "imagem": None,
+143-                        "aparencia": (
+144-                            aparencia_final.to_dict()
+145-                            if aparencia_final is not None
+146-                            else None
+147-                        ),
+148-                        "movimento": (
+149-                            movimento_final.to_dict()
+150-                            if movimento_final is not None
+151-                            else None
+152-                        ),
+153-                        "contexto_cena": None,
+154-                        "imagem_cena": None,
+155-                        "quantidade_boxes_cena": None,
+156-                    }
+157-                    await event_hub.publicar(evento_painel)
+158-                    logger.info(
+159-                        "[RASTREAMENTO] Pessoa saiu: pessoa=%s camera=%s "
+160-                        "deteccoes=%s amostras_visuais=%s amostras_movimento=%s "
+161-                        "tempo_observado=%ss paineis=%s",
+162-                        saida.pessoa_id,
+163-                        saida.camera,
+164-                        saida.quantidade_deteccoes,
+165-                        (
+166-                            aparencia_final.quantidade_amostras
+167-                            if aparencia_final is not None
+168-                            else 0
+169-                        ),
+170-                        (
+171-                            movimento_final.quantidade_amostras
+172-                            if movimento_final is not None
+173-                            else 0
+174-                        ),
+175-                        (
+176-                            movimento_final.tempo_observado_segundos
+177-                            if movimento_final is not None
+178-                            else 0
+179-                        ),
+180-                        event_hub.total_conexoes,
+181-                    )
+182-
+183-            except asyncio.CancelledError:
+184-                logger.info("Monitor automático de saídas encerrado")
+185-                raise
+186-            except Exception:
+187-                logger.exception("Erro no monitor automático de saídas")
+188-
+189-    def _selecionar_boxes_pessoas(
+190-        self,
+191-        evento: CameraEvent,
+192-    ) -> list[BoundingBox]:
+193-        """Remove caixas inválidas, duplicadas e a caixa da imagem inteira."""
+194-
+195-        if evento.imagem is None:
+196-            return []
+197-
+198-        largura_imagem = evento.imagem.largura
+199-        altura_imagem = evento.imagem.altura
+200-        if not largura_imagem or not altura_imagem:
+201-            return []
+202-
+203-        area_imagem = largura_imagem * altura_imagem
+204-        assinaturas: set[tuple[int, int, int, int]] = set()
+205-        caixas_validas: list[BoundingBox] = []
+206-
+207-        for caixa in evento.bounding_boxes or []:
+208-            if caixa.largura <= 0 or caixa.altura <= 0:
+209-                continue
+210-
+211-            x1 = max(0, min(caixa.x, largura_imagem - 1))
+212-            y1 = max(0, min(caixa.y, altura_imagem - 1))
+213-            x2 = max(x1 + 1, min(caixa.x2, largura_imagem))
+214-            y2 = max(y1 + 1, min(caixa.y2, altura_imagem))
+215-            largura = x2 - x1
+216-            altura = y2 - y1
+217-            percentual = largura * altura / area_imagem * 100
+218-
+219-            if percentual >= 60 or percentual < 0.05:
+220-                continue
+221-
+222-            assinatura = (x1, y1, x2, y2)
+223-            if assinatura in assinaturas:
+224-                continue
+--
+566-                evento.imagem.caminho_original,
+567-            )
+568-
+569-        try:
+570-            mensagem = await asyncio.to_thread(
+571-                montar_alarm_detection_message,
+572-                evento,
+573-                bounding_box=bounding_box,
+574-                evento_id=decisao.evento_id,
+575-                imagem_background_base64=imagem_background_base64,
+576-            )
+577-        except ValueError as erro:
+578-            logger.info(
+579-                "[%s] Pessoa ignorada: pessoa=%s erro=%s",
+580-                pacote_id,
+581-                decisao.pessoa_id,
+582-                erro,
+583-            )
+584-            return imagem_background_base64
+585-
+586:        evento_painel = {
+587-            "evento_id": decisao.evento_id,
+588-            "pessoa_id": decisao.pessoa_id,
+589-            "status": decisao.status,
+590-            "quantidade_deteccoes": decisao.quantidade_deteccoes,
+591-            "camera": mensagem.device.name,
+592-            "tipo": mensagem.event.type,
+593-            "datetime": mensagem.event.datetime,
+594-            "imagem": mensagem.event.images.detection,
+595-            "aparencia": (
+596-                aparencia_estavel.to_dict()
+597-                if aparencia_estavel is not None
+598-                else None
+599-            ),
+600-            "movimento": movimento.to_dict(),
+601-            "contexto_cena": (
+602-                contexto_cena.to_dict() if contexto_cena is not None else None
+603-            ),
+604-            "imagem_cena": (
+605-                cena_renderizada.imagem_base64
+606-                if cena_renderizada is not None
+607-                else None
+608-            ),
+609-            "quantidade_boxes_cena": (
+610-                cena_renderizada.quantidade_boxes
+611-                if cena_renderizada is not None
+612-                else 0
+613-            ),
+614-            "indice_na_cena": indice_na_cena,
+615-            "total_pessoas_cena": total_pessoas_cena,
+616-        }
+617-        await event_hub.publicar(evento_painel)
+618-        logger.info(
+619-            "[%s] Pessoa enviada ao painel: pessoa=%s status=%s indice=%s/%s paineis=%s",
+620-            pacote_id,
+621-            decisao.pessoa_id,
+622-            decisao.status,
+623-            indice_na_cena,
+624-            total_pessoas_cena,
+625-            event_hub.total_conexoes,
+626-        )
+627-
+628-        if not settings.kafka_enabled:
+629-            logger.info(
+630-                "[%s] Payload pronto; Kafka desativado: pessoa=%s",
+631-                pacote_id,
+632-                decisao.pessoa_id,
+633-            )
+634-            return imagem_background_base64
+635-
+636-        resultado = await self.publisher.publicar(
+637-            topico=self.topic,
+638-            evento_id=decisao.evento_id,
+639-            dados=mensagem.model_dump(mode="json"),
+640-        )
+641-        logger.info(
+642-            "[%s] Pessoa publicada em %s p=%s offset=%s pessoa=%s indice=%s/%s",
+643-            pacote_id,
+644-            resultado["topico"],
+645-            resultado["particao"],
+646-            resultado["offset"],
+647-            decisao.pessoa_id,
+648-            indice_na_cena,
+649-            total_pessoas_cena,
+650-        )
+651-        return imagem_background_base64
+652-
+653-    async def _worker(self, numero: int) -> None:
+654-        logger.info("Worker %s iniciado", numero)
+655-
+656-        while True:
+657-            pacote, body = await self.queue.get()
+658-
+659-            try:
+660-                adapter = camera_adapter_factory.encontrar_adapter(
+661-                    content_type=pacote.content_type,
+662-                    body=body,
+663-                )
+664-                logger.info(
+665-                    "[%s] Worker %s usando %s",
+666-                    pacote.evento_id,
+667-                    numero,
+668-                    adapter.__class__.__name__,
+669-                )
+670-
+671-                evento = await asyncio.to_thread(adapter.normalizar, pacote, body)
+672-                if evento.imagem is None:
+673-                    logger.info(
+674-                        "[%s] Evento ignorado: não possui imagem",
+675-                        pacote.evento_id,
+676-                    )
