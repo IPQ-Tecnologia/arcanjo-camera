@@ -531,7 +531,7 @@ class PersonProcessor:
             )
 
         if is_face_event and face_kafka_payload is not None:
-            face_topic = "arcanjo.events.fac.capture"
+            face_topic = "arcanjo.events.face.capture"
 
             kafka_publications.append(
                 {
