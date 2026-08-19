@@ -1,54 +1,55 @@
-# Guideline de adapters de câmera
+# Camera adapters guideline
 
-## Objetivo
+## Goal
 
-Cada fabricante deve converter seu formato proprietário para
-`CameraEvent`, sem adicionar regras específicas ao pipeline.
+Each manufacturer must convert its proprietary format into
+`CameraEvent`, without adding manufacturer-specific rules to the
+pipeline.
 
-## Contrato obrigatório
+## Mandatory contract
 
-Todo adapter deve herdar de `CameraAdapter` e implementar:
+Every adapter must inherit from `CameraAdapter` and implement:
 
-- `consegue_processar(content_type, body)`
-- `normalizar(pacote, body)`
+- `can_handle(content_type, body)`
+- `normalize(package, body)`
 
-## Responsabilidades do adapter
+## Adapter responsibilities
 
-- reconhecer somente pacotes do próprio fabricante;
-- extrair metadados, imagem e bounding boxes;
-- converter coordenadas para pixels;
-- salvar imagem original e marcada;
-- devolver um `CameraEvent`;
-- preservar informações proprietárias em `dados_extras`.
+- recognize only packages from its own manufacturer;
+- extract metadata, image, and bounding boxes;
+- convert coordinates to pixels;
+- save the original and annotated image;
+- return a `CameraEvent`;
+- preserve manufacturer-specific information in `extra_data`.
 
-## Responsabilidades do pipeline
+## Pipeline responsibilities
 
-- escolher o adapter pela factory;
-- ignorar eventos sem imagem ou sem boxes válidas;
-- rastrear pessoas;
-- enviar eventos ao painel;
-- publicar eventos normalizados no Kafka.
+- pick the adapter via the factory;
+- ignore events without an image or without valid boxes;
+- track people;
+- send events to the panel;
+- publish normalized events to Kafka.
 
-## Regras de implementação
+## Implementation rules
 
-- usar type hints;
-- usar nomes claros;
-- evitar lógica de fabricante dentro do pipeline;
-- não registrar adapters fora da factory;
-- não alterar o schema sem versionamento;
-- testar JSON direto e pacote multipart;
-- manter compatibilidade com rotas existentes;
-- registrar contexto suficiente nos logs;
-- não armazenar senhas ou credenciais no código.
+- use type hints;
+- use clear names;
+- avoid manufacturer-specific logic inside the pipeline;
+- don't register adapters outside the factory;
+- don't change the schema without versioning;
+- test direct JSON and multipart packages;
+- keep compatibility with existing routes;
+- log enough context;
+- don't store passwords or credentials in the code.
 
-## Checklist para novo fabricante
+## Checklist for a new manufacturer
 
-1. Criar `<fabricante>.py`.
-2. Implementar `CameraAdapter`.
-3. Registrar na `CameraAdapterFactory`.
-4. Testar reconhecimento.
-5. Testar normalização sem imagem.
-6. Testar normalização com imagem.
-7. Validar bounding box em pixels.
-8. Validar execução no pipeline.
-9. Validar publicação no Kafka.
+1. Create `<manufacturer>.py`.
+2. Implement `CameraAdapter`.
+3. Register it in `CameraAdapterFactory`.
+4. Test recognition.
+5. Test normalization without an image.
+6. Test normalization with an image.
+7. Validate the bounding box in pixels.
+8. Validate execution in the pipeline.
+9. Validate publishing to Kafka.

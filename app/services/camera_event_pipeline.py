@@ -10,7 +10,7 @@ from app.services.appearance_memory import appearance_memory
 from app.services.person_movement import person_movement_memory
 from app.services.person_tracker import DetectionBox, person_tracker
 from app.services.pipeline import box_matching, scene
-from app.services.pipeline.exit_monitor import monitorar_saidas
+from app.services.pipeline.exit_monitor import monitor_exits
 from app.services.pipeline.person_processing import PersonProcessor
 
 logger = logging.getLogger(__name__)
@@ -18,10 +18,11 @@ logger = logging.getLogger(__name__)
 
 class CameraEventPipeline:
     """
-    Orquestra o processamento assíncrono dos eventos de câmera: recebe
-    pacotes brutos na fila, normaliza via adapter do fabricante, valida
-    as pessoas com YOLO, rastreia entre frames e delega a cada pessoa
-    detectada para o PersonProcessor (aparência/movimento/face/Kafka).
+    Orchestrates the asynchronous processing of camera events: takes
+    raw packages off the queue, normalizes them via the manufacturer's
+    adapter, validates people with YOLO, tracks them across frames,
+    and hands each detected person to the PersonProcessor
+    (appearance/movement/face/Kafka).
     """
 
     def __init__(
@@ -40,213 +41,206 @@ class CameraEventPipeline:
         self._person_processor = PersonProcessor(publisher=publisher, topic=topic)
         self._worker_tasks: list[asyncio.Task] = []
         self._exit_task: asyncio.Task | None = None
-        self._iniciado = False
+        self._started = False
 
     @property
-    def tamanho_fila(self) -> int:
+    def queue_size(self) -> int:
         return self.queue.qsize()
 
     @property
-    def capacidade_fila(self) -> int:
+    def queue_capacity(self) -> int:
         return self.queue.maxsize
 
     async def start(self) -> None:
-        if self._iniciado:
+        if self._started:
             return
 
         if settings.kafka_enabled:
             await self.publisher.start()
         else:
-            logger.warning(
-                "Kafka desativado: eventos serão processados, mas não publicados."
-            )
+            logger.warning("Kafka disabled: events will be processed, but not published.")
 
         self._worker_tasks = [
-            asyncio.create_task(self._worker(numero), name=f"camera-worker-{numero}")
-            for numero in range(1, self.worker_count + 1)
+            asyncio.create_task(self._worker(number), name=f"camera-worker-{number}")
+            for number in range(1, self.worker_count + 1)
         ]
-        self._exit_task = asyncio.create_task(monitorar_saidas(), name="person-exit-monitor")
-        self._iniciado = True
-        logger.info("Pipeline iniciado com %s workers", self.worker_count)
+        self._exit_task = asyncio.create_task(monitor_exits(), name="person-exit-monitor")
+        self._started = True
+        logger.info("Pipeline started with %s workers", self.worker_count)
 
     async def stop(self) -> None:
-        if not self._iniciado:
+        if not self._started:
             return
 
         try:
             await asyncio.wait_for(self.queue.join(), timeout=10)
         except TimeoutError:
-            logger.warning("Encerrando com %s itens na fila", self.queue.qsize())
+            logger.warning("Shutting down with %s items still in the queue", self.queue.qsize())
 
-        tarefas: list[asyncio.Task] = [*self._worker_tasks]
+        tasks: list[asyncio.Task] = [*self._worker_tasks]
         if self._exit_task is not None:
-            tarefas.append(self._exit_task)
+            tasks.append(self._exit_task)
 
-        for tarefa in tarefas:
-            tarefa.cancel()
+        for task in tasks:
+            task.cancel()
 
-        if tarefas:
-            await asyncio.gather(*tarefas, return_exceptions=True)
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
-        if self.publisher.iniciado:
+        if self.publisher.started:
             await self.publisher.stop()
 
-        await appearance_memory.limpar()
-        await person_movement_memory.limpar()
-        await person_tracker.limpar()
+        await appearance_memory.clear()
+        await person_movement_memory.clear()
+        await person_tracker.clear()
 
         self._worker_tasks.clear()
         self._exit_task = None
-        self._iniciado = False
-        logger.info("Pipeline encerrado")
+        self._started = False
+        logger.info("Pipeline stopped")
 
-    def adicionar(self, pacote: RawCameraPackage, body: bytes) -> None:
-        self.queue.put_nowait((pacote, body))
+    def add(self, package: RawCameraPackage, body: bytes) -> None:
+        self.queue.put_nowait((package, body))
 
     @staticmethod
-    def _logar_horario_camera(evento_id: str, evento: CameraEvent) -> None:
-        """Compara o horário informado pela câmera com o horário do servidor."""
-        hora_camera = evento.data_hora
-        if hora_camera.tzinfo is None:
-            hora_camera = hora_camera.replace(tzinfo=timezone.utc)
+    def _log_camera_time(event_id: str, event: CameraEvent) -> None:
+        """Compares the time reported by the camera with the server's time."""
+        camera_time = event.timestamp
+        if camera_time.tzinfo is None:
+            camera_time = camera_time.replace(tzinfo=timezone.utc)
 
-        hora_camera_utc = hora_camera.astimezone(timezone.utc)
-        hora_camera_local = hora_camera.astimezone()
-        hora_servidor_utc = datetime.now(timezone.utc)
-        hora_servidor_local = hora_servidor_utc.astimezone()
-        diferenca_ms = (hora_servidor_utc - hora_camera_utc).total_seconds() * 1000
+        camera_time_utc = camera_time.astimezone(timezone.utc)
+        camera_time_local = camera_time.astimezone()
+        server_time_utc = datetime.now(timezone.utc)
+        server_time_local = server_time_utc.astimezone()
+        difference_ms = (server_time_utc - camera_time_utc).total_seconds() * 1000
 
         logger.info(
-            "[%s] HORÁRIO DA CÂMERA: fabricante=%s camera=%s enviado_utc=%s "
-            "enviado_local=%s recebido_local=%s diferenca_ms=%.0f",
-            evento_id,
-            evento.fabricante,
-            evento.nome_camera or evento.camera_id or "desconhecida",
-            hora_camera_utc.isoformat(),
-            hora_camera_local.isoformat(),
-            hora_servidor_local.isoformat(),
-            diferenca_ms,
+            "[%s] CAMERA TIME: manufacturer=%s camera=%s sent_utc=%s "
+            "sent_local=%s received_local=%s difference_ms=%.0f",
+            event_id,
+            event.manufacturer,
+            event.camera_name or event.camera_id or "unknown",
+            camera_time_utc.isoformat(),
+            camera_time_local.isoformat(),
+            server_time_local.isoformat(),
+            difference_ms,
         )
 
-    async def _worker(self, numero: int) -> None:
-        logger.info("Worker %s iniciado", numero)
+    async def _worker(self, number: int) -> None:
+        logger.info("Worker %s started", number)
 
         while True:
-            pacote, body = await self.queue.get()
+            package, body = await self.queue.get()
 
             try:
-                adapter = camera_adapter_factory.encontrar_adapter(
-                    content_type=pacote.content_type,
+                adapter = camera_adapter_factory.find_adapter(
+                    content_type=package.content_type,
                     body=body,
                 )
                 logger.info(
-                    "[%s] Worker %s usando %s",
-                    pacote.evento_id,
-                    numero,
+                    "[%s] Worker %s using %s",
+                    package.event_id,
+                    number,
                     adapter.__class__.__name__,
                 )
 
-                evento = await asyncio.to_thread(adapter.normalizar, pacote, body)
+                event = await asyncio.to_thread(adapter.normalize, package, body)
 
                 logger.info(
-                    "[%s] OBJETO NORMALIZADO (%s):\n%s",
-                    pacote.evento_id,
-                    evento.fabricante,
-                    evento.model_dump_json(indent=2, by_alias=True, exclude_none=True),
+                    "[%s] NORMALIZED OBJECT (%s):\n%s",
+                    package.event_id,
+                    event.manufacturer,
+                    event.model_dump_json(indent=2, by_alias=True, exclude_none=True),
                 )
 
-                self._logar_horario_camera(pacote.evento_id, evento)
+                self._log_camera_time(package.event_id, event)
 
-                if evento.imagem is None:
-                    logger.info("[%s] Evento ignorado: não possui imagem", pacote.evento_id)
+                if event.image is None:
+                    logger.info("[%s] Event skipped: no image", package.event_id)
                     continue
 
-                bounding_boxes_camera = box_matching.selecionar_boxes_pessoas(evento)
-                if not bounding_boxes_camera:
+                camera_boxes = box_matching.select_person_boxes(event)
+                if not camera_boxes:
                     logger.info(
-                        "[%s] Evento ignorado: não possui boxes válidas fornecidas pela câmera",
-                        pacote.evento_id,
+                        "[%s] Event skipped: no valid boxes provided by the camera",
+                        package.event_id,
                     )
                     continue
 
-                bounding_boxes, indices_alerta_evento = await box_matching.validar_com_yolo(
-                    evento=evento,
-                    bounding_boxes_camera=bounding_boxes_camera,
-                    pacote_id=pacote.evento_id,
+                bounding_boxes, event_alert_indexes = await box_matching.validate_with_yolo(
+                    event=event,
+                    camera_boxes=camera_boxes,
+                    package_id=package.event_id,
                 )
 
                 if not bounding_boxes:
                     logger.info(
-                        "[%s] Evento ignorado: nenhuma caixa foi confirmada "
-                        "como pessoa pelo YOLO",
-                        pacote.evento_id,
+                        "[%s] Event skipped: no box was confirmed as a person by YOLO",
+                        package.event_id,
                     )
                     continue
 
                 camera = (
-                    evento.nome_camera
-                    or evento.camera_id
-                    or evento.ip_camera
-                    or "Camera desconhecida"
+                    event.camera_name
+                    or event.camera_id
+                    or event.camera_ip
+                    or "Unknown camera"
                 )
-                caixas_rastreamento = [
-                    DetectionBox(
-                        x=caixa.x, y=caixa.y, largura=caixa.largura, altura=caixa.altura
-                    )
-                    for caixa in bounding_boxes
+                tracking_boxes = [
+                    DetectionBox(x=box.x, y=box.y, width=box.width, height=box.height)
+                    for box in bounding_boxes
                 ]
-                decisoes = await person_tracker.registrar_lote(
+                decisions = await person_tracker.register_batch(
                     camera=camera,
-                    evento_id=evento.evento_id,
-                    bboxes=caixas_rastreamento,
+                    event_id=event.event_id,
+                    bboxes=tracking_boxes,
                 )
 
-                if len(decisoes) != len(bounding_boxes):
-                    raise RuntimeError(
-                        "Quantidade de decisões diferente da quantidade de boxes"
-                    )
+                if len(decisions) != len(bounding_boxes):
+                    raise RuntimeError("Number of decisions differs from the number of boxes")
 
-                total_pessoas = len(bounding_boxes)
+                total_people = len(bounding_boxes)
                 logger.info(
-                    "[%s] Rastreamento em lote: pessoas=%s ids=%s",
-                    pacote.evento_id,
-                    total_pessoas,
-                    [(decisao.pessoa_id, decisao.status) for decisao in decisoes],
+                    "[%s] Batch tracking: people=%s ids=%s",
+                    package.event_id,
+                    total_people,
+                    [(decision.person_id, decision.status) for decision in decisions],
                 )
 
-                contexto_cena = await scene.analisar_contexto_cena(
-                    evento=evento,
+                scene_context = await scene.analyze_scene_context(
+                    event=event,
                     bounding_boxes=bounding_boxes,
-                    pacote_id=pacote.evento_id,
+                    package_id=package.event_id,
                 )
-                cena_renderizada = await scene.renderizar_cena(
-                    evento=evento,
+                rendered_scene = await scene.render_scene(
+                    event=event,
                     bounding_boxes=bounding_boxes,
-                    pacote_id=pacote.evento_id,
+                    package_id=package.event_id,
                 )
 
-                imagem_background_base64: str | None = None
-                for indice, (bounding_box, decisao) in enumerate(
-                    zip(bounding_boxes, decisoes, strict=True),
+                background_image_base64: str | None = None
+                for index, (bounding_box, decision) in enumerate(
+                    zip(bounding_boxes, decisions, strict=True),
                     start=1,
                 ):
-                    imagem_background_base64 = await self._person_processor.processar_pessoa(
-                        evento=evento,
+                    background_image_base64 = await self._person_processor.process_person(
+                        event=event,
                         camera=camera,
                         bounding_box=bounding_box,
-                        decisao=decisao,
-                        contexto_cena=contexto_cena,
-                        cena_renderizada=cena_renderizada,
-                        indice_na_cena=indice,
-                        total_pessoas_cena=total_pessoas,
-                        pacote_id=pacote.evento_id,
-                        enviar_alerta_evento=indice - 1 in indices_alerta_evento,
-                        imagem_background_base64=imagem_background_base64,
+                        decision=decision,
+                        scene_context=scene_context,
+                        rendered_scene=rendered_scene,
+                        scene_index=index,
+                        scene_total_people=total_people,
+                        package_id=package.event_id,
+                        send_event_alert=index - 1 in event_alert_indexes,
+                        background_image_base64=background_image_base64,
                     )
 
             except asyncio.CancelledError:
                 raise
             except Exception:
-                logger.exception("[%s] Erro no processamento", pacote.evento_id)
+                logger.exception("[%s] Processing error", package.event_id)
             finally:
                 self.queue.task_done()

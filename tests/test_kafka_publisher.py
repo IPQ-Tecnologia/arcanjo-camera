@@ -4,28 +4,22 @@ from app.messaging.kafka_producer import kafka_publisher
 
 
 async def main() -> None:
-    print("===== TESTE DO KAFKA PUBLISHER =====")
-    print("Iniciado antes:", kafka_publisher.iniciado)
+    print("===== KAFKA PUBLISHER TEST =====")
+    print("Started before:", kafka_publisher.started)
 
     try:
         await kafka_publisher.start()
 
-        print(
-            "Iniciado depois do start:",
-            kafka_publisher.iniciado
-        )
+        print("Started after start:", kafka_publisher.started)
 
-        print("Produtor reutilizável funcionando.")
+        print("Reusable producer working.")
 
     finally:
         await kafka_publisher.stop()
 
-        print(
-            "Iniciado depois do stop:",
-            kafka_publisher.iniciado
-        )
+        print("Started after stop:", kafka_publisher.started)
 
-    print("===== FIM DO TESTE =====")
+    print("===== END OF TEST =====")
 
 
 if __name__ == "__main__":

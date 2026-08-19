@@ -1,185 +1,176 @@
 """
-Seleção e validação das caixas de pessoa vindas do evento da câmera.
+Selection and validation of the person boxes coming from the camera
+event.
 
-Extraído de CameraEventPipeline: aqui vive tudo que decide "quais
-caixas são pessoas de verdade" antes de seguir para rastreamento.
+Extracted from CameraEventPipeline: this is where everything that
+decides "which boxes are actually people" lives, before moving on to
+tracking.
 """
 
 import asyncio
 import logging
 
 from app.domain.models.camera_event import BoundingBox, CameraEvent
-from app.services.person_detector_yolo import detectar_pessoas_yolo
+from app.services.person_detector_yolo import detect_people_yolo
 from app.services.person_validation import (
-    calcular_metricas_sobreposicao,
-    validar_boxes_camera_com_yolo,
+    calculate_overlap_metrics,
+    validate_camera_boxes_with_yolo,
 )
 
 logger = logging.getLogger(__name__)
 
 
-def selecionar_boxes_pessoas(evento: CameraEvent) -> list[BoundingBox]:
-    """Remove caixas inválidas, duplicadas e a caixa da imagem inteira."""
-    if evento.imagem is None:
+def select_person_boxes(event: CameraEvent) -> list[BoundingBox]:
+    """Removes invalid boxes, duplicates, and the full-image box."""
+    if event.image is None:
         return []
 
-    largura_imagem = evento.imagem.largura
-    altura_imagem = evento.imagem.altura
-    if not largura_imagem or not altura_imagem:
+    image_width = event.image.width
+    image_height = event.image.height
+    if not image_width or not image_height:
         return []
 
-    area_imagem = largura_imagem * altura_imagem
-    assinaturas: set[tuple[int, int, int, int]] = set()
-    caixas_validas: list[BoundingBox] = []
+    image_area = image_width * image_height
+    seen: set[tuple[int, int, int, int]] = set()
+    valid_boxes: list[BoundingBox] = []
 
-    for caixa in evento.bounding_boxes or []:
-        if caixa.largura <= 0 or caixa.altura <= 0:
+    for box in event.bounding_boxes or []:
+        if box.width <= 0 or box.height <= 0:
             continue
 
-        x1 = max(0, min(caixa.x, largura_imagem - 1))
-        y1 = max(0, min(caixa.y, altura_imagem - 1))
-        x2 = max(x1 + 1, min(caixa.x2, largura_imagem))
-        y2 = max(y1 + 1, min(caixa.y2, altura_imagem))
-        largura = x2 - x1
-        altura = y2 - y1
-        percentual = largura * altura / area_imagem * 100
+        x1 = max(0, min(box.x, image_width - 1))
+        y1 = max(0, min(box.y, image_height - 1))
+        x2 = max(x1 + 1, min(box.x2, image_width))
+        y2 = max(y1 + 1, min(box.y2, image_height))
+        width = x2 - x1
+        height = y2 - y1
+        percentage = width * height / image_area * 100
 
-        if percentual >= 60 or percentual < 0.05:
+        if percentage >= 60 or percentage < 0.05:
             continue
 
-        assinatura = (x1, y1, x2, y2)
-        if assinatura in assinaturas:
+        signature = (x1, y1, x2, y2)
+        if signature in seen:
             continue
-        assinaturas.add(assinatura)
+        seen.add(signature)
 
-        mesma_caixa = (
-            x1 == caixa.x
-            and y1 == caixa.y
-            and largura == caixa.largura
-            and altura == caixa.altura
-        )
-        if mesma_caixa:
-            caixa_ajustada = caixa
+        same_box = x1 == box.x and y1 == box.y and width == box.width and height == box.height
+        if same_box:
+            adjusted_box = box
         else:
-            caixa_ajustada = caixa.model_copy(
+            adjusted_box = box.model_copy(
                 update={
                     "x": x1,
                     "y": y1,
-                    "largura": largura,
-                    "altura": altura,
+                    "width": width,
+                    "height": height,
                     "x2": x2,
                     "y2": y2,
                 }
             )
 
-        caixas_validas.append(caixa_ajustada)
+        valid_boxes.append(adjusted_box)
 
-    if not caixas_validas and evento.bounding_box_escolhida is not None:
-        caixas_validas.append(evento.bounding_box_escolhida)
+    if not valid_boxes and event.selected_bounding_box is not None:
+        valid_boxes.append(event.selected_bounding_box)
 
-    caixas_validas.sort(
-        key=lambda caixa: (caixa.x + caixa.largura / 2, caixa.y + caixa.altura / 2)
-    )
-    return caixas_validas
+    valid_boxes.sort(key=lambda box: (box.x + box.width / 2, box.y + box.height / 2))
+    return valid_boxes
 
 
-async def validar_com_yolo(
-    evento: CameraEvent,
-    bounding_boxes_camera: list[BoundingBox],
-    pacote_id: str,
+async def validate_with_yolo(
+    event: CameraEvent,
+    camera_boxes: list[BoundingBox],
+    package_id: str,
 ) -> tuple[list[BoundingBox], set[int]]:
     """
-    Roda o YOLO sobre a imagem para confirmar quais caixas da câmera são
-    pessoas de verdade.
+    Runs YOLO on the image to confirm which camera boxes are actually
+    people.
 
-    Devolve todas as pessoas detectadas pelo YOLO (para
-    tracker/painel/face) e o conjunto de índices, dentro dessa lista,
-    que correspondem à caixa que efetivamente gerou o evento de alarme
-    da câmera.
+    Returns every person detected by YOLO (for tracker/panel/face) and
+    the set of indexes, within that list, that correspond to the box
+    that actually triggered the camera's alarm event.
 
-    Se o YOLO não puder rodar (sem imagem salva ou falha na inferência),
-    usa as caixas da câmera como estão, todas como alvo de alerta.
+    If YOLO can't run (no saved image or inference failure), uses the
+    camera boxes as they are, all of them as alert targets.
     """
-    bounding_boxes_yolo: list[BoundingBox] = []
-    yolo_executado = False
-    caminho_original = evento.imagem.caminho_original if evento.imagem else None
+    yolo_boxes: list[BoundingBox] = []
+    yolo_ran = False
+    original_path = event.image.original_path if event.image else None
 
-    if caminho_original:
+    if original_path:
         try:
-            bounding_boxes_yolo = await asyncio.to_thread(
-                detectar_pessoas_yolo, caminho_original
-            )
-            yolo_executado = True
+            yolo_boxes = await asyncio.to_thread(detect_people_yolo, original_path)
+            yolo_ran = True
         except Exception:
             logger.exception(
-                "[%s] Falha ao validar pessoas com YOLO; usando "
-                "temporariamente as caixas da câmera",
-                pacote_id,
+                "[%s] Failed to validate people with YOLO; temporarily using the camera boxes",
+                package_id,
             )
     else:
         logger.warning(
-            "[%s] Imagem sem caminho original; validação YOLO não pôde ser executada",
-            pacote_id,
+            "[%s] Image has no original path; YOLO validation could not run",
+            package_id,
         )
 
-    if not yolo_executado:
-        return bounding_boxes_camera, set(range(len(bounding_boxes_camera)))
+    if not yolo_ran:
+        return camera_boxes, set(range(len(camera_boxes)))
 
-    bounding_boxes_evento = validar_boxes_camera_com_yolo(
-        caixas_camera=bounding_boxes_camera,
-        caixas_yolo=bounding_boxes_yolo,
+    event_boxes = validate_camera_boxes_with_yolo(
+        camera_boxes=camera_boxes,
+        yolo_boxes=yolo_boxes,
     )
 
-    quantidade_rejeitada = len(bounding_boxes_camera) - len(bounding_boxes_evento)
+    rejected_count = len(camera_boxes) - len(event_boxes)
     logger.info(
-        "[%s] Validação YOLO: camera=%s yolo=%s validadas=%s rejeitadas=%s",
-        pacote_id,
-        len(bounding_boxes_camera),
-        len(bounding_boxes_yolo),
-        len(bounding_boxes_evento),
-        quantidade_rejeitada,
+        "[%s] YOLO validation: camera=%s yolo=%s validated=%s rejected=%s",
+        package_id,
+        len(camera_boxes),
+        len(yolo_boxes),
+        len(event_boxes),
+        rejected_count,
     )
-    if quantidade_rejeitada > 0:
-        logger.info("[%s] Possível falso positivo rejeitado pelo YOLO", pacote_id)
+    if rejected_count > 0:
+        logger.info("[%s] Possible false positive rejected by YOLO", package_id)
 
-    if not bounding_boxes_evento:
+    if not event_boxes:
         return [], set()
 
-    # Todas as pessoas detectadas pelo YOLO seguem para tracker/painel/face.
-    bounding_boxes = bounding_boxes_yolo
-    indices_alerta_evento = _localizar_indices_alerta(bounding_boxes_evento, bounding_boxes)
+    # Every person detected by YOLO moves on to tracker/panel/face.
+    boxes = yolo_boxes
+    alert_indexes = _find_alert_indexes(event_boxes, boxes)
 
     logger.info(
-        "[%s] Pessoas da cena via YOLO: pessoas=%s alvos_evento=%s",
-        pacote_id,
-        len(bounding_boxes),
-        sorted(indices_alerta_evento),
+        "[%s] People in the scene via YOLO: people=%s event_targets=%s",
+        package_id,
+        len(boxes),
+        sorted(alert_indexes),
     )
-    return bounding_boxes, indices_alerta_evento
+    return boxes, alert_indexes
 
 
-def _localizar_indices_alerta(
-    bounding_boxes_evento: list[BoundingBox],
-    bounding_boxes_yolo: list[BoundingBox],
+def _find_alert_indexes(
+    event_boxes: list[BoundingBox],
+    yolo_boxes: list[BoundingBox],
 ) -> set[int]:
     """
-    Descobre qual pessoa detectada pelo YOLO corresponde à box que
-    realmente gerou o evento informado pela câmera, usando a maior
-    sobreposição (IoU) entre as caixas.
+    Figures out which person detected by YOLO matches the box that
+    actually triggered the event reported by the camera, using the
+    highest overlap (IoU) between boxes.
     """
-    indices_alerta_evento: set[int] = set()
+    alert_indexes: set[int] = set()
 
-    for caixa_evento in bounding_boxes_evento:
-        melhor_indice = None
-        melhor_iou = -1.0
+    for event_box in event_boxes:
+        best_index = None
+        best_iou = -1.0
 
-        for indice_yolo, caixa_yolo in enumerate(bounding_boxes_yolo):
-            iou, _ = calcular_metricas_sobreposicao(caixa_evento, caixa_yolo)
-            if iou > 0 and iou > melhor_iou:
-                melhor_iou = iou
-                melhor_indice = indice_yolo
+        for yolo_index, yolo_box in enumerate(yolo_boxes):
+            iou, _ = calculate_overlap_metrics(event_box, yolo_box)
+            if iou > 0 and iou > best_iou:
+                best_iou = iou
+                best_index = yolo_index
 
-        if melhor_indice is not None:
-            indices_alerta_evento.add(melhor_indice)
+        if best_index is not None:
+            alert_indexes.add(best_index)
 
-    return indices_alerta_evento
+    return alert_indexes

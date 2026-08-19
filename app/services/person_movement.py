@@ -9,18 +9,22 @@ from typing import Literal
 from app.services.person_tracker import DetectionBox
 
 
-MovimentoHorizontal = Literal["inicial", "parado", "esquerda", "direita"]
-MovimentoVertical = Literal["inicial", "parado", "cima", "baixo"]
-TendenciaDistancia = Literal["inicial", "estavel", "aproximando", "afastando"]
+HorizontalMovement = Literal["inicial", "parado", "esquerda", "direita"]
+VerticalMovement = Literal["inicial", "parado", "cima", "baixo"]
+DistanceTrend = Literal["inicial", "estavel", "aproximando", "afastando"]
 
 
+# NOTE: PersonMovementAnalysis is serialized as-is (via to_dict) into
+# the panel/Kafka payload, so its field names are a wire contract and
+# are intentionally kept in Portuguese, matching the frontend and any
+# external consumer. Only the internal code around it is in English.
 @dataclass(frozen=True)
 class PersonMovementAnalysis:
     pessoa_id: str
 
-    movimento_horizontal: MovimentoHorizontal
-    movimento_vertical: MovimentoVertical
-    tendencia_distancia: TendenciaDistancia
+    movimento_horizontal: HorizontalMovement
+    movimento_vertical: VerticalMovement
+    tendencia_distancia: DistanceTrend
 
     deslocamento_x: float
     deslocamento_y: float
@@ -41,109 +45,109 @@ class PersonMovementAnalysis:
 
 @dataclass
 class _MovementState:
-    pessoa_id: str
+    person_id: str
 
-    primeira_amostra_em: float
-    ultima_amostra_em: float
+    first_sample_at: float
+    last_sample_at: float
 
-    ultima_bbox: DetectionBox
+    last_bbox: DetectionBox
 
-    quantidade_amostras: int
-    distancia_total_pixels: float
+    sample_count: int
+    total_distance_pixels: float
 
-    ultima_analise: PersonMovementAnalysis
+    last_analysis: PersonMovementAnalysis
 
 
 class PersonMovementMemory:
     def __init__(
         self,
-        limite_movimento_percentual: float = 0.05,
-        limite_movimento_minimo_pixels: float = 6.0,
-        limite_variacao_area_percentual: float = 12.0,
+        movement_percent_threshold: float = 0.05,
+        min_movement_pixels: float = 6.0,
+        area_variation_percent_threshold: float = 12.0,
     ) -> None:
-        if limite_movimento_percentual < 0:
-            raise ValueError("limite_movimento_percentual não pode ser negativo")
+        if movement_percent_threshold < 0:
+            raise ValueError("movement_percent_threshold cannot be negative")
 
-        if limite_movimento_minimo_pixels < 0:
-            raise ValueError("limite_movimento_minimo_pixels não pode ser negativo")
+        if min_movement_pixels < 0:
+            raise ValueError("min_movement_pixels cannot be negative")
 
-        if limite_variacao_area_percentual < 0:
-            raise ValueError("limite_variacao_area_percentual não pode ser negativo")
+        if area_variation_percent_threshold < 0:
+            raise ValueError("area_variation_percent_threshold cannot be negative")
 
-        self.limite_movimento_percentual = limite_movimento_percentual
-        self.limite_movimento_minimo_pixels = limite_movimento_minimo_pixels
-        self.limite_variacao_area_percentual = limite_variacao_area_percentual
+        self.movement_percent_threshold = movement_percent_threshold
+        self.min_movement_pixels = min_movement_pixels
+        self.area_variation_percent_threshold = area_variation_percent_threshold
 
-        self._estados: dict[str, _MovementState] = {}
+        self._states: dict[str, _MovementState] = {}
         self._lock = asyncio.Lock()
 
-    async def registrar(
+    async def register(
         self,
-        pessoa_id: str,
+        person_id: str,
         bbox: DetectionBox,
-        agora: float | None = None,
+        now: float | None = None,
     ) -> PersonMovementAnalysis:
-        if not pessoa_id.strip():
-            raise ValueError("pessoa_id não pode ser vazio")
+        if not person_id.strip():
+            raise ValueError("person_id cannot be empty")
 
-        if bbox.largura <= 0 or bbox.altura <= 0:
-            raise ValueError("A bounding box deve possuir largura e altura positivas")
+        if bbox.width <= 0 or bbox.height <= 0:
+            raise ValueError("The bounding box must have positive width and height")
 
-        momento = time.monotonic() if agora is None else agora
+        moment = time.monotonic() if now is None else now
 
         async with self._lock:
-            estado = self._estados.get(pessoa_id)
+            state = self._states.get(person_id)
 
-            if estado is None:
-                analise = self._criar_primeira_analise(pessoa_id=pessoa_id)
-                self._estados[pessoa_id] = _MovementState(
-                    pessoa_id=pessoa_id,
-                    primeira_amostra_em=momento,
-                    ultima_amostra_em=momento,
-                    ultima_bbox=bbox,
-                    quantidade_amostras=1,
-                    distancia_total_pixels=0.0,
-                    ultima_analise=analise,
+            if state is None:
+                analysis = self._create_first_analysis(person_id=person_id)
+                self._states[person_id] = _MovementState(
+                    person_id=person_id,
+                    first_sample_at=moment,
+                    last_sample_at=moment,
+                    last_bbox=bbox,
+                    sample_count=1,
+                    total_distance_pixels=0.0,
+                    last_analysis=analysis,
                 )
-                return analise
+                return analysis
 
-            analise = self._calcular_movimento(estado=estado, bbox=bbox, agora=momento)
+            analysis = self._calculate_movement(state=state, bbox=bbox, now=moment)
 
-            estado.ultima_amostra_em = momento
-            estado.ultima_bbox = bbox
-            estado.quantidade_amostras += 1
-            estado.distancia_total_pixels = analise.distancia_total_pixels
-            estado.ultima_analise = analise
+            state.last_sample_at = moment
+            state.last_bbox = bbox
+            state.sample_count += 1
+            state.total_distance_pixels = analysis.distancia_total_pixels
+            state.last_analysis = analysis
 
-            return analise
+            return analysis
 
-    async def obter(self, pessoa_id: str) -> PersonMovementAnalysis | None:
+    async def get(self, person_id: str) -> PersonMovementAnalysis | None:
         async with self._lock:
-            estado = self._estados.get(pessoa_id)
-            if estado is None:
+            state = self._states.get(person_id)
+            if state is None:
                 return None
 
-            return estado.ultima_analise
+            return state.last_analysis
 
-    async def finalizar(self, pessoa_id: str) -> PersonMovementAnalysis | None:
+    async def finalize(self, person_id: str) -> PersonMovementAnalysis | None:
         async with self._lock:
-            estado = self._estados.pop(pessoa_id, None)
-            if estado is None:
+            state = self._states.pop(person_id, None)
+            if state is None:
                 return None
 
-            return estado.ultima_analise
+            return state.last_analysis
 
-    async def limpar(self) -> None:
+    async def clear(self) -> None:
         async with self._lock:
-            self._estados.clear()
+            self._states.clear()
 
     @property
-    def quantidade_pessoas(self) -> int:
-        return len(self._estados)
+    def person_count(self) -> int:
+        return len(self._states)
 
-    def _criar_primeira_analise(self, pessoa_id: str) -> PersonMovementAnalysis:
+    def _create_first_analysis(self, person_id: str) -> PersonMovementAnalysis:
         return PersonMovementAnalysis(
-            pessoa_id=pessoa_id,
+            pessoa_id=person_id,
             movimento_horizontal="inicial",
             movimento_vertical="inicial",
             tendencia_distancia="inicial",
@@ -155,150 +159,145 @@ class PersonMovementMemory:
             distancia_total_pixels=0.0,
             tempo_observado_segundos=0.0,
             quantidade_amostras=1,
-            descricao="Primeira posição da pessoa registrada.",
+            descricao="First position of the person recorded.",
         )
 
-    def _calcular_movimento(
+    def _calculate_movement(
         self,
-        estado: _MovementState,
+        state: _MovementState,
         bbox: DetectionBox,
-        agora: float,
+        now: float,
     ) -> PersonMovementAnalysis:
-        bbox_anterior = estado.ultima_bbox
+        previous_bbox = state.last_bbox
 
-        deslocamento_x = bbox.centro_x - bbox_anterior.centro_x
-        deslocamento_y = bbox.centro_y - bbox_anterior.centro_y
-        distancia_pixels = math.hypot(deslocamento_x, deslocamento_y)
+        displacement_x = bbox.center_x - previous_bbox.center_x
+        displacement_y = bbox.center_y - previous_bbox.center_y
+        distance_pixels = math.hypot(displacement_x, displacement_y)
 
-        intervalo_segundos = max(0.001, agora - estado.ultima_amostra_em)
-        velocidade = distancia_pixels / intervalo_segundos
+        interval_seconds = max(0.001, now - state.last_sample_at)
+        speed = distance_pixels / interval_seconds
 
-        limite_horizontal = max(
-            self.limite_movimento_minimo_pixels,
-            max(bbox.largura, bbox_anterior.largura) * self.limite_movimento_percentual,
+        horizontal_threshold = max(
+            self.min_movement_pixels,
+            max(bbox.width, previous_bbox.width) * self.movement_percent_threshold,
         )
-        limite_vertical = max(
-            self.limite_movimento_minimo_pixels,
-            max(bbox.altura, bbox_anterior.altura) * self.limite_movimento_percentual,
-        )
-
-        movimento_horizontal = self._classificar_movimento_horizontal(
-            deslocamento_x=deslocamento_x,
-            limite=limite_horizontal,
-        )
-        movimento_vertical = self._classificar_movimento_vertical(
-            deslocamento_y=deslocamento_y,
-            limite=limite_vertical,
+        vertical_threshold = max(
+            self.min_movement_pixels,
+            max(bbox.height, previous_bbox.height) * self.movement_percent_threshold,
         )
 
-        area_anterior = max(1, bbox_anterior.area)
-        variacao_area_percentual = (bbox.area - area_anterior) / area_anterior * 100
-
-        tendencia_distancia = self._classificar_tendencia_distancia(
-            variacao_area_percentual
+        horizontal_movement = self._classify_horizontal_movement(
+            displacement_x=displacement_x,
+            threshold=horizontal_threshold,
+        )
+        vertical_movement = self._classify_vertical_movement(
+            displacement_y=displacement_y,
+            threshold=vertical_threshold,
         )
 
-        quantidade_amostras = estado.quantidade_amostras + 1
-        distancia_total = estado.distancia_total_pixels + distancia_pixels
-        tempo_observado = max(0.0, agora - estado.primeira_amostra_em)
+        previous_area = max(1, previous_bbox.area)
+        area_variation_percent = (bbox.area - previous_area) / previous_area * 100
 
-        descricao = self._montar_descricao(
-            movimento_horizontal=movimento_horizontal,
-            movimento_vertical=movimento_vertical,
-            tendencia_distancia=tendencia_distancia,
-            velocidade=velocidade,
+        distance_trend = self._classify_distance_trend(area_variation_percent)
+
+        sample_count = state.sample_count + 1
+        total_distance = state.total_distance_pixels + distance_pixels
+        observed_time = max(0.0, now - state.first_sample_at)
+
+        description = self._build_description(
+            horizontal_movement=horizontal_movement,
+            vertical_movement=vertical_movement,
+            distance_trend=distance_trend,
+            speed=speed,
         )
 
         return PersonMovementAnalysis(
-            pessoa_id=estado.pessoa_id,
-            movimento_horizontal=movimento_horizontal,
-            movimento_vertical=movimento_vertical,
-            tendencia_distancia=tendencia_distancia,
-            deslocamento_x=round(deslocamento_x, 2),
-            deslocamento_y=round(deslocamento_y, 2),
-            distancia_pixels=round(distancia_pixels, 2),
-            velocidade_pixels_segundo=round(velocidade, 2),
-            variacao_area_percentual=round(variacao_area_percentual, 2),
-            distancia_total_pixels=round(distancia_total, 2),
-            tempo_observado_segundos=round(tempo_observado, 2),
-            quantidade_amostras=quantidade_amostras,
-            descricao=descricao,
+            pessoa_id=state.person_id,
+            movimento_horizontal=horizontal_movement,
+            movimento_vertical=vertical_movement,
+            tendencia_distancia=distance_trend,
+            deslocamento_x=round(displacement_x, 2),
+            deslocamento_y=round(displacement_y, 2),
+            distancia_pixels=round(distance_pixels, 2),
+            velocidade_pixels_segundo=round(speed, 2),
+            variacao_area_percentual=round(area_variation_percent, 2),
+            distancia_total_pixels=round(total_distance, 2),
+            tempo_observado_segundos=round(observed_time, 2),
+            quantidade_amostras=sample_count,
+            descricao=description,
         )
 
-    def _classificar_movimento_horizontal(
+    def _classify_horizontal_movement(
         self,
-        deslocamento_x: float,
-        limite: float,
-    ) -> MovimentoHorizontal:
-        if abs(deslocamento_x) < limite:
+        displacement_x: float,
+        threshold: float,
+    ) -> HorizontalMovement:
+        if abs(displacement_x) < threshold:
             return "parado"
 
-        if deslocamento_x > 0:
+        if displacement_x > 0:
             return "direita"
 
         return "esquerda"
 
-    def _classificar_movimento_vertical(
+    def _classify_vertical_movement(
         self,
-        deslocamento_y: float,
-        limite: float,
-    ) -> MovimentoVertical:
-        if abs(deslocamento_y) < limite:
+        displacement_y: float,
+        threshold: float,
+    ) -> VerticalMovement:
+        if abs(displacement_y) < threshold:
             return "parado"
 
-        if deslocamento_y > 0:
+        if displacement_y > 0:
             return "baixo"
 
         return "cima"
 
-    def _classificar_tendencia_distancia(
-        self,
-        variacao_area_percentual: float,
-    ) -> TendenciaDistancia:
-        limite = self.limite_variacao_area_percentual
+    def _classify_distance_trend(self, area_variation_percent: float) -> DistanceTrend:
+        threshold = self.area_variation_percent_threshold
 
-        if variacao_area_percentual >= limite:
+        if area_variation_percent >= threshold:
             return "aproximando"
 
-        if variacao_area_percentual <= -limite:
+        if area_variation_percent <= -threshold:
             return "afastando"
 
         return "estavel"
 
-    def _montar_descricao(
+    def _build_description(
         self,
-        movimento_horizontal: MovimentoHorizontal,
-        movimento_vertical: MovimentoVertical,
-        tendencia_distancia: TendenciaDistancia,
-        velocidade: float,
+        horizontal_movement: HorizontalMovement,
+        vertical_movement: VerticalMovement,
+        distance_trend: DistanceTrend,
+        speed: float,
     ) -> str:
-        movimentos: list[str] = []
+        movements: list[str] = []
 
-        if movimento_horizontal == "direita":
-            movimentos.append("para a direita")
-        elif movimento_horizontal == "esquerda":
-            movimentos.append("para a esquerda")
+        if horizontal_movement == "direita":
+            movements.append("to the right")
+        elif horizontal_movement == "esquerda":
+            movements.append("to the left")
 
-        if movimento_vertical == "cima":
-            movimentos.append("para cima")
-        elif movimento_vertical == "baixo":
-            movimentos.append("para baixo")
+        if vertical_movement == "cima":
+            movements.append("upward")
+        elif vertical_movement == "baixo":
+            movements.append("downward")
 
-        if not movimentos:
-            descricao_movimento = "Pessoa praticamente parada"
+        if not movements:
+            movement_description = "Person practically standing still"
         else:
-            descricao_movimento = "Pessoa se movimentando " + " e ".join(movimentos)
+            movement_description = "Person moving " + " and ".join(movements)
 
-        tendencias = {
+        trends = {
             "inicial": "",
-            "estavel": " mantendo distância aparente estável",
-            "aproximando": " e aparentemente se aproximando da câmera",
-            "afastando": " e aparentemente se afastando da câmera",
+            "estavel": ", keeping a stable apparent distance",
+            "aproximando": " and apparently getting closer to the camera",
+            "afastando": " and apparently moving away from the camera",
         }
 
         return (
-            f"{descricao_movimento}{tendencias[tendencia_distancia]}, "
-            f"com velocidade aproximada de {velocidade:.2f} pixels por segundo."
+            f"{movement_description}{trends[distance_trend]}, "
+            f"at an approximate speed of {speed:.2f} pixels per second."
         )
 
 

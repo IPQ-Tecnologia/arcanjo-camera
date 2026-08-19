@@ -5,10 +5,10 @@ from app.adapters.cameras.hikvision import HikvisionAdapter
 
 class CameraAdapterFactory:
     """
-    Registro central dos adapters de câmera.
+    Central registry of camera adapters.
 
-    Cada fabricante implementa CameraAdapter e deve ser
-    registrado apenas nesta classe.
+    Each manufacturer implements CameraAdapter and must be registered
+    only in this class.
     """
 
     def __init__(self) -> None:
@@ -17,28 +17,28 @@ class CameraAdapterFactory:
             DahuaAdapter(),
         ]
 
-    def registrar_adapter(self, adapter: CameraAdapter) -> None:
-        fabricantes = self.listar_fabricantes()
-        if adapter.fabricante in fabricantes:
+    def register_adapter(self, adapter: CameraAdapter) -> None:
+        manufacturers = self.list_manufacturers()
+        if adapter.manufacturer in manufacturers:
             raise ValueError(
-                f"Adapter já registrado para o fabricante: {adapter.fabricante}"
+                f"Adapter already registered for manufacturer: {adapter.manufacturer}"
             )
 
         self._adapters.append(adapter)
 
-    def encontrar_adapter(self, content_type: str, body: bytes) -> CameraAdapter:
+    def find_adapter(self, content_type: str, body: bytes) -> CameraAdapter:
         for adapter in self._adapters:
-            if adapter.consegue_processar(content_type=content_type, body=body):
+            if adapter.can_handle(content_type=content_type, body=body):
                 return adapter
 
-        fabricantes = ", ".join(self.listar_fabricantes())
+        manufacturers = ", ".join(self.list_manufacturers())
         raise ValueError(
-            "Nenhum adaptador disponível para o pacote. "
-            f"Content-Type={content_type!r}; adapters registrados=[{fabricantes}]"
+            "No adapter available for this package. "
+            f"Content-Type={content_type!r}; registered adapters=[{manufacturers}]"
         )
 
-    def listar_fabricantes(self) -> list[str]:
-        return [adapter.fabricante for adapter in self._adapters]
+    def list_manufacturers(self) -> list[str]:
+        return [adapter.manufacturer for adapter in self._adapters]
 
 
 camera_adapter_factory = CameraAdapterFactory()

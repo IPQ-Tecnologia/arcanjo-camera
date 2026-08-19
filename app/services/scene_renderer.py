@@ -12,59 +12,59 @@ from app.domain.models.camera_event import BoundingBox
 
 @dataclass(frozen=True)
 class DrawableBoundingBox:
-    """Bounding box já convertida para pixels e pronta para ser desenhada sobre a imagem."""
+    """Bounding box already converted to pixels and ready to be drawn on the image."""
 
-    origem: str
+    source: str
 
     x1: int
     y1: int
     x2: int
     y2: int
 
-    largura: int
-    altura: int
+    width: int
+    height: int
 
-    percentual_quadro: float
+    frame_percentage: float
 
 
 @dataclass(frozen=True)
 class SceneRenderResult:
-    """Resultado da renderização da cena."""
+    """Result of rendering the scene."""
 
-    imagem_base64: str
-    quantidade_boxes: int
-    largura_imagem: int
-    altura_imagem: int
+    image_base64: str
+    box_count: int
+    image_width: int
+    image_height: int
 
 
-def renderizar_cena_com_boxes(
-    caminho_imagem: str,
+def render_scene_with_boxes(
+    image_path: str,
     bounding_boxes: list[BoundingBox],
 ) -> SceneRenderResult:
     """
-    Abre a imagem original e desenha todas as bounding boxes válidas.
+    Opens the original image and draws every valid bounding box.
 
-    Retorna a imagem marcada em Base64.
+    Returns the annotated image in Base64.
     """
-    caminho = Path(caminho_imagem)
-    if not caminho.is_file():
-        raise FileNotFoundError(f"Imagem não encontrada: {caminho}")
+    path = Path(image_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"Image not found: {path}")
 
-    with Image.open(caminho) as imagem_aberta:
-        imagem = imagem_aberta.convert("RGB")
+    with Image.open(path) as opened_image:
+        image = opened_image.convert("RGB")
 
-    largura_imagem, altura_imagem = imagem.size
+    image_width, image_height = image.size
 
-    caixas_validas = _preparar_bounding_boxes(
+    valid_boxes = _prepare_bounding_boxes(
         bounding_boxes=bounding_boxes,
-        largura_imagem=largura_imagem,
-        altura_imagem=altura_imagem,
+        image_width=image_width,
+        image_height=image_height,
     )
 
-    desenho = ImageDraw.Draw(imagem)
-    fonte = ImageFont.load_default()
+    draw = ImageDraw.Draw(image)
+    font = ImageFont.load_default()
 
-    cores = [
+    colors = [
         (239, 68, 68),
         (34, 197, 94),
         (59, 130, 246),
@@ -75,160 +75,157 @@ def renderizar_cena_com_boxes(
         (249, 115, 22),
     ]
 
-    largura_linha = max(2, min(6, round(largura_imagem / 450)))
-    raio_centro = max(3, largura_linha + 1)
+    line_width = max(2, min(6, round(image_width / 450)))
+    center_radius = max(3, line_width + 1)
 
-    for indice, caixa in enumerate(caixas_validas, start=1):
-        cor = cores[(indice - 1) % len(cores)]
+    for index, box in enumerate(valid_boxes, start=1):
+        color = colors[(index - 1) % len(colors)]
 
-        desenho.rectangle(
-            (caixa.x1, caixa.y1, caixa.x2, caixa.y2),
-            outline=cor,
-            width=largura_linha,
+        draw.rectangle(
+            (box.x1, box.y1, box.x2, box.y2),
+            outline=color,
+            width=line_width,
         )
 
-        centro_x = int((caixa.x1 + caixa.x2) / 2)
-        centro_y = int((caixa.y1 + caixa.y2) / 2)
+        center_x = int((box.x1 + box.x2) / 2)
+        center_y = int((box.y1 + box.y2) / 2)
 
-        desenho.ellipse(
+        draw.ellipse(
             (
-                centro_x - raio_centro,
-                centro_y - raio_centro,
-                centro_x + raio_centro,
-                centro_y + raio_centro,
+                center_x - center_radius,
+                center_y - center_radius,
+                center_x + center_radius,
+                center_y + center_radius,
             ),
-            fill=cor,
+            fill=color,
         )
 
-        texto = f"Pessoa {indice} ({caixa.percentual_quadro:.2f}%)"
-        limites_texto = desenho.textbbox((0, 0), texto, font=fonte)
-        largura_texto = limites_texto[2] - limites_texto[0]
-        altura_texto = limites_texto[3] - limites_texto[1]
+        text = f"Person {index} ({box.frame_percentage:.2f}%)"
+        text_bounds = draw.textbbox((0, 0), text, font=font)
+        text_width = text_bounds[2] - text_bounds[0]
+        text_height = text_bounds[3] - text_bounds[1]
 
-        margem_texto = 5
-        texto_x1 = caixa.x1
-        texto_y1 = max(0, caixa.y1 - altura_texto - margem_texto * 2)
-        texto_x2 = min(largura_imagem - 1, texto_x1 + largura_texto + margem_texto * 2)
-        texto_y2 = min(altura_imagem - 1, texto_y1 + altura_texto + margem_texto * 2)
+        text_margin = 5
+        text_x1 = box.x1
+        text_y1 = max(0, box.y1 - text_height - text_margin * 2)
+        text_x2 = min(image_width - 1, text_x1 + text_width + text_margin * 2)
+        text_y2 = min(image_height - 1, text_y1 + text_height + text_margin * 2)
 
-        desenho.rectangle((texto_x1, texto_y1, texto_x2, texto_y2), fill=cor)
-        desenho.text(
-            (texto_x1 + margem_texto, texto_y1 + margem_texto),
-            texto,
+        draw.rectangle((text_x1, text_y1, text_x2, text_y2), fill=color)
+        draw.text(
+            (text_x1 + text_margin, text_y1 + text_margin),
+            text,
             fill=(255, 255, 255),
-            font=fonte,
+            font=font,
         )
 
     buffer = BytesIO()
-    imagem.save(buffer, format="JPEG", quality=88, optimize=True)
-    imagem_base64 = base64.b64encode(buffer.getvalue()).decode("ascii")
+    image.save(buffer, format="JPEG", quality=88, optimize=True)
+    image_base64 = base64.b64encode(buffer.getvalue()).decode("ascii")
 
     return SceneRenderResult(
-        imagem_base64=imagem_base64,
-        quantidade_boxes=len(caixas_validas),
-        largura_imagem=largura_imagem,
-        altura_imagem=altura_imagem,
+        image_base64=image_base64,
+        box_count=len(valid_boxes),
+        image_width=image_width,
+        image_height=image_height,
     )
 
 
-def _preparar_bounding_boxes(
+def _prepare_bounding_boxes(
     bounding_boxes: list[BoundingBox],
-    largura_imagem: int,
-    altura_imagem: int,
+    image_width: int,
+    image_height: int,
 ) -> list[DrawableBoundingBox]:
     """
-    Converte coordenadas para pixels, limita as caixas ao tamanho da
-    imagem e remove caixas inválidas ou duplicadas.
+    Converts coordinates to pixels, clamps the boxes to the image size
+    and removes invalid or duplicate boxes.
     """
-    caixas_validas: list[DrawableBoundingBox] = []
-    caixas_encontradas: set[tuple[int, int, int, int]] = set()
-    area_imagem = largura_imagem * altura_imagem
+    valid_boxes: list[DrawableBoundingBox] = []
+    seen_boxes: set[tuple[int, int, int, int]] = set()
+    image_area = image_width * image_height
 
     for bounding_box in bounding_boxes:
-        coordenadas = _converter_para_pixels(
+        coordinates = _convert_to_pixels(
             bounding_box=bounding_box,
-            largura_imagem=largura_imagem,
-            altura_imagem=altura_imagem,
+            image_width=image_width,
+            image_height=image_height,
         )
-        if coordenadas is None:
+        if coordinates is None:
             continue
 
-        x1, y1, x2, y2 = coordenadas
+        x1, y1, x2, y2 = coordinates
 
-        x1 = max(0, min(largura_imagem - 1, x1))
-        y1 = max(0, min(altura_imagem - 1, y1))
-        x2 = max(0, min(largura_imagem - 1, x2))
-        y2 = max(0, min(altura_imagem - 1, y2))
+        x1 = max(0, min(image_width - 1, x1))
+        y1 = max(0, min(image_height - 1, y1))
+        x2 = max(0, min(image_width - 1, x2))
+        y2 = max(0, min(image_height - 1, y2))
 
         if x2 <= x1 or y2 <= y1:
             continue
 
-        largura = x2 - x1
-        altura = y2 - y1
-        area_caixa = largura * altura
-        percentual_quadro = area_caixa / area_imagem * 100
+        width = x2 - x1
+        height = y2 - y1
+        box_area = width * height
+        frame_percentage = box_area / image_area * 100
 
-        # Ignora a caixa que representa quase toda a imagem.
-        if percentual_quadro >= 60:
+        # Ignores the box that represents almost the entire image.
+        if frame_percentage >= 60:
             continue
 
-        # Ignora caixas pequenas demais para representar uma detecção
-        # útil.
-        if percentual_quadro < 0.05:
+        # Ignores boxes too small to represent a useful detection.
+        if frame_percentage < 0.05:
             continue
 
-        chave = (x1, y1, x2, y2)
-        if chave in caixas_encontradas:
+        key = (x1, y1, x2, y2)
+        if key in seen_boxes:
             continue
 
-        caixas_encontradas.add(chave)
+        seen_boxes.add(key)
 
-        caixas_validas.append(
+        valid_boxes.append(
             DrawableBoundingBox(
-                origem=bounding_box.origem or "desconhecida",
+                source=bounding_box.source or "desconhecida",
                 x1=x1,
                 y1=y1,
                 x2=x2,
                 y2=y2,
-                largura=largura,
-                altura=altura,
-                percentual_quadro=round(percentual_quadro, 2),
+                width=width,
+                height=height,
+                frame_percentage=round(frame_percentage, 2),
             )
         )
 
-    return caixas_validas
+    return valid_boxes
 
 
-def _converter_para_pixels(
+def _convert_to_pixels(
     bounding_box: BoundingBox,
-    largura_imagem: int,
-    altura_imagem: int,
+    image_width: int,
+    image_height: int,
 ) -> tuple[int, int, int, int] | None:
-    """Suporta coordenadas em pixels e coordenadas normalizadas entre zero e um."""
+    """Supports coordinates in pixels and coordinates normalized between zero and one."""
     try:
         x = float(bounding_box.x)
         y = float(bounding_box.y)
-        largura = float(bounding_box.largura)
-        altura = float(bounding_box.altura)
+        width = float(bounding_box.width)
+        height = float(bounding_box.height)
     except (TypeError, ValueError):
         return None
 
-    if largura <= 0 or altura <= 0:
+    if width <= 0 or height <= 0:
         return None
 
-    valores_normalizados = (
-        0 <= x <= 1 and 0 <= y <= 1 and 0 < largura <= 1 and 0 < altura <= 1
-    )
+    normalized_values = 0 <= x <= 1 and 0 <= y <= 1 and 0 < width <= 1 and 0 < height <= 1
 
-    if valores_normalizados:
-        x1 = round(x * largura_imagem)
-        y1 = round(y * altura_imagem)
-        x2 = round((x + largura) * largura_imagem)
-        y2 = round((y + altura) * altura_imagem)
+    if normalized_values:
+        x1 = round(x * image_width)
+        y1 = round(y * image_height)
+        x2 = round((x + width) * image_width)
+        y2 = round((y + height) * image_height)
     else:
         x1 = round(x)
         y1 = round(y)
-        x2 = round(x + largura)
-        y2 = round(y + altura)
+        x2 = round(x + width)
+        y2 = round(y + height)
 
     return (x1, y1, x2, y2)

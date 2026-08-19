@@ -1,7 +1,7 @@
 """
-Processamento por pessoa detectada: aparência, movimento, recorte
-facial, montagem dos payloads de alerta/face e publicação no painel e
-no Kafka. Extraído de CameraEventPipeline.
+Per-person processing: appearance, movement, face crop, building the
+alert/face payloads, and publishing to the panel and to Kafka.
+Extracted from CameraEventPipeline.
 """
 
 import asyncio
@@ -11,421 +11,423 @@ from app.core.config import settings
 from app.domain.models.camera_event import BoundingBox, CameraEvent
 from app.messaging.kafka_producer import KafkaPublisher
 from app.services.alarm_detection_payload import (
-    arquivo_para_base64,
-    montar_alarm_detection_message,
-    recortar_deteccao_base64,
+    build_alarm_detection_message,
+    crop_detection_base64,
+    file_to_base64,
 )
 from app.services.appearance_memory import appearance_memory
 from app.services.event_hub import event_hub
-from app.services.face_cropper import FaceCropResult, recortar_rosto
+from app.services.face_cropper import FaceCropResult, crop_face
 from app.services.person_movement import person_movement_memory
 from app.services.person_tracker import TrackingDecision
-from app.services.scene_analyzer import analisar_pessoa
+from app.services.scene_analyzer import analyze_person
 
 logger = logging.getLogger(__name__)
 
 
 class PersonProcessor:
     """
-    Processa cada pessoa detectada em um evento normalizado: analisa
-    aparência e movimento, gera recorte facial, monta os payloads de
-    alerta e de captura facial, e publica tudo no painel e no Kafka.
+    Processes each person detected in a normalized event: analyzes
+    appearance and movement, generates a face crop, builds the alert
+    and face-capture payloads, and publishes everything to the panel
+    and to Kafka.
     """
 
     def __init__(self, publisher: KafkaPublisher, topic: str) -> None:
         self.publisher = publisher
         self.topic = topic
 
-    async def _analisar_aparencia(
+    async def _analyze_appearance(
         self,
-        evento: CameraEvent,
+        event: CameraEvent,
         bounding_box: BoundingBox,
-        pessoa_id: str,
-        pacote_id: str,
+        person_id: str,
+        package_id: str,
     ):
         try:
-            if evento.imagem is None or not evento.imagem.caminho_original:
+            if event.image is None or not event.image.original_path:
                 logger.info(
-                    "[%s] Imagem sem caminho original; aparência não analisada",
-                    pacote_id,
+                    "[%s] Image has no original path; appearance not analyzed",
+                    package_id,
                 )
                 return None
 
-            percentual_caixa = float(bounding_box.proporcao_imagem or 0.0) * 100
+            box_percentage = float(bounding_box.image_ratio or 0.0) * 100
 
-            # Uma pessoa muito pequena não possui pixels de roupa
-            # suficientes para uma classificação confiável.
+            # A very small person doesn't have enough clothing pixels
+            # for a reliable classification.
             if (
-                bounding_box.largura < 60
-                or bounding_box.altura < 120
-                or percentual_caixa < 1.00
+                bounding_box.width < 60
+                or bounding_box.height < 120
+                or box_percentage < 1.00
             ):
                 logger.info(
-                    "[%s] Aparência ignorada: caixa pequena pessoa=%s "
-                    "dimensoes=%sx%s area=%.2f%%",
-                    pacote_id,
-                    pessoa_id,
-                    bounding_box.largura,
-                    bounding_box.altura,
-                    percentual_caixa,
+                    "[%s] Appearance skipped: small box person=%s "
+                    "dimensions=%sx%s area=%.2f%%",
+                    package_id,
+                    person_id,
+                    bounding_box.width,
+                    bounding_box.height,
+                    box_percentage,
                 )
-                return await appearance_memory.obter(pessoa_id)
+                return await appearance_memory.get(person_id)
 
-            analise_visual = await asyncio.to_thread(
-                analisar_pessoa,
-                caminho_imagem=evento.imagem.caminho_original,
+            visual_analysis = await asyncio.to_thread(
+                analyze_person,
+                image_path=event.image.original_path,
                 x=bounding_box.x,
                 y=bounding_box.y,
-                largura=bounding_box.largura,
-                altura=bounding_box.altura,
+                width=bounding_box.width,
+                height=bounding_box.height,
             )
-            # Uma leitura ambígua não entra na votação da memória.
-            # Caso já exista uma aparência confiável, ela é preservada.
-            if analise_visual.cor_roupa_aproximada == "escura-indefinida":
+            # An ambiguous reading doesn't enter the memory's voting.
+            # If a reliable appearance already exists, it's preserved.
+            if visual_analysis.approximate_clothing_color == "escura-indefinida":
                 logger.info(
-                    "[%s] Cor escura indefinida: pessoa=%s rgb=%s; "
-                    "mantendo aparência anterior",
-                    pacote_id,
-                    pessoa_id,
-                    analise_visual.rgb_representativo,
+                    "[%s] Ambiguous dark color: person=%s rgb=%s; "
+                    "keeping previous appearance",
+                    package_id,
+                    person_id,
+                    visual_analysis.representative_rgb,
                 )
-                return await appearance_memory.obter(pessoa_id)
+                return await appearance_memory.get(person_id)
 
-            aparencia_estavel = await appearance_memory.registrar(
-                pessoa_id=pessoa_id,
-                analise=analise_visual,
+            stable_appearance = await appearance_memory.register(
+                person_id=person_id,
+                analysis=visual_analysis,
             )
             logger.info(
-                "[%s] Aparência estável: pessoa=%s cor=%s posição=%s "
-                "tamanho=%s área_média=%s%% amostras=%s",
-                pacote_id,
-                pessoa_id,
-                aparencia_estavel.cor_roupa_predominante,
-                aparencia_estavel.posicao_atual,
-                aparencia_estavel.tamanho_predominante,
-                aparencia_estavel.percentual_medio_quadro,
-                aparencia_estavel.quantidade_amostras,
+                "[%s] Stable appearance: person=%s color=%s position=%s "
+                "size=%s average_area=%s%% samples=%s",
+                package_id,
+                person_id,
+                stable_appearance.cor_roupa_predominante,
+                stable_appearance.posicao_atual,
+                stable_appearance.tamanho_predominante,
+                stable_appearance.percentual_medio_quadro,
+                stable_appearance.quantidade_amostras,
             )
-            return aparencia_estavel
+            return stable_appearance
         except Exception:
             logger.exception(
-                "[%s] Não foi possível analisar a aparência da pessoa=%s",
-                pacote_id,
-                pessoa_id,
+                "[%s] Could not analyze the appearance of person=%s",
+                package_id,
+                person_id,
             )
             return None
 
-    async def _obter_recorte_facial(
+    async def _get_face_crop(
         self,
-        evento: CameraEvent,
+        event: CameraEvent,
         bounding_box: BoundingBox,
-        pessoa_id: str,
-        pacote_id: str,
+        person_id: str,
+        package_id: str,
     ) -> FaceCropResult | None:
-        if evento.imagem is None or not evento.imagem.caminho_original:
+        if event.image is None or not event.image.original_path:
             return None
 
-        if bounding_box.largura < 60 or bounding_box.altura < 100:
+        if bounding_box.width < 60 or bounding_box.height < 100:
             logger.info(
-                "[%s] Face ignorada: caixa da pessoa pequena pessoa=%s dimensoes=%sx%s",
-                pacote_id,
-                pessoa_id,
-                bounding_box.largura,
-                bounding_box.altura,
+                "[%s] Face skipped: small person box person=%s dimensions=%sx%s",
+                package_id,
+                person_id,
+                bounding_box.width,
+                bounding_box.height,
             )
             return None
 
-        nome_seguro = "".join(
-            caractere if (caractere.isalnum() or caractere in "-_") else "_"
-            for caractere in pessoa_id
+        safe_name = "".join(
+            character if (character.isalnum() or character in "-_") else "_"
+            for character in person_id
         )
 
         try:
-            resultado = await asyncio.to_thread(
-                recortar_rosto,
-                caminho_imagem=evento.imagem.caminho_original,
+            result = await asyncio.to_thread(
+                crop_face,
+                image_path=event.image.original_path,
                 bounding_box=bounding_box,
-                pasta_saida="recortes_faciais",
-                nome_arquivo=f"{pacote_id}_{nome_seguro}_face.jpg",
+                output_folder="face_crops",
+                file_name=f"{package_id}_{safe_name}_face.jpg",
             )
 
-            if resultado is None:
-                logger.info("[%s] Rosto não encontrado: pessoa=%s", pacote_id, pessoa_id)
+            if result is None:
+                logger.info("[%s] Face not found: person=%s", package_id, person_id)
                 return None
 
             logger.info(
-                "[%s] Recorte facial criado: pessoa=%s caixa=%s,%s %sx%s arquivo=%s",
-                pacote_id,
-                pessoa_id,
-                resultado.x,
-                resultado.y,
-                resultado.largura,
-                resultado.altura,
-                resultado.caminho_arquivo,
+                "[%s] Face crop created: person=%s box=%s,%s %sx%s file=%s",
+                package_id,
+                person_id,
+                result.x,
+                result.y,
+                result.width,
+                result.height,
+                result.file_path,
             )
-            return resultado
+            return result
 
         except Exception:
             logger.exception(
-                "[%s] Erro ao gerar recorte facial: pessoa=%s", pacote_id, pessoa_id
+                "[%s] Error generating face crop: person=%s", package_id, person_id
             )
             return None
 
-    async def _publicar_atualizacao_parcial(
+    async def _publish_partial_update(
         self,
         camera: str,
-        decisao: TrackingDecision,
-        aparencia_estavel,
-        movimento,
-        contexto_cena,
-        cena_renderizada,
-        imagem_recorte_base64: str | None,
-        indice_na_cena: int,
-        total_pessoas_cena: int,
-        pacote_id: str,
+        decision: TrackingDecision,
+        stable_appearance,
+        movement,
+        scene_context,
+        rendered_scene,
+        crop_image_base64: str | None,
+        scene_index: int,
+        scene_total_people: int,
+        package_id: str,
     ) -> None:
-        atualizacao_parcial = {
-            "evento_id": decisao.evento_id,
-            "pessoa_id": decisao.pessoa_id,
+        # NOTE: the dict keys below are the WebSocket/panel contract
+        # and are intentionally kept in Portuguese, matching the
+        # frontend. Only the surrounding code is in English.
+        partial_update = {
+            "evento_id": decision.event_id,
+            "pessoa_id": decision.person_id,
             "status": "appearance_updated",
-            "quantidade_deteccoes": decisao.quantidade_deteccoes,
+            "quantidade_deteccoes": decision.detection_count,
             "camera": camera,
-            "imagem": imagem_recorte_base64,
-            "aparencia": aparencia_estavel.to_dict() if aparencia_estavel is not None else None,
-            "movimento": movimento.to_dict() if movimento is not None else None,
-            "contexto_cena": contexto_cena.to_dict() if contexto_cena is not None else None,
+            "imagem": crop_image_base64,
+            "aparencia": stable_appearance.to_dict() if stable_appearance is not None else None,
+            "movimento": movement.to_dict() if movement is not None else None,
+            "contexto_cena": scene_context.to_dict() if scene_context is not None else None,
             "imagem_cena": (
-                cena_renderizada.imagem_base64 if cena_renderizada is not None else None
+                rendered_scene.image_base64 if rendered_scene is not None else None
             ),
             "quantidade_boxes_cena": (
-                cena_renderizada.quantidade_boxes if cena_renderizada is not None else 0
+                rendered_scene.box_count if rendered_scene is not None else 0
             ),
-            "indice_na_cena": indice_na_cena,
-            "total_pessoas_cena": total_pessoas_cena,
+            "indice_na_cena": scene_index,
+            "total_pessoas_cena": scene_total_people,
         }
-        await event_hub.publicar(atualizacao_parcial)
+        await event_hub.publish(partial_update)
         logger.info(
-            "[%s] Atualização parcial: pessoa=%s indice=%s/%s "
-            "deteccoes=%s amostras=%s movimento=%s/%s velocidade=%spx_s "
-            "boxes=%s paineis=%s",
-            pacote_id,
-            decisao.pessoa_id,
-            indice_na_cena,
-            total_pessoas_cena,
-            decisao.quantidade_deteccoes,
-            aparencia_estavel.quantidade_amostras if aparencia_estavel is not None else 0,
-            movimento.movimento_horizontal if movimento is not None else "-",
-            movimento.movimento_vertical if movimento is not None else "-",
-            movimento.velocidade_pixels_segundo if movimento is not None else 0,
-            cena_renderizada.quantidade_boxes if cena_renderizada is not None else 0,
-            event_hub.total_conexoes,
+            "[%s] Partial update: person=%s index=%s/%s "
+            "detections=%s samples=%s movement=%s/%s speed=%spx_s "
+            "boxes=%s panels=%s",
+            package_id,
+            decision.person_id,
+            scene_index,
+            scene_total_people,
+            decision.detection_count,
+            stable_appearance.quantidade_amostras if stable_appearance is not None else 0,
+            movement.movimento_horizontal if movement is not None else "-",
+            movement.movimento_vertical if movement is not None else "-",
+            movement.velocidade_pixels_segundo if movement is not None else 0,
+            rendered_scene.box_count if rendered_scene is not None else 0,
+            event_hub.total_connections,
         )
 
-    async def processar_pessoa(
+    async def process_person(
         self,
-        evento: CameraEvent,
+        event: CameraEvent,
         camera: str,
         bounding_box: BoundingBox,
-        decisao: TrackingDecision,
-        contexto_cena,
-        cena_renderizada,
-        indice_na_cena: int,
-        total_pessoas_cena: int,
-        pacote_id: str,
-        enviar_alerta_evento: bool,
-        imagem_background_base64: str | None,
+        decision: TrackingDecision,
+        scene_context,
+        rendered_scene,
+        scene_index: int,
+        scene_total_people: int,
+        package_id: str,
+        send_event_alert: bool,
+        background_image_base64: str | None,
     ) -> str | None:
-        aparencia_estavel = await self._analisar_aparencia(
-            evento=evento,
+        stable_appearance = await self._analyze_appearance(
+            event=event,
             bounding_box=bounding_box,
-            pessoa_id=decisao.pessoa_id,
-            pacote_id=pacote_id,
+            person_id=decision.person_id,
+            package_id=package_id,
         )
 
-        movimento = await person_movement_memory.registrar(
-            pessoa_id=decisao.pessoa_id,
-            bbox=decisao.bbox,
+        movement = await person_movement_memory.register(
+            person_id=decision.person_id,
+            bbox=decision.bbox,
         )
         logger.info(
-            "[%s] Movimento: pessoa=%s horizontal=%s vertical=%s "
-            "tendencia=%s velocidade=%spx_s distancia_total=%spx "
-            "tempo=%ss amostras=%s",
-            pacote_id,
-            decisao.pessoa_id,
-            movimento.movimento_horizontal,
-            movimento.movimento_vertical,
-            movimento.tendencia_distancia,
-            movimento.velocidade_pixels_segundo,
-            movimento.distancia_total_pixels,
-            movimento.tempo_observado_segundos,
-            movimento.quantidade_amostras,
+            "[%s] Movement: person=%s horizontal=%s vertical=%s "
+            "trend=%s speed=%spx_s total_distance=%spx "
+            "time=%ss samples=%s",
+            package_id,
+            decision.person_id,
+            movement.movimento_horizontal,
+            movement.movimento_vertical,
+            movement.tendencia_distancia,
+            movement.velocidade_pixels_segundo,
+            movement.distancia_total_pixels,
+            movement.tempo_observado_segundos,
+            movement.quantidade_amostras,
         )
 
-        if not decisao.deve_processar:
-            imagem_recorte_base64 = None
+        if not decision.should_process:
+            crop_image_base64 = None
 
-            if evento.imagem is not None and evento.imagem.caminho_original:
+            if event.image is not None and event.image.original_path:
                 try:
-                    imagem_recorte_base64 = await asyncio.to_thread(
-                        recortar_deteccao_base64,
-                        evento.imagem.caminho_original,
+                    crop_image_base64 = await asyncio.to_thread(
+                        crop_detection_base64,
+                        event.image.original_path,
                         bounding_box,
                     )
                 except Exception:
                     logger.exception(
-                        "[%s] Não foi possível atualizar o recorte da pessoa=%s",
-                        pacote_id,
-                        decisao.pessoa_id,
+                        "[%s] Could not update the crop for person=%s",
+                        package_id,
+                        decision.person_id,
                     )
 
-            await self._publicar_atualizacao_parcial(
+            await self._publish_partial_update(
                 camera=camera,
-                decisao=decisao,
-                aparencia_estavel=aparencia_estavel,
-                movimento=movimento,
-                contexto_cena=contexto_cena,
-                cena_renderizada=cena_renderizada,
-                imagem_recorte_base64=imagem_recorte_base64,
-                indice_na_cena=indice_na_cena,
-                total_pessoas_cena=total_pessoas_cena,
-                pacote_id=pacote_id,
+                decision=decision,
+                stable_appearance=stable_appearance,
+                movement=movement,
+                scene_context=scene_context,
+                rendered_scene=rendered_scene,
+                crop_image_base64=crop_image_base64,
+                scene_index=scene_index,
+                scene_total_people=scene_total_people,
+                package_id=package_id,
             )
             logger.info(
-                "[%s] Evento repetido suprimido: pessoa=%s indice=%s/%s amostras=%s",
-                pacote_id,
-                decisao.pessoa_id,
-                indice_na_cena,
-                total_pessoas_cena,
-                aparencia_estavel.quantidade_amostras if aparencia_estavel is not None else 0,
+                "[%s] Repeated event suppressed: person=%s index=%s/%s samples=%s",
+                package_id,
+                decision.person_id,
+                scene_index,
+                scene_total_people,
+                stable_appearance.quantidade_amostras if stable_appearance is not None else 0,
             )
-            return imagem_background_base64
+            return background_image_base64
 
-        if evento.imagem is None or not evento.imagem.caminho_original:
-            logger.info("[%s] Pessoa ignorada: caminho original ausente", pacote_id)
-            return imagem_background_base64
+        if event.image is None or not event.image.original_path:
+            logger.info("[%s] Person skipped: missing original path", package_id)
+            return background_image_base64
 
-        resultado_face = await self._obter_recorte_facial(
-            evento=evento,
+        face_result = await self._get_face_crop(
+            event=event,
             bounding_box=bounding_box,
-            pessoa_id=decisao.pessoa_id,
-            pacote_id=pacote_id,
+            person_id=decision.person_id,
+            package_id=package_id,
         )
-        imagem_rosto_base64 = (
-            resultado_face.imagem_base64 if resultado_face is not None else None
-        )
+        face_image_base64 = face_result.image_base64 if face_result is not None else None
 
-        if imagem_background_base64 is None:
-            imagem_background_base64 = await asyncio.to_thread(
-                arquivo_para_base64,
-                evento.imagem.caminho_original,
+        if background_image_base64 is None:
+            background_image_base64 = await asyncio.to_thread(
+                file_to_base64,
+                event.image.original_path,
             )
 
         try:
-            mensagem = await asyncio.to_thread(
-                montar_alarm_detection_message,
-                evento,
+            message = await asyncio.to_thread(
+                build_alarm_detection_message,
+                event,
                 bounding_box=bounding_box,
-                evento_id=decisao.evento_id,
-                imagem_background_base64=imagem_background_base64,
+                event_id=decision.event_id,
+                background_image_base64=background_image_base64,
             )
-        except ValueError as erro:
+        except ValueError as error:
             logger.info(
-                "[%s] Pessoa ignorada: pessoa=%s erro=%s",
-                pacote_id,
-                decisao.pessoa_id,
-                erro,
+                "[%s] Person skipped: person=%s error=%s",
+                package_id,
+                decision.person_id,
+                error,
             )
-            return imagem_background_base64
+            return background_image_base64
 
-        payload_face_kafka = None
+        face_kafka_payload = None
 
-        evento_normalizado = evento.model_dump(mode="json", by_alias=True, exclude_none=True)
-        atributos_normalizados = evento_normalizado.get("attributes") or {}
+        normalized_event = event.model_dump(mode="json", by_alias=True, exclude_none=True)
+        normalized_attributes = normalized_event.get("attributes") or {}
 
         vendor_event_type = (
-            atributos_normalizados.get("vendor_event_type")
-            or evento_normalizado.get("event_type")
-            or evento.tipo_evento
+            normalized_attributes.get("vendor_event_type")
+            or normalized_event.get("event_type")
+            or event.event_type
         )
 
-        # O supervisor solicitou event.id numérico.
-        # Prioriza o ID original enviado pela câmera.
-        source_event_id = atributos_normalizados.get("source_event_id")
+        # The supervisor requested a numeric event.id.
+        # Prioritizes the original ID sent by the camera.
+        source_event_id = normalized_attributes.get("source_event_id")
 
         try:
-            event_id_numerico = int(source_event_id)
+            numeric_event_id = int(source_event_id)
         except (TypeError, ValueError):
-            texto_evento_id = str(decisao.evento_id)
+            event_id_text = str(decision.event_id)
 
-            # IDs multi-pessoa podem terminar em sufixos como "-01",
-            # "-02", "-03". O ID base do evento continua sendo a
-            # parte hexadecimal anterior.
-            evento_id_base = texto_evento_id.split("-", 1)[0]
+            # Multi-person IDs can end with suffixes like "-01", "-02",
+            # "-03". The base event ID is still the hexadecimal part
+            # before that.
+            base_event_id = event_id_text.split("-", 1)[0]
 
             try:
-                event_id_numerico = int(evento_id_base, 16)
+                numeric_event_id = int(base_event_id, 16)
             except (TypeError, ValueError):
-                event_id_numerico = int.from_bytes(
-                    texto_evento_id.encode("utf-8")[:8].ljust(8, b"\0"),
+                numeric_event_id = int.from_bytes(
+                    event_id_text.encode("utf-8")[:8].ljust(8, b"\0"),
                     byteorder="big",
                 )
 
         # ==================================================
-        # EVENTO FACIAL
+        # FACE EVENT
         # ==================================================
 
-        if resultado_face is not None:
-            payload_face_kafka = {
-                "camera_name": mensagem.device.name,
-                "images": {"face": {"base64": resultado_face.imagem_base64}},
+        if face_result is not None:
+            face_kafka_payload = {
+                "camera_name": message.device.name,
+                "images": {"face": {"base64": face_result.image_base64}},
             }
 
             logger.info(
-                "[%s] Payload facial simples pronto: "
-                "topico=nelore-face-capture camera=%s qualidade=%.4f bbox=%s,%s-%s,%s",
-                pacote_id,
-                mensagem.device.name,
-                resultado_face.score,
-                resultado_face.x,
-                resultado_face.y,
-                resultado_face.x + resultado_face.largura,
-                resultado_face.y + resultado_face.altura,
+                "[%s] Simple face payload ready: "
+                "topic=nelore-face-capture camera=%s quality=%.4f bbox=%s,%s-%s,%s",
+                package_id,
+                message.device.name,
+                face_result.score,
+                face_result.x,
+                face_result.y,
+                face_result.x + face_result.width,
+                face_result.y + face_result.height,
             )
 
         # ==================================================
-        # EVENTO DE ALERTA
+        # ALERT EVENT
         # ==================================================
 
-        payload_alerta_kafka = {
-            "schema_version": evento.schema_version or "1.0",
+        alert_kafka_payload = {
+            "schema_version": event.schema_version or "1.0",
             "device": {
-                "name": mensagem.device.name,
-                "brand": evento.fabricante,
-                "ip": evento.ip_camera,
-                "external_id": evento.camera_id,
+                "name": message.device.name,
+                "brand": event.manufacturer,
+                "ip": event.camera_ip,
+                "external_id": event.camera_id,
                 "serial_number": None,
                 "latitude": None,
                 "longitude": None,
             },
             "event": {
-                "id": event_id_numerico,
+                "id": numeric_event_id,
                 "name": vendor_event_type,
-                "type": evento.tipo_evento,
-                "timestamp": int(mensagem.event.timestamp),
-                "datetime": mensagem.event.datetime,
+                "type": event.event_type,
+                "timestamp": int(message.event.timestamp),
+                "datetime": message.event.datetime,
             },
             "image": {
                 "type": "detection",
-                "width": evento.imagem.largura if evento.imagem is not None else 0,
-                "height": evento.imagem.altura if evento.imagem is not None else 0,
+                "width": event.image.width if event.image is not None else 0,
+                "height": event.image.height if event.image is not None else 0,
                 "format": (
-                    evento.imagem.formato
-                    if evento.imagem is not None and evento.imagem.formato
+                    event.image.format
+                    if event.image is not None and event.image.format
                     else "jpeg"
                 ),
-                "original_image_content": mensagem.event.images.background,
+                "original_image_content": message.event.images.background,
                 "annotated_image_content": (
-                    cena_renderizada.imagem_base64 if cena_renderizada is not None else ""
+                    rendered_scene.image_base64 if rendered_scene is not None else ""
                 ),
                 "original_image_path": None,
                 "annotated_image_path": None,
@@ -433,121 +435,124 @@ class PersonProcessor:
             },
         }
 
-        if enviar_alerta_evento:
+        if send_event_alert:
             logger.info(
-                "[%s] Payload de alerta pronto: topico=%s id=%s name=%s type=%s",
-                pacote_id,
+                "[%s] Alert payload ready: topic=%s id=%s name=%s type=%s",
+                package_id,
                 self.topic,
-                event_id_numerico,
+                numeric_event_id,
                 vendor_event_type,
-                evento.tipo_evento,
+                event.event_type,
             )
         else:
             logger.info(
-                "[%s] Pessoa presente na cena sem vínculo com o evento da câmera: "
-                "pessoa=%s; alerta não será publicado",
-                pacote_id,
-                decisao.pessoa_id,
+                "[%s] Person present in the scene with no link to the camera event: "
+                "person=%s; alert will not be published",
+                package_id,
+                decision.person_id,
             )
 
-        evento_painel = {
-            "evento_id": decisao.evento_id,
-            "pessoa_id": decisao.pessoa_id,
-            "status": decisao.status,
-            "quantidade_deteccoes": decisao.quantidade_deteccoes,
-            "camera": mensagem.device.name,
-            "tipo": mensagem.event.type,
-            "datetime": mensagem.event.datetime,
+        # NOTE: the dict keys below are the WebSocket/panel contract
+        # and are intentionally kept in Portuguese, matching the
+        # frontend. Only the surrounding code is in English.
+        panel_event = {
+            "evento_id": decision.event_id,
+            "pessoa_id": decision.person_id,
+            "status": decision.status,
+            "quantidade_deteccoes": decision.detection_count,
+            "camera": message.device.name,
+            "tipo": message.event.type,
+            "datetime": message.event.datetime,
             "attributes": (
-                mensagem.event.attributes.model_dump(mode="json")
-                if mensagem.event.attributes is not None
+                message.event.attributes.model_dump(mode="json")
+                if message.event.attributes is not None
                 else None
             ),
-            "imagem": mensagem.event.images.detection,
-            "imagem_rosto": imagem_rosto_base64,
-            "aparencia": aparencia_estavel.to_dict() if aparencia_estavel is not None else None,
-            "movimento": movimento.to_dict(),
-            "contexto_cena": contexto_cena.to_dict() if contexto_cena is not None else None,
+            "imagem": message.event.images.detection,
+            "imagem_rosto": face_image_base64,
+            "aparencia": stable_appearance.to_dict() if stable_appearance is not None else None,
+            "movimento": movement.to_dict(),
+            "contexto_cena": scene_context.to_dict() if scene_context is not None else None,
             "imagem_cena": (
-                cena_renderizada.imagem_base64 if cena_renderizada is not None else None
+                rendered_scene.image_base64 if rendered_scene is not None else None
             ),
             "quantidade_boxes_cena": (
-                cena_renderizada.quantidade_boxes if cena_renderizada is not None else 0
+                rendered_scene.box_count if rendered_scene is not None else 0
             ),
-            "indice_na_cena": indice_na_cena,
-            "total_pessoas_cena": total_pessoas_cena,
+            "indice_na_cena": scene_index,
+            "total_pessoas_cena": scene_total_people,
         }
-        await event_hub.publicar(evento_painel)
+        await event_hub.publish(panel_event)
         logger.info(
-            "[%s] Pessoa enviada ao painel: pessoa=%s status=%s indice=%s/%s paineis=%s",
-            pacote_id,
-            decisao.pessoa_id,
-            decisao.status,
-            indice_na_cena,
-            total_pessoas_cena,
-            event_hub.total_conexoes,
+            "[%s] Person sent to panel: person=%s status=%s index=%s/%s panels=%s",
+            package_id,
+            decision.person_id,
+            decision.status,
+            scene_index,
+            scene_total_people,
+            event_hub.total_connections,
         )
 
         if not settings.kafka_enabled:
             logger.info(
-                "[%s] Payload pronto; Kafka desativado: pessoa=%s",
-                pacote_id,
-                decisao.pessoa_id,
+                "[%s] Payload ready; Kafka disabled: person=%s",
+                package_id,
+                decision.person_id,
             )
-            return imagem_background_base64
+            return background_image_base64
 
-        publicacoes_kafka = []
+        kafka_publications = []
 
-        if enviar_alerta_evento:
-            publicacoes_kafka.append(
+        if send_event_alert:
+            kafka_publications.append(
                 {
-                    "rotulo": "Alerta",
-                    "topico": self.topic,
-                    "corrotina": self.publisher.publicar(
-                        topico=self.topic,
-                        evento_id=decisao.evento_id,
-                        dados=payload_alerta_kafka,
+                    "label": "Alert",
+                    "topic": self.topic,
+                    "coroutine": self.publisher.publish(
+                        topic=self.topic,
+                        event_id=decision.event_id,
+                        data=alert_kafka_payload,
                     ),
                 }
             )
 
-        if payload_face_kafka is not None:
-            publicacoes_kafka.append(
+        if face_kafka_payload is not None:
+            kafka_publications.append(
                 {
-                    "rotulo": "Face",
-                    "topico": "nelore-face-capture",
-                    "corrotina": self.publisher.publicar(
-                        topico="nelore-face-capture",
-                        evento_id=decisao.evento_id,
-                        dados=payload_face_kafka,
+                    "label": "Face",
+                    "topic": "nelore-face-capture",
+                    "coroutine": self.publisher.publish(
+                        topic="nelore-face-capture",
+                        event_id=decision.event_id,
+                        data=face_kafka_payload,
                     ),
                 }
             )
 
-        resultados_kafka = await asyncio.gather(
-            *[item["corrotina"] for item in publicacoes_kafka],
+        kafka_results = await asyncio.gather(
+            *[item["coroutine"] for item in kafka_publications],
             return_exceptions=True,
         )
 
-        for item, resultado_kafka in zip(publicacoes_kafka, resultados_kafka, strict=True):
-            if isinstance(resultado_kafka, BaseException):
+        for item, kafka_result in zip(kafka_publications, kafka_results, strict=True):
+            if isinstance(kafka_result, BaseException):
                 logger.error(
-                    "[%s] Erro ao publicar %s em %s: %r",
-                    pacote_id,
-                    item["rotulo"].lower(),
-                    item["topico"],
-                    resultado_kafka,
+                    "[%s] Error publishing %s to %s: %r",
+                    package_id,
+                    item["label"].lower(),
+                    item["topic"],
+                    kafka_result,
                 )
                 continue
 
             logger.info(
-                "[%s] %s publicado em %s p=%s offset=%s pessoa=%s",
-                pacote_id,
-                item["rotulo"],
-                resultado_kafka["topico"],
-                resultado_kafka["particao"],
-                resultado_kafka["offset"],
-                decisao.pessoa_id,
+                "[%s] %s published to %s p=%s offset=%s person=%s",
+                package_id,
+                item["label"],
+                kafka_result["topic"],
+                kafka_result["partition"],
+                kafka_result["offset"],
+                decision.person_id,
             )
 
-        return imagem_background_base64
+        return background_image_base64

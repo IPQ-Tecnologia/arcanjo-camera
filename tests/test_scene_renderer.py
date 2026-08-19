@@ -3,277 +3,148 @@ from pathlib import Path
 
 from PIL import Image
 
-from app.domain.models.camera_event import (
-    BoundingBox,
-)
-from app.services.scene_renderer import (
-    renderizar_cena_com_boxes,
-)
+from app.domain.models.camera_event import BoundingBox
+from app.services.scene_renderer import render_scene_with_boxes
 
 
-def localizar_imagem() -> Path:
+def find_image() -> Path:
     """
-    Procura a imagem original mais recente.
+    Looks for the most recent original image.
 
-    Imagens que já possuem marcações são ignoradas
-    para evitar desenhar novas bounding boxes sobre
-    retângulos antigos.
+    Images that already have annotations are skipped to avoid drawing
+    new bounding boxes on top of old rectangles.
     """
-
-    pastas = [
-        Path("imagens_eventos"),
+    folders = [
+        Path("event_images"),
         Path("eventos_selecionados"),
     ]
 
-    imagens_originais: list[Path] = []
+    original_images: list[Path] = []
 
-    for pasta in pastas:
-        if not pasta.exists():
+    for folder in folders:
+        if not folder.exists():
             continue
 
-        candidatos = [
-            *pasta.rglob("*.jpg"),
-            *pasta.rglob("*.jpeg"),
-        ]
+        candidates = [*folder.rglob("*.jpg"), *folder.rglob("*.jpeg")]
 
-        for caminho in candidatos:
-            nome = caminho.name.lower()
+        for path in candidates:
+            name = path.name.lower()
 
-            # Ignora qualquer imagem que já tenha
-            # bounding boxes desenhadas.
-            if "_marcada" in nome:
+            # Skips any image that already has bounding boxes drawn.
+            if "_marcada" in name:
                 continue
 
-            # Ignora a saída produzida por este teste.
-            if nome == "teste_cena_marcada.jpg":
+            # Skips the output produced by this test.
+            if name == "teste_cena_marcada.jpg":
                 continue
 
-            imagens_originais.append(
-                caminho
-            )
+            original_images.append(path)
 
-    if not imagens_originais:
+    if not original_images:
         raise FileNotFoundError(
-            "Nenhuma imagem original JPG foi "
-            "encontrada em imagens_eventos ou "
-            "eventos_selecionados."
+            "No original JPG image was found in event_images or eventos_selecionados."
         )
 
-    return max(
-        imagens_originais,
-        key=lambda caminho: (
-            caminho.stat().st_mtime
-        ),
-    )
+    return max(original_images, key=lambda path: path.stat().st_mtime)
 
 
-def criar_bounding_box(
-    x: int,
-    y: int,
-    largura: int,
-    altura: int,
-    origem: str,
-) -> BoundingBox:
-    """
-    Cria uma bounding box para o teste.
-    """
-
+def build_bounding_box(x: int, y: int, width: int, height: int, source: str) -> BoundingBox:
+    """Creates a bounding box for the test."""
     return BoundingBox(
-        origem=origem,
+        source=source,
         x=x,
         y=y,
-        largura=largura,
-        altura=altura,
-        x2=x + largura,
-        y2=y + altura,
-        proporcao_imagem=False,
+        width=width,
+        height=height,
+        x2=x + width,
+        y2=y + height,
+        image_ratio=False,
     )
 
 
 def main() -> None:
-    caminho_imagem = localizar_imagem()
+    image_path = find_image()
 
-    with Image.open(
-        caminho_imagem
-    ) as imagem:
-        largura_imagem = imagem.width
-        altura_imagem = imagem.height
+    with Image.open(image_path) as image:
+        image_width = image.width
+        image_height = image.height
 
-    pessoa_1_x = int(
-        largura_imagem * 0.12
-    )
+    person_1_x = int(image_width * 0.12)
+    person_1_y = int(image_height * 0.18)
+    person_1_width = int(image_width * 0.18)
+    person_1_height = int(image_height * 0.65)
 
-    pessoa_1_y = int(
-        altura_imagem * 0.18
-    )
-
-    pessoa_1_largura = int(
-        largura_imagem * 0.18
-    )
-
-    pessoa_1_altura = int(
-        altura_imagem * 0.65
-    )
-
-    caixas = [
-        # Pessoa 1.
-        criar_bounding_box(
-            x=pessoa_1_x,
-            y=pessoa_1_y,
-            largura=pessoa_1_largura,
-            altura=pessoa_1_altura,
-            origem="teste_pessoa_1",
+    boxes = [
+        # Person 1.
+        build_bounding_box(
+            x=person_1_x,
+            y=person_1_y,
+            width=person_1_width,
+            height=person_1_height,
+            source="teste_pessoa_1",
         ),
-
-        # Pessoa 2.
-        criar_bounding_box(
-            x=int(
-                largura_imagem * 0.48
-            ),
-            y=int(
-                altura_imagem * 0.22
-            ),
-            largura=int(
-                largura_imagem * 0.17
-            ),
-            altura=int(
-                altura_imagem * 0.60
-            ),
-            origem="teste_pessoa_2",
+        # Person 2.
+        build_bounding_box(
+            x=int(image_width * 0.48),
+            y=int(image_height * 0.22),
+            width=int(image_width * 0.17),
+            height=int(image_height * 0.60),
+            source="teste_pessoa_2",
         ),
-
-        # Pessoa 3.
-        criar_bounding_box(
-            x=int(
-                largura_imagem * 0.70
-            ),
-            y=int(
-                altura_imagem * 0.20
-            ),
-            largura=int(
-                largura_imagem * 0.16
-            ),
-            altura=int(
-                altura_imagem * 0.62
-            ),
-            origem="teste_pessoa_3",
+        # Person 3.
+        build_bounding_box(
+            x=int(image_width * 0.70),
+            y=int(image_height * 0.20),
+            width=int(image_width * 0.16),
+            height=int(image_height * 0.62),
+            source="teste_pessoa_3",
         ),
-
-        # Esta caixa representa a imagem inteira.
-        # O renderizador deverá ignorá-la.
-        criar_bounding_box(
+        # This box represents the entire image. The renderer should
+        # ignore it.
+        build_bounding_box(
             x=0,
             y=0,
-            largura=largura_imagem,
-            altura=altura_imagem,
-            origem="imagem_inteira",
+            width=image_width,
+            height=image_height,
+            source="full_image",
         ),
-
-        # Esta caixa é igual à primeira.
-        # O renderizador deverá ignorá-la por ser
-        # uma duplicata.
-        criar_bounding_box(
-            x=pessoa_1_x,
-            y=pessoa_1_y,
-            largura=pessoa_1_largura,
-            altura=pessoa_1_altura,
-            origem="duplicada",
+        # This box is identical to the first one. The renderer should
+        # ignore it for being a duplicate.
+        build_bounding_box(
+            x=person_1_x,
+            y=person_1_y,
+            width=person_1_width,
+            height=person_1_height,
+            source="duplicated",
         ),
     ]
 
-    resultado = (
-        renderizar_cena_com_boxes(
-            caminho_imagem=str(
-                caminho_imagem
-            ),
-            bounding_boxes=caixas,
-        )
+    result = render_scene_with_boxes(
+        image_path=str(image_path),
+        bounding_boxes=boxes,
     )
 
-    caminho_saida = Path(
-        "teste_cena_marcada.jpg"
-    )
+    output_path = Path("teste_cena_marcada.jpg")
 
-    bytes_imagem = base64.b64decode(
-        resultado.imagem_base64
-    )
+    image_bytes = base64.b64decode(result.image_base64)
 
-    caminho_saida.write_bytes(
-        bytes_imagem
-    )
+    output_path.write_bytes(image_bytes)
 
-    assert (
-        resultado.quantidade_boxes == 3
-    ), (
-        "Deveriam ser desenhadas exatamente "
-        "três bounding boxes."
-    )
+    assert result.box_count == 3, "Exactly three bounding boxes should have been drawn."
+    assert output_path.is_file(), "The annotated image was not created."
+    assert output_path.stat().st_size > 0, "The annotated image was created empty."
+    assert result.image_width == image_width, "The image width was changed."
+    assert result.image_height == image_height, "The image height was changed."
 
-    assert caminho_saida.is_file(), (
-        "A imagem marcada não foi criada."
-    )
+    print("===== RENDERER TEST =====")
+    print("Original image:", image_path)
+    print("Annotated image:", output_path)
+    print("Dimensions:", f"{result.image_width}x{result.image_height}")
+    print("Bounding boxes drawn:", result.box_count)
+    print("Base64 image characters:", len(result.image_base64))
+    print("File size:", output_path.stat().st_size, "bytes")
 
-    assert caminho_saida.stat().st_size > 0, (
-        "A imagem marcada foi criada vazia."
-    )
-
-    assert (
-        resultado.largura_imagem
-        == largura_imagem
-    ), (
-        "A largura da imagem foi alterada."
-    )
-
-    assert (
-        resultado.altura_imagem
-        == altura_imagem
-    ), (
-        "A altura da imagem foi alterada."
-    )
-
-    print(
-        "===== TESTE DO RENDERIZADOR ====="
-    )
-
-    print(
-        "Imagem original:",
-        caminho_imagem,
-    )
-
-    print(
-        "Imagem marcada:",
-        caminho_saida,
-    )
-
-    print(
-        "Dimensões:",
-        (
-            f"{resultado.largura_imagem}"
-            f"x{resultado.altura_imagem}"
-        ),
-    )
-
-    print(
-        "Bounding boxes desenhadas:",
-        resultado.quantidade_boxes,
-    )
-
-    print(
-        "Caracteres da imagem Base64:",
-        len(
-            resultado.imagem_base64
-        ),
-    )
-
-    print(
-        "Tamanho do arquivo:",
-        caminho_saida.stat().st_size,
-        "bytes",
-    )
-
-    print(
-        "\nTeste concluído com sucesso."
-    )
+    print("\nTest completed successfully.")
 
 
 if __name__ == "__main__":

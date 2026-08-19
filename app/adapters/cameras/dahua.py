@@ -20,386 +20,386 @@ from app.domain.models.camera_event import (
 )
 
 
-PASTA_IMAGENS = Path("imagens_eventos")
-ESCALA_NORMALIZADA_DAHUA = 8191.0
+IMAGES_FOLDER = Path("event_images")
+DAHUA_NORMALIZED_SCALE = 8191.0
 
 
-def obter_boundary(content_type: str, body: bytes) -> str | None:
-    correspondencia = re.search(
+def get_boundary(content_type: str, body: bytes) -> str | None:
+    match = re.search(
         r'boundary\s*=\s*["\']?([^;"\'\s]+)',
         content_type or "",
         flags=re.IGNORECASE,
     )
-    if correspondencia:
-        return correspondencia.group(1).strip()
+    if match:
+        return match.group(1).strip()
 
-    primeira_linha = body.split(b"\r\n", 1)[0].strip()
-    if primeira_linha.startswith(b"--"):
-        return primeira_linha[2:].decode("utf-8", errors="ignore").strip()
+    first_line = body.split(b"\r\n", 1)[0].strip()
+    if first_line.startswith(b"--"):
+        return first_line[2:].decode("utf-8", errors="ignore").strip()
 
     return None
 
 
-def carregar_json(conteudo: bytes) -> dict[str, Any]:
-    texto = conteudo.decode("utf-8-sig", errors="ignore").strip()
-    if not texto:
-        raise ValueError("JSON Dahua vazio")
+def load_json(content: bytes) -> dict[str, Any]:
+    text = content.decode("utf-8-sig", errors="ignore").strip()
+    if not text:
+        raise ValueError("Empty Dahua JSON")
 
-    dados = json.loads(texto)
-    if not isinstance(dados, dict):
-        raise ValueError("JSON Dahua não é um objeto")
+    data = json.loads(text)
+    if not isinstance(data, dict):
+        raise ValueError("Dahua JSON is not an object")
 
-    return dados
+    return data
 
 
-def extrair_jpeg(conteudo: bytes) -> bytes | None:
-    inicio = conteudo.find(b"\xff\xd8\xff")
-    if inicio == -1:
+def extract_jpeg(content: bytes) -> bytes | None:
+    start = content.find(b"\xff\xd8\xff")
+    if start == -1:
         return None
 
-    fim = conteudo.find(b"\xff\xd9", inicio)
-    if fim == -1:
-        return conteudo[inicio:]
+    end = content.find(b"\xff\xd9", start)
+    if end == -1:
+        return content[start:]
 
-    return conteudo[inicio : fim + 2]
+    return content[start : end + 2]
 
 
-def extrair_multipart(
+def extract_multipart(
     content_type: str,
     body: bytes,
 ) -> tuple[dict[str, Any], bytes | None]:
-    boundary = obter_boundary(content_type, body)
+    boundary = get_boundary(content_type, body)
     if not boundary:
-        raise ValueError("Boundary Dahua não encontrado")
+        raise ValueError("Dahua boundary not found")
 
-    delimitador = b"--" + boundary.encode("utf-8", errors="ignore")
+    delimiter = b"--" + boundary.encode("utf-8", errors="ignore")
 
-    payload_json: dict[str, Any] | None = None
-    imagem: bytes | None = None
+    json_payload: dict[str, Any] | None = None
+    image: bytes | None = None
 
-    for parte in body.split(delimitador):
-        parte = parte.strip(b"\r\n")
-        if not parte or parte == b"--":
+    for part in body.split(delimiter):
+        part = part.strip(b"\r\n")
+        if not part or part == b"--":
             continue
 
-        if b"\r\n\r\n" not in parte:
+        if b"\r\n\r\n" not in part:
             continue
 
-        cabecalho, conteudo = parte.split(b"\r\n\r\n", 1)
-        cabecalho_lower = cabecalho.lower()
+        header, content = part.split(b"\r\n\r\n", 1)
+        lower_header = header.lower()
 
-        if b"application/json" in cabecalho_lower or b"text/plain" in cabecalho_lower:
+        if b"application/json" in lower_header or b"text/plain" in lower_header:
             try:
-                payload_json = carregar_json(conteudo)
+                json_payload = load_json(content)
             except (json.JSONDecodeError, ValueError):
                 continue
 
-        if b"image/jpeg" in cabecalho_lower:
-            imagem = extrair_jpeg(conteudo)
+        if b"image/jpeg" in lower_header:
+            image = extract_jpeg(content)
 
-    if payload_json is None:
-        raise ValueError("Metadados JSON não encontrados no multipart Dahua")
+    if json_payload is None:
+        raise ValueError("JSON metadata not found in Dahua multipart")
 
-    return payload_json, imagem
+    return json_payload, image
 
 
-def selecionar_evento(payload: dict[str, Any]) -> dict[str, Any]:
-    eventos = payload.get("Events")
-    if isinstance(eventos, list) and eventos:
-        primeiro = eventos[0]
-        if isinstance(primeiro, dict):
-            return primeiro
+def select_event(payload: dict[str, Any]) -> dict[str, Any]:
+    events = payload.get("Events")
+    if isinstance(events, list) and events:
+        first = events[0]
+        if isinstance(first, dict):
+            return first
 
     return payload
 
 
-def converter_data_hora(payload: dict[str, Any], evento: dict[str, Any]) -> datetime:
-    dados = evento.get("Data")
-    if not isinstance(dados, dict):
-        dados = {}
+def convert_date_time(payload: dict[str, Any], event: dict[str, Any]) -> datetime:
+    data = event.get("Data")
+    if not isinstance(data, dict):
+        data = {}
 
-    for chave in ("RealUTC", "UTC"):
-        valor = dados.get(chave)
-        if valor is None:
+    for key in ("RealUTC", "UTC"):
+        value = data.get(key)
+        if value is None:
             continue
 
         try:
-            timestamp = float(valor)
+            timestamp = float(value)
             return datetime.fromtimestamp(timestamp, tz=timezone.utc)
         except (TypeError, ValueError, OSError):
             continue
 
-    texto = payload.get("Time")
-    if isinstance(texto, str) and texto.strip():
+    text = payload.get("Time")
+    if isinstance(text, str) and text.strip():
         try:
-            data = datetime.strptime(texto.strip(), "%Y-%m-%d %H:%M:%S")
-            return data.replace(tzinfo=timezone.utc)
+            date = datetime.strptime(text.strip(), "%Y-%m-%d %H:%M:%S")
+            return date.replace(tzinfo=timezone.utc)
         except ValueError:
             pass
 
     return datetime.now(timezone.utc)
 
 
-def sanitizar_nome(valor: str) -> str:
-    resultado = re.sub(r"[^a-zA-Z0-9_-]+", "_", valor.strip())
+def sanitize_name(value: str) -> str:
+    result = re.sub(r"[^a-zA-Z0-9_-]+", "_", value.strip())
 
-    return resultado.strip("_") or "evento"
-
-
-def criar_nome_base(data_hora: datetime, tipo_evento: str, evento_id: str) -> str:
-    horario = data_hora.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    tipo = sanitizar_nome(tipo_evento)
-
-    return f"{horario}_{tipo}_{evento_id}"
+    return result.strip("_") or "evento"
 
 
-def obter_bbox_bruta(objeto: dict[str, Any]) -> tuple[float, float, float, float] | None:
-    bbox = objeto.get("BoundingBox")
+def build_base_name(date_time: datetime, event_type: str, event_id: str) -> str:
+    time = date_time.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    type_ = sanitize_name(event_type)
+
+    return f"{time}_{type_}_{event_id}"
+
+
+def get_raw_bbox(obj: dict[str, Any]) -> tuple[float, float, float, float] | None:
+    bbox = obj.get("BoundingBox")
 
     if isinstance(bbox, list) and len(bbox) >= 4:
         try:
-            return tuple(float(valor) for valor in bbox[:4])
+            return tuple(float(value) for value in bbox[:4])
         except (TypeError, ValueError):
             return None
 
     if not isinstance(bbox, dict):
         return None
 
-    chaves_limites = (
+    bound_keys = (
         ("Left", "Top", "Right", "Bottom"),
         ("left", "top", "right", "bottom"),
         ("X1", "Y1", "X2", "Y2"),
         ("x1", "y1", "x2", "y2"),
     )
 
-    for chaves in chaves_limites:
-        if all(chave in bbox for chave in chaves):
+    for keys in bound_keys:
+        if all(key in bbox for key in keys):
             try:
-                return tuple(float(bbox[chave]) for chave in chaves)
+                return tuple(float(bbox[key]) for key in keys)
             except (TypeError, ValueError):
                 return None
 
-    chaves_tamanho = (
+    size_keys = (
         ("X", "Y", "Width", "Height"),
         ("x", "y", "width", "height"),
     )
 
-    for x_chave, y_chave, w_chave, h_chave in chaves_tamanho:
-        if all(chave in bbox for chave in (x_chave, y_chave, w_chave, h_chave)):
+    for x_key, y_key, w_key, h_key in size_keys:
+        if all(key in bbox for key in (x_key, y_key, w_key, h_key)):
             try:
-                x = float(bbox[x_chave])
-                y = float(bbox[y_chave])
-                largura = float(bbox[w_chave])
-                altura = float(bbox[h_chave])
+                x = float(bbox[x_key])
+                y = float(bbox[y_key])
+                width = float(bbox[w_key])
+                height = float(bbox[h_key])
 
-                return (x, y, x + largura, y + altura)
+                return (x, y, x + width, y + height)
             except (TypeError, ValueError):
                 return None
 
     return None
 
 
-def detectar_escala_normalizada(
-    dados: dict[str, Any],
+def detect_normalized_scale(
+    data: dict[str, Any],
     bbox: tuple[float, float, float, float],
-    largura_img: int,
-    altura_img: int,
+    image_width: int,
+    image_height: int,
 ) -> bool:
-    regiao = dados.get("DetectRegion")
-    coordenadas_regiao: list[float] = []
+    region = data.get("DetectRegion")
+    region_coordinates: list[float] = []
 
-    if isinstance(regiao, list):
-        for ponto in regiao:
-            if not isinstance(ponto, list):
+    if isinstance(region, list):
+        for point in region:
+            if not isinstance(point, list):
                 continue
 
-            for valor in ponto:
+            for value in point:
                 try:
-                    coordenadas_regiao.append(float(valor))
+                    region_coordinates.append(float(value))
                 except (TypeError, ValueError):
                     continue
 
-    if coordenadas_regiao:
-        return max(coordenadas_regiao) > max(largura_img, altura_img)
+    if region_coordinates:
+        return max(region_coordinates) > max(image_width, image_height)
 
     x1, y1, x2, y2 = bbox
 
-    return x1 > largura_img or x2 > largura_img or y1 > altura_img or y2 > altura_img
+    return x1 > image_width or x2 > image_width or y1 > image_height or y2 > image_height
 
 
-def converter_bbox_para_pixels(
+def convert_bbox_to_pixels(
     bbox: tuple[float, float, float, float],
-    dados: dict[str, Any],
-    largura_img: int,
-    altura_img: int,
+    data: dict[str, Any],
+    image_width: int,
+    image_height: int,
 ) -> BoundingBox | None:
     x1, y1, x2, y2 = bbox
 
-    maximo = max(abs(x1), abs(y1), abs(x2), abs(y2))
+    maximum = max(abs(x1), abs(y1), abs(x2), abs(y2))
 
-    if maximo <= 1.0:
-        x1 *= largura_img
-        x2 *= largura_img
-        y1 *= altura_img
-        y2 *= altura_img
-    elif detectar_escala_normalizada(dados, bbox, largura_img, altura_img):
-        x1 = x1 / ESCALA_NORMALIZADA_DAHUA * largura_img
-        x2 = x2 / ESCALA_NORMALIZADA_DAHUA * largura_img
-        y1 = y1 / ESCALA_NORMALIZADA_DAHUA * altura_img
-        y2 = y2 / ESCALA_NORMALIZADA_DAHUA * altura_img
+    if maximum <= 1.0:
+        x1 *= image_width
+        x2 *= image_width
+        y1 *= image_height
+        y2 *= image_height
+    elif detect_normalized_scale(data, bbox, image_width, image_height):
+        x1 = x1 / DAHUA_NORMALIZED_SCALE * image_width
+        x2 = x2 / DAHUA_NORMALIZED_SCALE * image_width
+        y1 = y1 / DAHUA_NORMALIZED_SCALE * image_height
+        y2 = y2 / DAHUA_NORMALIZED_SCALE * image_height
 
-    x1_int = max(0, min(largura_img - 1, round(x1)))
-    y1_int = max(0, min(altura_img - 1, round(y1)))
-    x2_int = max(0, min(largura_img - 1, round(x2)))
-    y2_int = max(0, min(altura_img - 1, round(y2)))
+    x1_int = max(0, min(image_width - 1, round(x1)))
+    y1_int = max(0, min(image_height - 1, round(y1)))
+    x2_int = max(0, min(image_width - 1, round(x2)))
+    y2_int = max(0, min(image_height - 1, round(y2)))
 
     if x2_int <= x1_int or y2_int <= y1_int:
         return None
 
-    largura = x2_int - x1_int
-    altura = y2_int - y1_int
-    proporcao = largura * altura / (largura_img * altura_img)
+    width = x2_int - x1_int
+    height = y2_int - y1_int
+    ratio = width * height / (image_width * image_height)
 
     return BoundingBox(
-        origem="dahua_object_bounding_box",
+        source="dahua_object_bounding_box",
         x=x1_int,
         y=y1_int,
-        largura=largura,
-        altura=altura,
+        width=width,
+        height=height,
         x2=x2_int,
         y2=y2_int,
-        proporcao_imagem=proporcao,
+        image_ratio=ratio,
     )
 
 
-def salvar_imagens(
-    imagem: bytes,
-    nome_base: str,
+def save_images(
+    image: bytes,
+    base_name: str,
     bbox: BoundingBox | None,
 ) -> tuple[str, str, int, int]:
-    PASTA_IMAGENS.mkdir(parents=True, exist_ok=True)
+    IMAGES_FOLDER.mkdir(parents=True, exist_ok=True)
 
-    caminho_original = PASTA_IMAGENS / f"{nome_base}_original.jpg"
-    caminho_marcada = PASTA_IMAGENS / f"{nome_base}_marcada.jpg"
+    original_path = IMAGES_FOLDER / f"{base_name}_original.jpg"
+    annotated_path = IMAGES_FOLDER / f"{base_name}_marcada.jpg"
 
-    caminho_original.write_bytes(imagem)
+    original_path.write_bytes(image)
 
-    with Image.open(io.BytesIO(imagem)) as imagem_pil:
-        imagem_rgb = imagem_pil.convert("RGB")
-        largura_img, altura_img = imagem_rgb.size
+    with Image.open(io.BytesIO(image)) as pil_image:
+        rgb_image = pil_image.convert("RGB")
+        image_width, image_height = rgb_image.size
 
         if bbox is not None:
-            desenho = ImageDraw.Draw(imagem_rgb)
-            espessura = max(2, min(largura_img, altura_img) // 300)
-            desenho.rectangle(
+            draw = ImageDraw.Draw(rgb_image)
+            thickness = max(2, min(image_width, image_height) // 300)
+            draw.rectangle(
                 [bbox.x, bbox.y, bbox.x2, bbox.y2],
                 outline="red",
-                width=espessura,
+                width=thickness,
             )
 
-        imagem_rgb.save(caminho_marcada, format="JPEG", quality=95)
+        rgb_image.save(annotated_path, format="JPEG", quality=95)
 
-    return str(caminho_original), str(caminho_marcada), largura_img, altura_img
+    return str(original_path), str(annotated_path), image_width, image_height
 
 
-def _numero_attributes_dahua(valor) -> float | None:
-    if valor is None or isinstance(valor, bool):
+def _number_dahua_attributes(value) -> float | None:
+    if value is None or isinstance(value, bool):
         return None
 
     try:
-        return float(str(valor).strip().replace(",", "."))
+        return float(str(value).strip().replace(",", "."))
     except (TypeError, ValueError):
         return None
 
 
-def _texto_attributes_dahua(valor) -> str | None:
-    if valor is None:
+def _text_dahua_attributes(value) -> str | None:
+    if value is None:
         return None
 
-    if isinstance(valor, (dict, list, tuple)):
+    if isinstance(value, (dict, list, tuple)):
         return None
 
-    texto = str(valor).strip()
+    text = str(value).strip()
 
-    return texto or None
+    return text or None
 
 
-def _normalizar_coordenada_dahua(valor) -> float | None:
-    numero = _numero_attributes_dahua(valor)
-    if numero is None:
+def _normalize_dahua_coordinate(value) -> float | None:
+    number = _number_dahua_attributes(value)
+    if number is None:
         return None
 
-    # Os pontos de região observados na Dahua usam escala de 0 a 8191.
-    if numero > 1:
-        numero = numero / 8191
+    # The region points observed on Dahua use a 0-to-8191 scale.
+    if number > 1:
+        number = number / 8191
 
-    return max(0.0, min(1.0, numero))
+    return max(0.0, min(1.0, number))
 
 
-def _extrair_geometria_dahua(valor) -> list[EventPoint]:
-    pontos: list[EventPoint] = []
+def _extract_dahua_geometry(value) -> list[EventPoint]:
+    points: list[EventPoint] = []
 
-    def percorrer(item) -> None:
+    def walk(item) -> None:
         if isinstance(item, dict):
-            chaves = {str(chave).lower(): conteudo for chave, conteudo in item.items()}
+            keys = {str(key).lower(): content for key, content in item.items()}
 
             x = None
             y = None
 
-            for nome in ("x", "positionx", "left"):
-                if nome in chaves:
-                    x = _normalizar_coordenada_dahua(chaves[nome])
+            for name in ("x", "positionx", "left"):
+                if name in keys:
+                    x = _normalize_dahua_coordinate(keys[name])
                     break
 
-            for nome in ("y", "positiony", "top"):
-                if nome in chaves:
-                    y = _normalizar_coordenada_dahua(chaves[nome])
+            for name in ("y", "positiony", "top"):
+                if name in keys:
+                    y = _normalize_dahua_coordinate(keys[name])
                     break
 
             if x is not None and y is not None:
-                pontos.append(EventPoint(x=x, y=y))
+                points.append(EventPoint(x=x, y=y))
                 return
 
-            for conteudo in item.values():
-                percorrer(conteudo)
+            for content in item.values():
+                walk(content)
 
             return
 
         if isinstance(item, (list, tuple)):
             if len(item) >= 2:
-                x = _normalizar_coordenada_dahua(item[0])
-                y = _normalizar_coordenada_dahua(item[1])
+                x = _normalize_dahua_coordinate(item[0])
+                y = _normalize_dahua_coordinate(item[1])
 
                 if x is not None and y is not None:
-                    pontos.append(EventPoint(x=x, y=y))
+                    points.append(EventPoint(x=x, y=y))
                     return
 
-            for conteudo in item:
-                percorrer(conteudo)
+            for content in item:
+                walk(content)
 
-    percorrer(valor)
+    walk(value)
 
-    # Remove pontos repetidos mantendo a ordem.
-    resultado: list[EventPoint] = []
-    encontrados: set[tuple[float, float]] = set()
+    # Removes duplicate points while keeping the order.
+    result: list[EventPoint] = []
+    seen: set[tuple[float, float]] = set()
 
-    for ponto in pontos:
-        assinatura = (round(ponto.x, 6), round(ponto.y, 6))
-        if assinatura in encontrados:
+    for point in points:
+        signature = (round(point.x, 6), round(point.y, 6))
+        if signature in seen:
             continue
 
-        encontrados.add(assinatura)
-        resultado.append(ponto)
+        seen.add(signature)
+        result.append(point)
 
-    return resultado
+    return result
 
 
-def _normalizar_target_type_dahua(alvo_detectado: str | None) -> str | None:
-    if not alvo_detectado:
+def _normalize_dahua_target_type(target_detected: str | None) -> str | None:
+    if not target_detected:
         return None
 
-    alvo = str(alvo_detectado).strip().lower()
-    mapeamento = {
+    target = str(target_detected).strip().lower()
+    mapping = {
         "human": "person",
         "person": "person",
         "vehicle": "vehicle",
@@ -407,18 +407,18 @@ def _normalizar_target_type_dahua(alvo_detectado: str | None) -> str | None:
         "automobile": "vehicle",
     }
 
-    return mapeamento.get(alvo, alvo.replace(" ", "_").replace("-", "_"))
+    return mapping.get(target, target.replace(" ", "_").replace("-", "_"))
 
 
-def _normalizar_event_type_dahua(tipo_evento: str, target_type: str | None) -> str:
+def _normalize_dahua_event_type(event_type: str, target_type: str | None) -> str:
     if target_type == "person":
         return "person_detection"
 
     if target_type == "vehicle":
         return "vehicle_detection"
 
-    tipo = str(tipo_evento or "").strip().lower()
-    mapeamento = {
+    type_ = str(event_type or "").strip().lower()
+    mapping = {
         "crossregiondetection": "intrusion_detection",
         "tripwiredetection": "line_crossing_detection",
         "leftdetection": "object_left_detection",
@@ -426,13 +426,13 @@ def _normalizar_event_type_dahua(tipo_evento: str, target_type: str | None) -> s
         "videoloss": "video_loss",
     }
 
-    return mapeamento.get(tipo, tipo.replace(" ", "_").replace("-", "_") or "unknown_event")
+    return mapping.get(type_, type_.replace(" ", "_").replace("-", "_") or "unknown_event")
 
 
-def _categoria_evento_dahua(tipo_evento: str) -> str:
-    tipo_normalizado = tipo_evento.strip().lower()
+def _dahua_event_category(event_type: str) -> str:
+    normalized_type = event_type.strip().lower()
 
-    categorias = {
+    categories = {
         "crossregiondetection": "intrusion",
         "leftdetection": "object_left",
         "tripwiredetection": "line_crossing",
@@ -440,238 +440,230 @@ def _categoria_evento_dahua(tipo_evento: str) -> str:
         "videoloss": "video_loss",
     }
 
-    return categorias.get(tipo_normalizado, tipo_normalizado)
+    return categories.get(normalized_type, normalized_type)
 
 
-def _montar_atributos_dahua(
+def _build_dahua_attributes(
     payload: dict,
-    dados: dict,
-    objeto: dict,
-    tipo_evento: str,
-    estado: str | None,
-    alvo_detectado: str | None,
-    acao_original,
+    data: dict,
+    obj: dict,
+    event_type: str,
+    state: str | None,
+    target_detected: str | None,
+    original_action,
 ) -> EventAttributes:
     payload = payload if isinstance(payload, dict) else {}
-    dados = dados if isinstance(dados, dict) else {}
-    objeto = objeto if isinstance(objeto, dict) else {}
+    data = data if isinstance(data, dict) else {}
+    obj = obj if isinstance(obj, dict) else {}
 
-    geometria = _extrair_geometria_dahua(
-        dados.get("DetectRegion") or dados.get("Region") or dados.get("Polygon")
+    geometry = _extract_dahua_geometry(
+        data.get("DetectRegion") or data.get("Region") or data.get("Polygon")
     )
 
-    if len(geometria) == 2:
+    if len(geometry) == 2:
         geometry_type = "line"
-    elif len(geometria) >= 3:
+    elif len(geometry) >= 3:
         geometry_type = "region"
     else:
         geometry_type = None
 
-    acao = dados.get("Action") or objeto.get("Action") or acao_original
-    direcao = (
-        dados.get("Direction") or objeto.get("Direction") or objeto.get(
-            "humanTripLineDirection"
-        )
+    action = data.get("Action") or obj.get("Action") or original_action
+    direction = data.get("Direction") or obj.get("Direction") or obj.get(
+        "humanTripLineDirection"
     )
-    direcao_normalizada = _texto_attributes_dahua(direcao)
+    normalized_direction = _text_dahua_attributes(direction)
 
-    if direcao_normalizada and direcao_normalizada.lower() in {
+    if normalized_direction and normalized_direction.lower() in {
         "0",
         "0.0",
         "unknown",
         "none",
     }:
-        direcao_normalizada = None
+        normalized_direction = None
 
-    confidence = _numero_attributes_dahua(objeto.get("Confidence"))
+    confidence = _number_dahua_attributes(obj.get("Confidence"))
 
-    # Nas capturas analisadas, zero significa que a confiança não foi
-    # disponibilizada.
+    # In the captures analyzed, zero means the confidence wasn't made
+    # available.
     if confidence is not None and confidence <= 0:
         confidence = None
 
-    bbox_bruta = obter_bbox_bruta(objeto)
+    raw_bbox = get_raw_bbox(obj)
 
     return EventAttributes(
         manufacturer="dahua",
-        vendor_event_type=tipo_evento,
-        category=_categoria_evento_dahua(tipo_evento),
-        target_type=alvo_detectado,
-        state=estado,
-        action=_texto_attributes_dahua(acao),
-        source_event_id=_texto_attributes_dahua(
-            dados.get("EventID") or payload.get("EventID")
-        ),
-        rule_id=_texto_attributes_dahua(dados.get("RuleID")),
-        rule_name=_texto_attributes_dahua(dados.get("Name")),
-        group_id=_texto_attributes_dahua(dados.get("GroupID")),
-        object_id=_texto_attributes_dahua(objeto.get("ObjectID")),
+        vendor_event_type=event_type,
+        category=_dahua_event_category(event_type),
+        target_type=target_detected,
+        state=state,
+        action=_text_dahua_attributes(action),
+        source_event_id=_text_dahua_attributes(data.get("EventID") or payload.get("EventID")),
+        rule_id=_text_dahua_attributes(data.get("RuleID")),
+        rule_name=_text_dahua_attributes(data.get("Name")),
+        group_id=_text_dahua_attributes(data.get("GroupID")),
+        object_id=_text_dahua_attributes(obj.get("ObjectID")),
         sensitivity=None,
-        direction=direcao_normalizada,
+        direction=normalized_direction,
         confidence=confidence,
         geometry_type=geometry_type,
-        geometry=geometria,
+        geometry=geometry,
         raw_bounding_box=(
-            [float(valor) for valor in bbox_bruta] if bbox_bruta is not None else None
+            [float(value) for value in raw_bbox] if raw_bbox is not None else None
         ),
         vendor_data={
-            chave: valor
-            for chave, valor in {
-                "vendor_target_type": _texto_attributes_dahua(objeto.get("ObjectType")),
-                "vendor_state": estado,
-                "event_action": _texto_attributes_dahua(acao_original),
+            key: value
+            for key, value in {
+                "vendor_target_type": _text_dahua_attributes(obj.get("ObjectType")),
+                "vendor_state": state,
+                "event_action": _text_dahua_attributes(original_action),
             }.items()
-            if valor is not None
+            if value is not None
         },
     )
 
 
 class DahuaAdapter(CameraAdapter):
-    fabricante = "dahua"
+    manufacturer = "dahua"
 
-    def consegue_processar(self, content_type: str, body: bytes) -> bool:
-        tipo = (content_type or "").lower()
-        corpo = body.lower()
+    def can_handle(self, content_type: str, body: bytes) -> bool:
+        type_ = (content_type or "").lower()
+        content = body.lower()
 
-        possui_estrutura_dahua = (
-            b'"code"' in corpo
-            and b'"action"' in corpo
+        has_dahua_structure = (
+            b'"code"' in content
+            and b'"action"' in content
             and (
-                b'"objecttype"' in corpo
-                or b'"detectregion"' in corpo
-                or b'"events"' in corpo
-                or b'"picturetype"' in corpo
+                b'"objecttype"' in content
+                or b'"detectregion"' in content
+                or b'"events"' in content
+                or b'"picturetype"' in content
             )
         )
 
-        return possui_estrutura_dahua and (
-            "application/json" in tipo
-            or "multipart/x-mixed-replace" in tipo
-            or corpo.startswith(b"{")
-            or corpo.startswith(b"--")
+        return has_dahua_structure and (
+            "application/json" in type_
+            or "multipart/x-mixed-replace" in type_
+            or content.startswith(b"{")
+            or content.startswith(b"--")
         )
 
-    def normalizar(self, pacote: RawCameraPackage, body: bytes) -> CameraEvent:
-        content_type = pacote.content_type or ""
-        tipo_conteudo = content_type.lower()
+    def normalize(self, package: RawCameraPackage, body: bytes) -> CameraEvent:
+        content_type = package.content_type or ""
+        lower_content_type = content_type.lower()
 
-        if "multipart/x-mixed-replace" in tipo_conteudo:
-            formato_pacote = "multipart"
-            payload, imagem = extrair_multipart(content_type, body)
+        if "multipart/x-mixed-replace" in lower_content_type:
+            package_format = "multipart"
+            payload, image = extract_multipart(content_type, body)
         else:
-            formato_pacote = "json_direto"
-            payload = carregar_json(body)
-            imagem = None
+            package_format = "direct_json"
+            payload = load_json(body)
+            image = None
 
-        evento = selecionar_evento(payload)
+        event = select_event(payload)
 
-        dados = evento.get("Data")
-        if not isinstance(dados, dict):
-            dados = {}
+        data = event.get("Data")
+        if not isinstance(data, dict):
+            data = {}
 
-        objeto = dados.get("Object")
-        if not isinstance(objeto, dict):
-            objeto = {}
+        obj = data.get("Object")
+        if not isinstance(obj, dict):
+            obj = {}
 
-        tipo_evento = str(evento.get("Code") or "desconhecido")
-        acao_original = str(evento.get("Action") or dados.get("Action") or "").strip()
+        event_type = str(event.get("Code") or "desconhecido")
+        original_action = str(event.get("Action") or data.get("Action") or "").strip()
 
-        estados = {
+        states = {
             "start": "active",
             "appear": "active",
             "pulse": "active",
             "stop": "inactive",
             "disappear": "inactive",
         }
-        estado = estados.get(acao_original.lower(), acao_original.lower() or None)
+        state = states.get(original_action.lower(), original_action.lower() or None)
 
-        data_hora = converter_data_hora(payload, evento)
+        date_time = convert_date_time(payload, event)
 
-        canal = payload.get("Channel")
-        if canal is None:
-            canal = evento.get("Index")
+        channel = payload.get("Channel")
+        if channel is None:
+            channel = event.get("Index")
 
-        camera_id = str(canal) if canal is not None else None
-        nome_regra = dados.get("Name")
-        nome_camera = f"Dahua Canal {camera_id}" if camera_id is not None else "Dahua"
+        camera_id = str(channel) if channel is not None else None
+        rule_name = data.get("Name")
+        camera_name = f"Dahua Channel {camera_id}" if camera_id is not None else "Dahua"
 
-        alvo = objeto.get("ObjectType")
-        alvo_detectado = str(alvo).lower() if alvo is not None else None
+        target = obj.get("ObjectType")
+        target_detected = str(target).lower() if target is not None else None
 
-        alvo_normalizado = _normalizar_target_type_dahua(alvo_detectado)
-        tipo_evento_normalizado = _normalizar_event_type_dahua(
-            tipo_evento, alvo_normalizado
-        )
+        normalized_target = _normalize_dahua_target_type(target_detected)
+        normalized_event_type = _normalize_dahua_event_type(event_type, normalized_target)
 
         image_data: ImageData | None = None
         bounding_box: BoundingBox | None = None
 
-        caminho_original = None
-        caminho_marcada = None
-        largura_img = None
-        altura_img = None
+        original_path = None
+        annotated_path = None
+        image_width = None
+        image_height = None
 
-        bbox_bruta = obter_bbox_bruta(objeto)
+        raw_bbox = get_raw_bbox(obj)
 
-        if imagem is not None:
-            with Image.open(io.BytesIO(imagem)) as imagem_pil:
-                largura_img, altura_img = imagem_pil.size
+        if image is not None:
+            with Image.open(io.BytesIO(image)) as pil_image:
+                image_width, image_height = pil_image.size
 
-            if bbox_bruta is not None:
-                bounding_box = converter_bbox_para_pixels(
-                    bbox_bruta, dados, largura_img, altura_img
-                )
+            if raw_bbox is not None:
+                bounding_box = convert_bbox_to_pixels(raw_bbox, data, image_width, image_height)
 
-            nome_base = criar_nome_base(data_hora, tipo_evento, pacote.evento_id)
-            caminho_original, caminho_marcada, largura_img, altura_img = salvar_imagens(
-                imagem, nome_base, bounding_box
+            base_name = build_base_name(date_time, event_type, package.event_id)
+            original_path, annotated_path, image_width, image_height = save_images(
+                image, base_name, bounding_box
             )
 
             image_data = ImageData(
-                largura=largura_img,
-                altura=altura_img,
-                formato="jpeg",
-                caminho_original=caminho_original,
-                caminho_marcada=caminho_marcada,
+                width=image_width,
+                height=image_height,
+                format="jpeg",
+                original_path=original_path,
+                annotated_path=annotated_path,
             )
 
         bounding_boxes = [bounding_box] if bounding_box is not None else []
 
         return CameraEvent(
-            evento_id=pacote.evento_id,
-            fabricante=self.fabricante,
-            modelo_camera=None,
+            event_id=package.event_id,
+            manufacturer=self.manufacturer,
+            camera_model=None,
             camera_id=camera_id,
-            nome_camera=nome_camera,
-            ip_camera=pacote.ip_camera,
-            tipo_evento=tipo_evento_normalizado,
-            estado=estado,
-            data_hora=data_hora,
-            alvo_detectado=alvo_normalizado,
-            attributes=_montar_atributos_dahua(
+            camera_name=camera_name,
+            camera_ip=package.camera_ip,
+            event_type=normalized_event_type,
+            state=state,
+            timestamp=date_time,
+            target_type=normalized_target,
+            attributes=_build_dahua_attributes(
                 payload=payload,
-                dados=dados,
-                objeto=objeto,
-                tipo_evento=tipo_evento,
-                estado=estado,
-                alvo_detectado=alvo_detectado,
-                acao_original=acao_original,
+                data=data,
+                obj=obj,
+                event_type=event_type,
+                state=state,
+                target_detected=target_detected,
+                original_action=original_action,
             ),
             bounding_boxes=bounding_boxes,
-            bounding_box_escolhida=bounding_box,
-            imagem=image_data,
-            dados_extras={
-                "formato_pacote": formato_pacote,
+            selected_bounding_box=bounding_box,
+            image=image_data,
+            extra_data={
+                "package_format": package_format,
                 "content_type": content_type,
-                "acao_original": acao_original,
-                "nome_regra": nome_regra,
-                "event_id_dahua": dados.get("EventID"),
-                "group_id": dados.get("GroupID"),
-                "rule_id": dados.get("RuleID"),
-                "object_id": objeto.get("ObjectID"),
-                "confidence": objeto.get("Confidence"),
-                "bounding_box_bruta": bbox_bruta,
-                "imagem_recebida": imagem is not None,
-                "resolucao_payload": payload.get("Resolution"),
+                "original_action": original_action,
+                "rule_name": rule_name,
+                "dahua_event_id": data.get("EventID"),
+                "group_id": data.get("GroupID"),
+                "rule_id": data.get("RuleID"),
+                "object_id": obj.get("ObjectID"),
+                "confidence": obj.get("Confidence"),
+                "raw_bounding_box": raw_bbox,
+                "image_received": image is not None,
+                "payload_resolution": payload.get("Resolution"),
             },
         )

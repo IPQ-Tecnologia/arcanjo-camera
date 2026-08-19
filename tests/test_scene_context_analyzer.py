@@ -1,173 +1,66 @@
 import json
 
-from app.domain.models.camera_event import (
-    BoundingBox,
-)
-from app.services.scene_context_analyzer import (
-    analisar_contexto_cena,
-)
+from app.domain.models.camera_event import BoundingBox
+from app.services.scene_context_analyzer import analyze_scene_context
 
 
-def criar_caixa(
+def build_box(
     x: int,
     y: int,
-    largura: int,
-    altura: int,
-    origem: str = "targetrect",
+    width: int,
+    height: int,
+    source: str = "targetrect",
 ) -> BoundingBox:
     return BoundingBox(
-        origem=origem,
+        source=source,
         x=x,
         y=y,
-        largura=largura,
-        altura=altura,
-        x2=x + largura,
-        y2=y + altura,
-        proporcao_imagem=False,
+        width=width,
+        height=height,
+        x2=x + width,
+        y2=y + height,
+        image_ratio=False,
     )
 
 
 def main() -> None:
-    caixas = [
-        # Pessoa 1: esquerda
-        criar_caixa(
-            x=110,
-            y=180,
-            largura=130,
-            altura=360,
-        ),
-
-        # Pessoa 2: centro
-        criar_caixa(
-            x=510,
-            y=170,
-            largura=135,
-            altura=370,
-        ),
-
-        # Pessoa 3: centro e próxima da pessoa 2
-        criar_caixa(
-            x=680,
-            y=175,
-            largura=130,
-            altura=365,
-        ),
-
-        # Caixa representando quase a imagem inteira.
-        # Ela deverá ser ignorada.
-        criar_caixa(
-            x=0,
-            y=0,
-            largura=1280,
-            altura=720,
-            origem="imagem_inteira",
-        ),
+    boxes = [
+        # Person 1: left
+        build_box(x=110, y=180, width=130, height=360),
+        # Person 2: center
+        build_box(x=510, y=170, width=135, height=370),
+        # Person 3: center and close to person 2
+        build_box(x=680, y=175, width=130, height=365),
+        # Box representing almost the entire image. It should be ignored.
+        build_box(x=0, y=0, width=1280, height=720, source="full_image"),
     ]
 
-    resultado = analisar_contexto_cena(
-        largura_imagem=1280,
-        altura_imagem=720,
-        bounding_boxes=caixas,
+    result = analyze_scene_context(
+        image_width=1280,
+        image_height=720,
+        bounding_boxes=boxes,
     )
 
-    print(
-        "===== CONTEXTO DA CENA ====="
-    )
+    print("===== SCENE CONTEXT =====")
 
-    print(
-        json.dumps(
-            resultado.to_dict(),
-            ensure_ascii=False,
-            indent=2,
-        )
-    )
+    print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
 
-    assert (
-        resultado.quantidade_pessoas
-        == 3
-    ), (
-        "Deveriam ser identificadas "
-        "três pessoas"
-    )
+    assert result.quantidade_pessoas == 3, "Three people should be identified"
+    assert result.pessoas_esquerda == 1, "There should be one person on the left"
+    assert result.pessoas_centro == 2, "There should be two people in the center"
+    assert result.pessoas_direita == 0, "There should be no person on the right"
+    assert len(result.proximidades) == 3, "Three people should produce three comparisons"
+    assert result.pares_muito_proximos == 1, "People 2 and 3 should be very close"
 
-    assert (
-        resultado.pessoas_esquerda
-        == 1
-    ), (
-        "Deveria existir uma pessoa "
-        "à esquerda"
-    )
+    print("\nNumber of people:", result.quantidade_pessoas)
+    print("People on the left:", result.pessoas_esquerda)
+    print("People in the center:", result.pessoas_centro)
+    print("People on the right:", result.pessoas_direita)
+    print("Very close pairs:", result.pares_muito_proximos)
+    print("Close pairs:", result.pares_proximos)
+    print("Description:", result.descricao)
 
-    assert (
-        resultado.pessoas_centro
-        == 2
-    ), (
-        "Deveriam existir duas pessoas "
-        "no centro"
-    )
-
-    assert (
-        resultado.pessoas_direita
-        == 0
-    ), (
-        "Não deveria existir pessoa "
-        "à direita"
-    )
-
-    assert (
-        len(resultado.proximidades)
-        == 3
-    ), (
-        "Três pessoas devem gerar "
-        "três comparações"
-    )
-
-    assert (
-        resultado.pares_muito_proximos
-        == 1
-    ), (
-        "As pessoas 2 e 3 deveriam estar "
-        "muito próximas"
-    )
-
-    print(
-        "\nQuantidade de pessoas:",
-        resultado.quantidade_pessoas,
-    )
-
-    print(
-        "Pessoas à esquerda:",
-        resultado.pessoas_esquerda,
-    )
-
-    print(
-        "Pessoas no centro:",
-        resultado.pessoas_centro,
-    )
-
-    print(
-        "Pessoas à direita:",
-        resultado.pessoas_direita,
-    )
-
-    print(
-        "Pares muito próximos:",
-        resultado.pares_muito_proximos,
-    )
-
-    print(
-        "Pares próximos:",
-        resultado.pares_proximos,
-    )
-
-    print(
-        "Descrição:",
-        resultado.descricao,
-    )
-
-    print(
-        "\nTeste concluído com sucesso."
-    )
+    print("\nTest completed successfully.")
 
 
 if __name__ == "__main__":

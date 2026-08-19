@@ -14,103 +14,103 @@ from app.domain.models.alarm_detection_message import (
 from app.domain.models.camera_event import BoundingBox, CameraEvent
 
 
-def arquivo_para_base64(caminho: str) -> str:
-    arquivo = Path(caminho)
-    if not arquivo.exists():
-        raise FileNotFoundError(f"Imagem não encontrada: {arquivo}")
+def file_to_base64(path: str) -> str:
+    file = Path(path)
+    if not file.exists():
+        raise FileNotFoundError(f"Image not found: {file}")
 
-    conteudo = arquivo.read_bytes()
+    content = file.read_bytes()
 
-    return base64.b64encode(conteudo).decode("ascii")
-
-
-def normalizar_data_utc(data_hora: datetime) -> datetime:
-    if data_hora.tzinfo is None:
-        data_hora = data_hora.replace(tzinfo=timezone.utc)
-
-    return data_hora.astimezone(timezone.utc)
+    return base64.b64encode(content).decode("ascii")
 
 
-def data_para_milisegundos(data_hora: datetime) -> int:
-    data_utc = normalizar_data_utc(data_hora)
+def normalize_utc_date(timestamp: datetime) -> datetime:
+    if timestamp.tzinfo is None:
+        timestamp = timestamp.replace(tzinfo=timezone.utc)
 
-    return int(data_utc.timestamp() * 1000)
-
-
-def data_para_iso8601(data_hora: datetime) -> str:
-    data_utc = normalizar_data_utc(data_hora)
-
-    return data_utc.isoformat().replace("+00:00", "Z")
+    return timestamp.astimezone(timezone.utc)
 
 
-def recortar_deteccao_base64(caminho_imagem: str, bounding_box: BoundingBox) -> str:
-    caminho = Path(caminho_imagem)
-    if not caminho.exists():
-        raise FileNotFoundError(f"Imagem não encontrada: {caminho}")
+def date_to_milliseconds(timestamp: datetime) -> int:
+    utc_date = normalize_utc_date(timestamp)
 
-    with Image.open(caminho) as imagem:
-        imagem = imagem.convert("RGB")
-        largura_imagem, altura_imagem = imagem.size
+    return int(utc_date.timestamp() * 1000)
 
-        x1 = max(0, min(bounding_box.x, largura_imagem - 1))
-        y1 = max(0, min(bounding_box.y, altura_imagem - 1))
-        x2 = max(x1 + 1, min(bounding_box.x2, largura_imagem))
-        y2 = max(y1 + 1, min(bounding_box.y2, altura_imagem))
 
-        recorte = imagem.crop((x1, y1, x2, y2))
+def date_to_iso8601(timestamp: datetime) -> str:
+    utc_date = normalize_utc_date(timestamp)
+
+    return utc_date.isoformat().replace("+00:00", "Z")
+
+
+def crop_detection_base64(image_path: str, bounding_box: BoundingBox) -> str:
+    path = Path(image_path)
+    if not path.exists():
+        raise FileNotFoundError(f"Image not found: {path}")
+
+    with Image.open(path) as image:
+        image = image.convert("RGB")
+        image_width, image_height = image.size
+
+        x1 = max(0, min(bounding_box.x, image_width - 1))
+        y1 = max(0, min(bounding_box.y, image_height - 1))
+        x2 = max(x1 + 1, min(bounding_box.x2, image_width))
+        y2 = max(y1 + 1, min(bounding_box.y2, image_height))
+
+        crop = image.crop((x1, y1, x2, y2))
 
         buffer = BytesIO()
-        recorte.save(buffer, format="JPEG", quality=90, optimize=True)
+        crop.save(buffer, format="JPEG", quality=90, optimize=True)
 
         return base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
-def montar_alarm_detection_message(
-    evento: CameraEvent,
+def build_alarm_detection_message(
+    event: CameraEvent,
     bounding_box: BoundingBox | None = None,
-    evento_id: str | None = None,
-    imagem_background_base64: str | None = None,
+    event_id: str | None = None,
+    background_image_base64: str | None = None,
 ) -> AlarmDetectionMessage:
     """
-    Monta o payload de alarme.
+    Builds the alarm payload.
 
-    Os parâmetros opcionais permitem gerar um payload separado para
-    cada pessoa da mesma cena, sem alterar o formato exigido pelo
-    Kafka.
+    The optional parameters allow generating a separate payload for
+    each person in the same scene, without changing the format
+    required by Kafka.
     """
-    if evento.imagem is None:
-        raise ValueError("O evento não possui imagem")
+    if event.image is None:
+        raise ValueError("The event has no image")
 
-    caminho_original = evento.imagem.caminho_original
-    if not caminho_original:
-        raise ValueError("O evento não possui caminho da imagem original")
+    original_path = event.image.original_path
+    if not original_path:
+        raise ValueError("The event has no original image path")
 
-    caixa_selecionada = bounding_box or evento.bounding_box_escolhida
-    if caixa_selecionada is None:
-        raise ValueError("O evento não possui bounding box selecionada")
+    selected_box = bounding_box or event.selected_bounding_box
+    if selected_box is None:
+        raise ValueError("The event has no selected bounding box")
 
-    if imagem_background_base64 is None:
-        imagem_background_base64 = arquivo_para_base64(caminho_original)
+    if background_image_base64 is None:
+        background_image_base64 = file_to_base64(original_path)
 
-    imagem_detection = recortar_deteccao_base64(
-        caminho_imagem=caminho_original,
-        bounding_box=caixa_selecionada,
+    detection_image = crop_detection_base64(
+        image_path=original_path,
+        bounding_box=selected_box,
     )
 
-    nome_camera = evento.nome_camera or evento.camera_id or "camera-desconhecida"
-    id_final = evento_id or evento.evento_id
+    camera_name = event.camera_name or event.camera_id or "camera-desconhecida"
+    final_id = event_id or event.event_id
 
     return AlarmDetectionMessage(
-        device=AlarmDevice(name=nome_camera),
+        device=AlarmDevice(name=camera_name),
         event=AlarmEventData(
-            id=id_final,
-            type="".join(parte.capitalize() for parte in evento.tipo_evento.split("_")),
-            timestamp=data_para_milisegundos(evento.data_hora),
-            datetime=data_para_iso8601(evento.data_hora),
-            attributes=evento.attributes,
+            id=final_id,
+            type="".join(part.capitalize() for part in event.event_type.split("_")),
+            timestamp=date_to_milliseconds(event.timestamp),
+            datetime=date_to_iso8601(event.timestamp),
+            attributes=event.attributes,
             images=AlarmImages(
-                background=imagem_background_base64,
-                detection=imagem_detection,
+                background=background_image_base64,
+                detection=detection_image,
             ),
         ),
     )

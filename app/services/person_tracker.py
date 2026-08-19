@@ -13,527 +13,519 @@ TrackingStatus = Literal["entered", "updated", "suppressed", "exited"]
 class DetectionBox:
     x: int
     y: int
-    largura: int
-    altura: int
+    width: int
+    height: int
 
     @property
     def x2(self) -> int:
-        return self.x + self.largura
+        return self.x + self.width
 
     @property
     def y2(self) -> int:
-        return self.y + self.altura
+        return self.y + self.height
 
     @property
-    def centro_x(self) -> float:
-        return self.x + self.largura / 2
+    def center_x(self) -> float:
+        return self.x + self.width / 2
 
     @property
-    def centro_y(self) -> float:
-        return self.y + self.altura / 2
+    def center_y(self) -> float:
+        return self.y + self.height / 2
 
     @property
     def area(self) -> int:
-        return max(0, self.largura) * max(0, self.altura)
+        return max(0, self.width) * max(0, self.height)
 
-    def iou(self, outra: "DetectionBox") -> float:
+    def iou(self, other: "DetectionBox") -> float:
         """
-        Calcula a sobreposição entre duas caixas.
+        Computes the overlap between two boxes.
 
-        0.0 significa nenhuma sobreposição.
-        1.0 significa caixas iguais.
+        0.0 means no overlap.
+        1.0 means identical boxes.
         """
-        intersecao_x1 = max(self.x, outra.x)
-        intersecao_y1 = max(self.y, outra.y)
-        intersecao_x2 = min(self.x2, outra.x2)
-        intersecao_y2 = min(self.y2, outra.y2)
+        intersection_x1 = max(self.x, other.x)
+        intersection_y1 = max(self.y, other.y)
+        intersection_x2 = min(self.x2, other.x2)
+        intersection_y2 = min(self.y2, other.y2)
 
-        largura_intersecao = max(0, intersecao_x2 - intersecao_x1)
-        altura_intersecao = max(0, intersecao_y2 - intersecao_y1)
-        area_intersecao = largura_intersecao * altura_intersecao
-        area_uniao = self.area + outra.area - area_intersecao
+        intersection_width = max(0, intersection_x2 - intersection_x1)
+        intersection_height = max(0, intersection_y2 - intersection_y1)
+        intersection_area = intersection_width * intersection_height
+        union_area = self.area + other.area - intersection_area
 
-        if area_uniao <= 0:
+        if union_area <= 0:
             return 0.0
 
-        return area_intersecao / area_uniao
+        return intersection_area / union_area
 
-    def distancia_centros(self, outra: "DetectionBox") -> float:
-        diferenca_x = self.centro_x - outra.centro_x
-        diferenca_y = self.centro_y - outra.centro_y
+    def center_distance(self, other: "DetectionBox") -> float:
+        diff_x = self.center_x - other.center_x
+        diff_y = self.center_y - other.center_y
 
-        return math.hypot(diferenca_x, diferenca_y)
+        return math.hypot(diff_x, diff_y)
 
 
 @dataclass
 class TrackedPerson:
-    pessoa_id: str
+    person_id: str
     camera: str
 
-    primeira_deteccao: float
-    ultima_deteccao: float
-    ultimo_processamento: float
+    first_detected_at: float
+    last_detected_at: float
+    last_processed_at: float
 
     bbox: DetectionBox
-    quantidade_deteccoes: int
-    ultimo_evento_id: str
+    detection_count: int
+    last_event_id: str
 
 
 @dataclass(frozen=True)
 class TrackingDecision:
-    pessoa_id: str
+    person_id: str
     camera: str
-    evento_id: str
+    event_id: str
 
     status: TrackingStatus
-    deve_processar: bool
+    should_process: bool
 
-    quantidade_deteccoes: int
+    detection_count: int
     bbox: DetectionBox
 
 
 class PersonTracker:
     def __init__(
         self,
-        intervalo_reprocessamento: float = 5.0,
-        tempo_para_saida: float = 15.0,
-        limite_iou: float = 0.25,
-        limite_distancia: float = 0.75,
-        janela_continuidade_flexivel: float = 4.0,
-        limite_distancia_flexivel: float = 2.5,
-        limite_razao_area_flexivel: float = 3.0,
-        limite_velocidade_normalizada: float = 1.25,
+        reprocessing_interval: float = 5.0,
+        exit_timeout: float = 15.0,
+        iou_threshold: float = 0.25,
+        distance_threshold: float = 0.75,
+        flexible_continuity_window: float = 4.0,
+        flexible_distance_threshold: float = 2.5,
+        flexible_area_ratio_threshold: float = 3.0,
+        normalized_speed_threshold: float = 1.25,
     ) -> None:
-        if intervalo_reprocessamento <= 0:
-            raise ValueError("intervalo_reprocessamento deve ser positivo")
+        if reprocessing_interval <= 0:
+            raise ValueError("reprocessing_interval must be positive")
 
-        if tempo_para_saida <= 0:
-            raise ValueError("tempo_para_saida deve ser positivo")
+        if exit_timeout <= 0:
+            raise ValueError("exit_timeout must be positive")
 
-        if limite_iou < 0:
-            raise ValueError("limite_iou não pode ser negativo")
+        if iou_threshold < 0:
+            raise ValueError("iou_threshold cannot be negative")
 
-        if limite_distancia < 0:
-            raise ValueError("limite_distancia não pode ser negativo")
+        if distance_threshold < 0:
+            raise ValueError("distance_threshold cannot be negative")
 
-        if janela_continuidade_flexivel <= 0:
-            raise ValueError("janela_continuidade_flexivel deve ser positiva")
+        if flexible_continuity_window <= 0:
+            raise ValueError("flexible_continuity_window must be positive")
 
-        if limite_distancia_flexivel < limite_distancia:
+        if flexible_distance_threshold < distance_threshold:
             raise ValueError(
-                "limite_distancia_flexivel deve ser maior ou igual ao limite_distancia"
+                "flexible_distance_threshold must be greater than or equal to "
+                "distance_threshold"
             )
 
-        if limite_razao_area_flexivel < 1:
-            raise ValueError("limite_razao_area_flexivel deve ser maior ou igual a 1")
+        if flexible_area_ratio_threshold < 1:
+            raise ValueError("flexible_area_ratio_threshold must be greater than or equal to 1")
 
-        if limite_velocidade_normalizada <= 0:
-            raise ValueError("limite_velocidade_normalizada deve ser positivo")
+        if normalized_speed_threshold <= 0:
+            raise ValueError("normalized_speed_threshold must be positive")
 
-        self.intervalo_reprocessamento = intervalo_reprocessamento
-        self.tempo_para_saida = tempo_para_saida
-        self.limite_iou = limite_iou
-        self.limite_distancia = limite_distancia
-        self.janela_continuidade_flexivel = janela_continuidade_flexivel
-        self.limite_distancia_flexivel = limite_distancia_flexivel
-        self.limite_razao_area_flexivel = limite_razao_area_flexivel
-        self.limite_velocidade_normalizada = limite_velocidade_normalizada
+        self.reprocessing_interval = reprocessing_interval
+        self.exit_timeout = exit_timeout
+        self.iou_threshold = iou_threshold
+        self.distance_threshold = distance_threshold
+        self.flexible_continuity_window = flexible_continuity_window
+        self.flexible_distance_threshold = flexible_distance_threshold
+        self.flexible_area_ratio_threshold = flexible_area_ratio_threshold
+        self.normalized_speed_threshold = normalized_speed_threshold
 
-        self._pessoas: dict[str, TrackedPerson] = {}
+        self._people: dict[str, TrackedPerson] = {}
         self._lock = asyncio.Lock()
 
     @property
-    def quantidade_ativas(self) -> int:
-        return len(self._pessoas)
+    def active_count(self) -> int:
+        return len(self._people)
 
-    async def registrar(
+    async def register(
         self,
         camera: str,
-        evento_id: str,
+        event_id: str,
         bbox: DetectionBox,
-        agora: float | None = None,
+        now: float | None = None,
     ) -> TrackingDecision:
-        """Mantém compatibilidade com chamadas que enviam somente uma bounding box."""
-        decisoes = await self.registrar_lote(
+        """Kept for compatibility with calls that send a single bounding box."""
+        decisions = await self.register_batch(
             camera=camera,
-            evento_id=evento_id,
+            event_id=event_id,
             bboxes=[bbox],
-            agora=agora,
+            now=now,
         )
 
-        return decisoes[0]
+        return decisions[0]
 
-    async def registrar_lote(
+    async def register_batch(
         self,
         camera: str,
-        evento_id: str,
+        event_id: str,
         bboxes: list[DetectionBox],
-        agora: float | None = None,
+        now: float | None = None,
     ) -> list[TrackingDecision]:
         """
-        Registra todas as pessoas encontradas no mesmo quadro.
+        Registers every person found in the same frame.
 
-        Cada pessoa ativa pode ser associada somente a uma bounding box
-        do quadro.
+        Each active person can be matched to at most one bounding box
+        of the frame.
         """
         if not bboxes:
             return []
 
         for bbox in bboxes:
-            if bbox.largura <= 0 or bbox.altura <= 0:
-                raise ValueError(
-                    "Todas as bounding boxes devem possuir largura e altura positivas"
-                )
+            if bbox.width <= 0 or bbox.height <= 0:
+                raise ValueError("All bounding boxes must have positive width and height")
 
-        momento = time.monotonic() if agora is None else agora
+        moment = time.monotonic() if now is None else now
 
         async with self._lock:
-            associacoes = self._associar_deteccoes_em_lote(camera=camera, bboxes=bboxes)
-            self._aplicar_continuidade_flexivel(
+            matches = self._match_detections_batch(camera=camera, bboxes=bboxes)
+            self._apply_flexible_continuity(
                 camera=camera,
                 bboxes=bboxes,
-                associacoes=associacoes,
-                agora=momento,
+                matches=matches,
+                now=moment,
             )
 
-            total_deteccoes = len(bboxes)
-            decisoes: list[TrackingDecision] = []
+            total_detections = len(bboxes)
+            decisions: list[TrackingDecision] = []
 
-            for indice, bbox in enumerate(bboxes):
-                evento_individual_id = self._criar_evento_individual_id(
-                    evento_id=evento_id,
-                    indice=indice,
-                    total=total_deteccoes,
+            for index, bbox in enumerate(bboxes):
+                individual_event_id = self._create_individual_event_id(
+                    event_id=event_id,
+                    index=index,
+                    total=total_detections,
                 )
 
-                pessoa = associacoes.get(indice)
+                person = matches.get(index)
 
-                if pessoa is None:
-                    pessoa = self._criar_pessoa(
+                if person is None:
+                    person = self._create_person(
                         camera=camera,
-                        evento_id=evento_individual_id,
+                        event_id=individual_event_id,
                         bbox=bbox,
-                        agora=momento,
+                        now=moment,
                     )
-                    decisoes.append(
+                    decisions.append(
                         TrackingDecision(
-                            pessoa_id=pessoa.pessoa_id,
+                            person_id=person.person_id,
                             camera=camera,
-                            evento_id=evento_individual_id,
+                            event_id=individual_event_id,
                             status="entered",
-                            deve_processar=True,
-                            quantidade_deteccoes=1,
+                            should_process=True,
+                            detection_count=1,
                             bbox=bbox,
                         )
                     )
                     continue
 
-                decisao = self._atualizar_pessoa(
-                    pessoa=pessoa,
-                    evento_id=evento_individual_id,
+                decision = self._update_person(
+                    person=person,
+                    event_id=individual_event_id,
                     bbox=bbox,
-                    agora=momento,
+                    now=moment,
                 )
-                decisoes.append(decisao)
+                decisions.append(decision)
 
-            return decisoes
+            return decisions
 
-    async def coletar_saidas(self, agora: float | None = None) -> list[TrackingDecision]:
-        momento = time.monotonic() if agora is None else agora
+    async def collect_exits(self, now: float | None = None) -> list[TrackingDecision]:
+        moment = time.monotonic() if now is None else now
 
         async with self._lock:
-            pessoas_encerradas: list[TrackingDecision] = []
-            ids_para_remover: list[str] = []
+            ended_people: list[TrackingDecision] = []
+            ids_to_remove: list[str] = []
 
-            for pessoa_id, pessoa in self._pessoas.items():
-                tempo_sem_deteccao = momento - pessoa.ultima_deteccao
-                if tempo_sem_deteccao < self.tempo_para_saida:
+            for person_id, person in self._people.items():
+                time_since_detection = moment - person.last_detected_at
+                if time_since_detection < self.exit_timeout:
                     continue
 
-                pessoas_encerradas.append(
+                ended_people.append(
                     TrackingDecision(
-                        pessoa_id=pessoa.pessoa_id,
-                        camera=pessoa.camera,
-                        evento_id=pessoa.ultimo_evento_id,
+                        person_id=person.person_id,
+                        camera=person.camera,
+                        event_id=person.last_event_id,
                         status="exited",
-                        deve_processar=False,
-                        quantidade_deteccoes=pessoa.quantidade_deteccoes,
-                        bbox=pessoa.bbox,
+                        should_process=False,
+                        detection_count=person.detection_count,
+                        bbox=person.bbox,
                     )
                 )
-                ids_para_remover.append(pessoa_id)
+                ids_to_remove.append(person_id)
 
-            for pessoa_id in ids_para_remover:
-                self._pessoas.pop(pessoa_id, None)
+            for person_id in ids_to_remove:
+                self._people.pop(person_id, None)
 
-            return pessoas_encerradas
+            return ended_people
 
-    async def limpar(self) -> None:
+    async def clear(self) -> None:
         async with self._lock:
-            self._pessoas.clear()
+            self._people.clear()
 
-    def _associar_deteccoes_em_lote(
+    def _match_detections_batch(
         self,
         camera: str,
         bboxes: list[DetectionBox],
     ) -> dict[int, TrackedPerson]:
         """
-        Busca as melhores associações entre as bounding boxes e as
-        pessoas ativas.
+        Finds the best matches between the bounding boxes and the
+        active people.
 
-        Uma pessoa não pode ser usada duas vezes dentro do mesmo
-        quadro.
+        A person cannot be matched twice within the same frame.
         """
-        candidatos: list[tuple[float, int, str]] = []
+        candidates: list[tuple[float, int, str]] = []
 
-        for indice, bbox in enumerate(bboxes):
-            for pessoa in self._pessoas.values():
-                if pessoa.camera != camera:
+        for index, bbox in enumerate(bboxes):
+            for person in self._people.values():
+                if person.camera != camera:
                     continue
 
-                pontuacao = self._calcular_pontuacao(bbox=bbox, pessoa=pessoa)
-                if pontuacao is None:
+                score = self._calculate_score(bbox=bbox, person=person)
+                if score is None:
                     continue
 
-                candidatos.append((pontuacao, indice, pessoa.pessoa_id))
+                candidates.append((score, index, person.person_id))
 
-        candidatos.sort(key=lambda item: (-item[0], item[1], item[2]))
+        candidates.sort(key=lambda item: (-item[0], item[1], item[2]))
 
-        deteccoes_utilizadas: set[int] = set()
-        pessoas_utilizadas: set[str] = set()
-        associacoes: dict[int, TrackedPerson] = {}
+        used_detections: set[int] = set()
+        used_people: set[str] = set()
+        matches: dict[int, TrackedPerson] = {}
 
-        for _, indice, pessoa_id in candidatos:
-            if indice in deteccoes_utilizadas:
+        for _, index, person_id in candidates:
+            if index in used_detections:
                 continue
 
-            if pessoa_id in pessoas_utilizadas:
+            if person_id in used_people:
                 continue
 
-            pessoa = self._pessoas.get(pessoa_id)
-            if pessoa is None:
+            person = self._people.get(person_id)
+            if person is None:
                 continue
 
-            associacoes[indice] = pessoa
-            deteccoes_utilizadas.add(indice)
-            pessoas_utilizadas.add(pessoa_id)
+            matches[index] = person
+            used_detections.add(index)
+            used_people.add(person_id)
 
-        return associacoes
+        return matches
 
-    def _aplicar_continuidade_flexivel(
+    def _apply_flexible_continuity(
         self,
         camera: str,
         bboxes: list[DetectionBox],
-        associacoes: dict[int, TrackedPerson],
-        agora: float,
+        matches: dict[int, TrackedPerson],
+        now: float,
     ) -> None:
         """
-        Corrige o caso em que uma pessoa atravessa rapidamente a
-        imagem e a nova caixa fica distante da caixa anterior.
+        Fixes the case where a person crosses the frame quickly and
+        the new box ends up far from the previous box.
 
-        Esta regra somente é aplicada quando:
+        This rule only applies when:
 
-        - existe uma única bounding box;
-        - existe uma única pessoa ativa na câmera;
-        - a associação normal falhou;
-        - o intervalo entre as imagens é curto;
-        - o tamanho das caixas continua plausível.
+        - there is a single bounding box;
+        - there is a single active person on the camera;
+        - the normal match failed;
+        - the interval between frames is short;
+        - the box size is still plausible.
 
-        Assim, a regra não interfere no rastreamento em lote de várias
-        pessoas.
+        This way, the rule doesn't interfere with batch tracking of
+        several people.
         """
         if len(bboxes) != 1:
             return
 
-        if associacoes:
+        if matches:
             return
 
-        pessoas_camera = [
-            pessoa for pessoa in self._pessoas.values() if pessoa.camera == camera
-        ]
-        if len(pessoas_camera) != 1:
+        camera_people = [person for person in self._people.values() if person.camera == camera]
+        if len(camera_people) != 1:
             return
 
-        pessoa = pessoas_camera[0]
+        person = camera_people[0]
         bbox = bboxes[0]
 
-        continuidade_valida = self._pode_usar_continuidade_flexivel(
-            pessoa=pessoa,
+        continuity_valid = self._can_use_flexible_continuity(
+            person=person,
             bbox=bbox,
-            agora=agora,
+            now=now,
         )
-        if continuidade_valida:
-            associacoes[0] = pessoa
+        if continuity_valid:
+            matches[0] = person
 
-    def _pode_usar_continuidade_flexivel(
+    def _can_use_flexible_continuity(
         self,
-        pessoa: TrackedPerson,
+        person: TrackedPerson,
         bbox: DetectionBox,
-        agora: float,
+        now: float,
     ) -> bool:
-        tempo_sem_deteccao = max(0.0, agora - pessoa.ultima_deteccao)
-        if tempo_sem_deteccao > self.janela_continuidade_flexivel:
+        time_since_detection = max(0.0, now - person.last_detected_at)
+        if time_since_detection > self.flexible_continuity_window:
             return False
 
-        menor_area = max(1, min(bbox.area, pessoa.bbox.area))
-        maior_area = max(bbox.area, pessoa.bbox.area)
-        razao_area = maior_area / menor_area
-        if razao_area > self.limite_razao_area_flexivel:
+        smaller_area = max(1, min(bbox.area, person.bbox.area))
+        larger_area = max(bbox.area, person.bbox.area)
+        area_ratio = larger_area / smaller_area
+        if area_ratio > self.flexible_area_ratio_threshold:
             return False
 
-        distancia = bbox.distancia_centros(pessoa.bbox)
-        maior_dimensao = max(
-            bbox.largura, bbox.altura, pessoa.bbox.largura, pessoa.bbox.altura, 1
+        distance = bbox.center_distance(person.bbox)
+        largest_dimension = max(bbox.width, bbox.height, person.bbox.width, person.bbox.height, 1)
+        normalized_distance = distance / largest_dimension
+
+        dynamic_threshold = min(
+            self.flexible_distance_threshold,
+            max(self.distance_threshold, 1.25 + time_since_detection * 0.45),
         )
-        distancia_normalizada = distancia / maior_dimensao
-
-        limite_dinamico = min(
-            self.limite_distancia_flexivel,
-            max(self.limite_distancia, 1.25 + tempo_sem_deteccao * 0.45),
-        )
-        if distancia_normalizada > limite_dinamico:
+        if normalized_distance > dynamic_threshold:
             return False
 
-        velocidade_normalizada = distancia_normalizada / max(tempo_sem_deteccao, 0.25)
-        if velocidade_normalizada > self.limite_velocidade_normalizada:
+        normalized_speed = normalized_distance / max(time_since_detection, 0.25)
+        if normalized_speed > self.normalized_speed_threshold:
             return False
 
         return True
 
-    def _calcular_pontuacao(
+    def _calculate_score(
         self,
         bbox: DetectionBox,
-        pessoa: TrackedPerson,
+        person: TrackedPerson,
     ) -> float | None:
-        sobreposicao = bbox.iou(pessoa.bbox)
-        distancia = bbox.distancia_centros(pessoa.bbox)
-        maior_dimensao = max(
-            bbox.largura, bbox.altura, pessoa.bbox.largura, pessoa.bbox.altura, 1
-        )
-        distancia_normalizada = distancia / maior_dimensao
+        overlap = bbox.iou(person.bbox)
+        distance = bbox.center_distance(person.bbox)
+        largest_dimension = max(bbox.width, bbox.height, person.bbox.width, person.bbox.height, 1)
+        normalized_distance = distance / largest_dimension
 
-        caixas_proximas = distancia_normalizada <= self.limite_distancia
-        caixas_sobrepostas = sobreposicao >= self.limite_iou
-        if not (caixas_proximas or caixas_sobrepostas):
+        boxes_close = normalized_distance <= self.distance_threshold
+        boxes_overlapping = overlap >= self.iou_threshold
+        if not (boxes_close or boxes_overlapping):
             return None
 
-        pontuacao_distancia = max(0.0, 1.0 - distancia_normalizada)
+        distance_score = max(0.0, 1.0 - normalized_distance)
 
-        return sobreposicao + pontuacao_distancia
+        return overlap + distance_score
 
-    def _atualizar_pessoa(
+    def _update_person(
         self,
-        pessoa: TrackedPerson,
-        evento_id: str,
+        person: TrackedPerson,
+        event_id: str,
         bbox: DetectionBox,
-        agora: float,
+        now: float,
     ) -> TrackingDecision:
-        pessoa.ultima_deteccao = agora
-        pessoa.bbox = bbox
-        pessoa.ultimo_evento_id = evento_id
-        pessoa.quantidade_deteccoes += 1
+        person.last_detected_at = now
+        person.bbox = bbox
+        person.last_event_id = event_id
+        person.detection_count += 1
 
-        tempo_desde_processamento = agora - pessoa.ultimo_processamento
+        time_since_processed = now - person.last_processed_at
 
-        if tempo_desde_processamento >= self.intervalo_reprocessamento:
-            pessoa.ultimo_processamento = agora
+        if time_since_processed >= self.reprocessing_interval:
+            person.last_processed_at = now
 
             return TrackingDecision(
-                pessoa_id=pessoa.pessoa_id,
-                camera=pessoa.camera,
-                evento_id=evento_id,
+                person_id=person.person_id,
+                camera=person.camera,
+                event_id=event_id,
                 status="updated",
-                deve_processar=True,
-                quantidade_deteccoes=pessoa.quantidade_deteccoes,
+                should_process=True,
+                detection_count=person.detection_count,
                 bbox=bbox,
             )
 
         return TrackingDecision(
-            pessoa_id=pessoa.pessoa_id,
-            camera=pessoa.camera,
-            evento_id=evento_id,
+            person_id=person.person_id,
+            camera=person.camera,
+            event_id=event_id,
             status="suppressed",
-            deve_processar=False,
-            quantidade_deteccoes=pessoa.quantidade_deteccoes,
+            should_process=False,
+            detection_count=person.detection_count,
             bbox=bbox,
         )
 
-    def _encontrar_pessoa(
+    def _find_person(
         self,
         camera: str,
         bbox: DetectionBox,
     ) -> TrackedPerson | None:
-        """Mantido para compatibilidade com testes individuais."""
-        melhor_pessoa: TrackedPerson | None = None
-        melhor_pontuacao = -1.0
+        """Kept for compatibility with individual tests."""
+        best_person: TrackedPerson | None = None
+        best_score = -1.0
 
-        for pessoa in self._pessoas.values():
-            if pessoa.camera != camera:
+        for person in self._people.values():
+            if person.camera != camera:
                 continue
 
-            pontuacao = self._calcular_pontuacao(bbox=bbox, pessoa=pessoa)
-            if pontuacao is None:
+            score = self._calculate_score(bbox=bbox, person=person)
+            if score is None:
                 continue
 
-            if pontuacao > melhor_pontuacao:
-                melhor_pontuacao = pontuacao
-                melhor_pessoa = pessoa
+            if score > best_score:
+                best_score = score
+                best_person = person
 
-        return melhor_pessoa
+        return best_person
 
-    def _criar_pessoa(
+    def _create_person(
         self,
         camera: str,
-        evento_id: str,
+        event_id: str,
         bbox: DetectionBox,
-        agora: float,
+        now: float,
     ) -> TrackedPerson:
-        camera_normalizada = "".join(
-            caractere.lower() if caractere.isalnum() else "-" for caractere in camera
+        normalized_camera = "".join(
+            character.lower() if character.isalnum() else "-" for character in camera
         ).strip("-")
 
-        if not camera_normalizada:
-            camera_normalizada = "camera"
+        if not normalized_camera:
+            normalized_camera = "camera"
 
-        pessoa_id = f"{camera_normalizada}-{uuid.uuid4().hex[:8]}"
+        person_id = f"{normalized_camera}-{uuid.uuid4().hex[:8]}"
 
-        pessoa = TrackedPerson(
-            pessoa_id=pessoa_id,
+        person = TrackedPerson(
+            person_id=person_id,
             camera=camera,
-            primeira_deteccao=agora,
-            ultima_deteccao=agora,
-            ultimo_processamento=agora,
+            first_detected_at=now,
+            last_detected_at=now,
+            last_processed_at=now,
             bbox=bbox,
-            quantidade_deteccoes=1,
-            ultimo_evento_id=evento_id,
+            detection_count=1,
+            last_event_id=event_id,
         )
 
-        self._pessoas[pessoa_id] = pessoa
+        self._people[person_id] = person
 
-        return pessoa
+        return person
 
-    def _criar_evento_individual_id(self, evento_id: str, indice: int, total: int) -> str:
+    def _create_individual_event_id(self, event_id: str, index: int, total: int) -> str:
         """
-        Um quadro com uma pessoa mantém o ID original.
+        A frame with a single person keeps the original ID.
 
-        Quadros com várias pessoas recebem IDs como:
+        Frames with several people receive IDs like:
 
-        evento123-01
-        evento123-02
+        event123-01
+        event123-02
         """
         if total <= 1:
-            return evento_id
+            return event_id
 
-        return f"{evento_id}-{indice + 1:02d}"
+        return f"{event_id}-{index + 1:02d}"
 
 
 person_tracker = PersonTracker(
-    intervalo_reprocessamento=5.0,
-    tempo_para_saida=15.0,
-    limite_iou=0.25,
-    limite_distancia=0.75,
-    janela_continuidade_flexivel=12.0,
-    limite_distancia_flexivel=2.5,
-    limite_razao_area_flexivel=12.0,
-    limite_velocidade_normalizada=1.25,
+    reprocessing_interval=5.0,
+    exit_timeout=15.0,
+    iou_threshold=0.25,
+    distance_threshold=0.75,
+    flexible_continuity_window=12.0,
+    flexible_distance_threshold=2.5,
+    flexible_area_ratio_threshold=12.0,
+    normalized_speed_threshold=1.25,
 )

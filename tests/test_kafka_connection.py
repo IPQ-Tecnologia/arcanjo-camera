@@ -7,113 +7,98 @@ from aiokafka.helpers import create_ssl_context
 from app.core.config import settings
 
 
-def obter_servidores() -> list[str]:
-    servidores = [
-        servidor.strip()
-        for servidor in settings.kafka_bootstrap_servers.split(",")
-        if servidor.strip()
+def get_servers() -> list[str]:
+    servers = [
+        server.strip()
+        for server in settings.kafka_bootstrap_servers.split(",")
+        if server.strip()
     ]
 
-    if not servidores:
-        raise ValueError(
-            "KAFKA_BOOTSTRAP_SERVERS não foi configurado"
-        )
+    if not servers:
+        raise ValueError("KAFKA_BOOTSTRAP_SERVERS was not configured")
 
-    return servidores
+    return servers
 
 
-def criar_configuracao_produtor() -> dict:
-    protocolo = settings.kafka_security_protocol.upper()
+def build_producer_config() -> dict:
+    protocol = settings.kafka_security_protocol.upper()
 
-    protocolos_validos = {
-        "PLAINTEXT",
-        "SSL",
-        "SASL_PLAINTEXT",
-        "SASL_SSL"
-    }
+    valid_protocols = {"PLAINTEXT", "SSL", "SASL_PLAINTEXT", "SASL_SSL"}
 
-    if protocolo not in protocolos_validos:
-        raise ValueError(
-            f"Protocolo Kafka inválido: {protocolo}"
-        )
+    if protocol not in valid_protocols:
+        raise ValueError(f"Invalid Kafka protocol: {protocol}")
 
-    configuracao = {
-        "bootstrap_servers": obter_servidores(),
+    config = {
+        "bootstrap_servers": get_servers(),
         "client_id": settings.kafka_client_id,
-        "security_protocol": protocolo,
-        "request_timeout_ms": settings.kafka_request_timeout_ms
+        "security_protocol": protocol,
+        "request_timeout_ms": settings.kafka_request_timeout_ms,
     }
 
-    if protocolo in {"SASL_PLAINTEXT", "SASL_SSL"}:
+    if protocol in {"SASL_PLAINTEXT", "SASL_SSL"}:
         if not settings.kafka_sasl_mechanism:
-            raise ValueError(
-                "KAFKA_SASL_MECHANISM não foi configurado"
-            )
+            raise ValueError("KAFKA_SASL_MECHANISM was not configured")
 
         if not settings.kafka_sasl_username:
-            raise ValueError(
-                "KAFKA_SASL_USERNAME não foi configurado"
-            )
+            raise ValueError("KAFKA_SASL_USERNAME was not configured")
 
         if not settings.kafka_sasl_password:
-            raise ValueError(
-                "KAFKA_SASL_PASSWORD não foi configurado"
-            )
+            raise ValueError("KAFKA_SASL_PASSWORD was not configured")
 
-        configuracao.update({
-            "sasl_mechanism": settings.kafka_sasl_mechanism,
-            "sasl_plain_username": settings.kafka_sasl_username,
-            "sasl_plain_password": settings.kafka_sasl_password
-        })
+        config.update(
+            {
+                "sasl_mechanism": settings.kafka_sasl_mechanism,
+                "sasl_plain_username": settings.kafka_sasl_username,
+                "sasl_plain_password": settings.kafka_sasl_password,
+            }
+        )
 
-    if protocolo in {"SSL", "SASL_SSL"}:
-        contexto_ssl: ssl.SSLContext
+    if protocol in {"SSL", "SASL_SSL"}:
+        ssl_context: ssl.SSLContext
 
         if settings.kafka_ssl_cafile:
-            contexto_ssl = create_ssl_context(
-                cafile=settings.kafka_ssl_cafile
-            )
+            ssl_context = create_ssl_context(cafile=settings.kafka_ssl_cafile)
         else:
-            contexto_ssl = create_ssl_context()
+            ssl_context = create_ssl_context()
 
-        configuracao["ssl_context"] = contexto_ssl
+        config["ssl_context"] = ssl_context
 
-    return configuracao
+    return config
 
 
-async def testar_conexao() -> None:
-    configuracao = criar_configuracao_produtor()
+async def test_connection() -> None:
+    config = build_producer_config()
 
-    print("===== TESTE DE CONEXÃO KAFKA =====")
-    print("Servidores:", configuracao["bootstrap_servers"])
-    print("Protocolo:", configuracao["security_protocol"])
-    print("Client ID:", configuracao["client_id"])
+    print("===== KAFKA CONNECTION TEST =====")
+    print("Servers:", config["bootstrap_servers"])
+    print("Protocol:", config["security_protocol"])
+    print("Client ID:", config["client_id"])
 
-    produtor = AIOKafkaProducer(**configuracao)
-    iniciado = False
+    producer = AIOKafkaProducer(**config)
+    started = False
 
     try:
-        print("Tentando conectar...")
+        print("Trying to connect...")
 
-        await produtor.start()
-        iniciado = True
+        await producer.start()
+        started = True
 
-        print("Conexão com o Kafka realizada com sucesso.")
+        print("Connection to Kafka established successfully.")
 
-    except Exception as erro:
-        print("Não foi possível conectar ao Kafka.")
-        print("Tipo do erro:", type(erro).__name__)
-        print("Detalhes:", str(erro))
+    except Exception as error:
+        print("Could not connect to Kafka.")
+        print("Error type:", type(error).__name__)
+        print("Details:", str(error))
 
         raise
 
     finally:
-        if iniciado:
-            await produtor.stop()
-            print("Conexão encerrada corretamente.")
+        if started:
+            await producer.stop()
+            print("Connection closed successfully.")
 
-        print("===== FIM DO TESTE =====")
+        print("===== END OF TEST =====")
 
 
 if __name__ == "__main__":
-    asyncio.run(testar_conexao())
+    asyncio.run(test_connection())

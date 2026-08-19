@@ -25,9 +25,9 @@ logging.basicConfig(
 
 BASE_DIR = Path(__file__).resolve().parent
 
-PAINEL_HTML = BASE_DIR / "app" / "static" / "index.html"
-PASTA_CAPTURAS_DAHUA = BASE_DIR / "capturas_dahua"
-PASTA_CAPTURAS_HIKVISION = BASE_DIR / "capturas_hikvision"
+PANEL_HTML = BASE_DIR / "app" / "static" / "index.html"
+DAHUA_CAPTURES_DIR = BASE_DIR / "dahua_captures"
+HIKVISION_CAPTURES_DIR = BASE_DIR / "hikvision_captures"
 
 
 pipeline = CameraEventPipeline(
@@ -46,205 +46,193 @@ async def lifespan(app: FastAPI):
     await pipeline.stop()
 
 
-app = FastAPI(title="Camera API com Kafka", lifespan=lifespan)
+app = FastAPI(title="Camera API with Kafka", lifespan=lifespan)
 
 
-def enfileirar_pacote(
+def enqueue_package(
     request: Request,
     body: bytes,
-    evento_id: str,
-    inicio: float,
-    origem: str,
+    event_id: str,
+    start: float,
+    origin: str,
 ):
     """
-    Coloca o pacote recebido na fila assíncrona.
+    Puts the received package on the asynchronous queue.
 
-    Essa função é utilizada tanto pela Hikvision
-    quanto pela Dahua.
+    This function is used by both Hikvision and Dahua.
     """
     content_type = request.headers.get("content-type", "application/octet-stream")
-    ip_camera = request.client.host if request.client else None
+    camera_ip = request.client.host if request.client else None
 
-    pacote = RawCameraPackage(
-        evento_id=evento_id,
-        recebido_em=datetime.now(timezone.utc),
+    package = RawCameraPackage(
+        event_id=event_id,
+        received_at=datetime.now(timezone.utc),
         content_type=content_type,
-        ip_camera=ip_camera,
-        caminho_pacote=f"memoria://{evento_id}",
+        camera_ip=camera_ip,
+        package_path=f"memory://{event_id}",
     )
 
     try:
-        request.app.state.camera_pipeline.adicionar(pacote, body)
+        request.app.state.camera_pipeline.add(package, body)
     except asyncio.QueueFull:
-        logging.warning("[%s][%s] Fila cheia", origem, evento_id)
+        logging.warning("[%s][%s] Queue full", origin, event_id)
         return JSONResponse(
             status_code=503,
-            content={"status": "fila_cheia", "evento_id": evento_id, "origem": origem},
+            content={"status": "queue_full", "event_id": event_id, "origin": origin},
         )
 
-    tempo_ms = round((time.perf_counter() - inicio) * 1000, 2)
+    elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
 
     logging.info(
-        "[%s][%s] Recebido: bytes=%s fila=%s/%s resposta=%sms",
-        origem,
-        evento_id,
+        "[%s][%s] Received: bytes=%s queue=%s/%s response=%sms",
+        origin,
+        event_id,
         len(body),
-        pipeline.tamanho_fila,
-        pipeline.capacidade_fila,
-        tempo_ms,
+        pipeline.queue_size,
+        pipeline.queue_capacity,
+        elapsed_ms,
     )
 
     return {
-        "status": "recebido",
-        "evento_id": evento_id,
-        "origem": origem,
-        "processamento": "fila_assincrona",
-        "tempo_resposta_ms": tempo_ms,
+        "status": "received",
+        "event_id": event_id,
+        "origin": origin,
+        "processing": "async_queue",
+        "response_time_ms": elapsed_ms,
     }
 
 
-def salvar_captura_dahua(
-    evento_id: str,
-    momento: str,
-    ip_camera: str,
+def save_dahua_capture(
+    event_id: str,
+    moment: str,
+    camera_ip: str,
     content_type: str,
     headers: list[str],
     body: bytes,
 ) -> None:
-    """
-    Salva o pacote bruto da Dahua depois que
-    a resposta já foi enviada para a câmera.
-    """
-    PASTA_CAPTURAS_DAHUA.mkdir(parents=True, exist_ok=True)
+    """Saves Dahua's raw package after the response has already been sent to the camera."""
+    DAHUA_CAPTURES_DIR.mkdir(parents=True, exist_ok=True)
 
-    nome_base = f"{momento}_{evento_id}"
-    caminho_pacote = PASTA_CAPTURAS_DAHUA / f"{nome_base}_pacote.bin"
-    caminho_headers = PASTA_CAPTURAS_DAHUA / f"{nome_base}_headers.txt"
+    base_name = f"{moment}_{event_id}"
+    package_path = DAHUA_CAPTURES_DIR / f"{base_name}_package.bin"
+    headers_path = DAHUA_CAPTURES_DIR / f"{base_name}_headers.txt"
 
-    caminho_pacote.write_bytes(body)
+    package_path.write_bytes(body)
 
-    informacoes = [
-        f"evento_id: {evento_id}",
-        f"recebido_em_utc: {momento}",
-        f"ip_camera: {ip_camera}",
+    info = [
+        f"event_id: {event_id}",
+        f"received_at_utc: {moment}",
+        f"camera_ip: {camera_ip}",
         f"content_type: {content_type}",
-        f"quantidade_bytes: {len(body)}",
+        f"byte_count: {len(body)}",
         "",
         "===== HEADERS =====",
         *headers,
     ]
 
-    caminho_headers.write_text("\n".join(informacoes), encoding="utf-8")
+    headers_path.write_text("\n".join(info), encoding="utf-8")
 
     logging.info(
-        "[DAHUA][%s] Captura salva: pacote=%s headers=%s bytes=%s primeiros_bytes=%r",
-        evento_id,
-        caminho_pacote,
-        caminho_headers,
+        "[DAHUA][%s] Capture saved: package=%s headers=%s bytes=%s first_bytes=%r",
+        event_id,
+        package_path,
+        headers_path,
         len(body),
         body[:100],
     )
 
 
-TIPOS_HIKVISION_ANALISE = {"fielddetection", "linedetection"}
+HIKVISION_ANALYSIS_TYPES = {"fielddetection", "linedetection"}
 
-LIMITE_CAPTURAS_HIKVISION = 10
+HIKVISION_CAPTURE_LIMIT = 10
 
-TAREFAS_CAPTURA_HIKVISION: set[asyncio.Task] = set()
+HIKVISION_CAPTURE_TASKS: set[asyncio.Task] = set()
 
-PADRAO_EVENT_TYPE_HIKVISION = re.compile(
+HIKVISION_EVENT_TYPE_PATTERN = re.compile(
     rb"<(?:[A-Za-z0-9_-]+:)?eventType>\s*([^<]+)",
     flags=re.IGNORECASE,
 )
 
 
-def salvar_captura_hikvision(
-    evento_id: str,
-    momento: str,
-    ip_camera: str,
+def save_hikvision_capture(
+    event_id: str,
+    moment: str,
+    camera_ip: str,
     content_type: str,
     headers: list[str],
     body: bytes,
 ) -> None:
-    """
-    Salva amostras brutas dos eventos da Hikvision
-    usados no levantamento de atributos.
-    """
-    correspondencia = PADRAO_EVENT_TYPE_HIKVISION.search(body)
-    if correspondencia is None:
+    """Saves raw samples of Hikvision events used for attribute discovery."""
+    match = HIKVISION_EVENT_TYPE_PATTERN.search(body)
+    if match is None:
         return
 
-    tipo_evento = (
-        correspondencia.group(1).decode("utf-8", errors="ignore").strip().lower()
-    )
-    if tipo_evento not in TIPOS_HIKVISION_ANALISE:
+    event_type = match.group(1).decode("utf-8", errors="ignore").strip().lower()
+    if event_type not in HIKVISION_ANALYSIS_TYPES:
         return
 
-    possui_imagem = b"\xff\xd8\xff" in body
-    categoria = "com_imagem" if possui_imagem else "sem_imagem"
-    pasta_evento = PASTA_CAPTURAS_HIKVISION / tipo_evento / categoria
-    pasta_evento.mkdir(parents=True, exist_ok=True)
+    has_image = b"\xff\xd8\xff" in body
+    category = "with_image" if has_image else "without_image"
+    event_folder = HIKVISION_CAPTURES_DIR / event_type / category
+    event_folder.mkdir(parents=True, exist_ok=True)
 
-    capturas_existentes = list(pasta_evento.glob("*_pacote.bin"))
-    if len(capturas_existentes) >= LIMITE_CAPTURAS_HIKVISION:
+    existing_captures = list(event_folder.glob("*_package.bin"))
+    if len(existing_captures) >= HIKVISION_CAPTURE_LIMIT:
         return
 
-    nome_base = f"{momento}_{evento_id}"
-    caminho_pacote = pasta_evento / f"{nome_base}_pacote.bin"
-    caminho_headers = pasta_evento / f"{nome_base}_headers.txt"
+    base_name = f"{moment}_{event_id}"
+    package_path = event_folder / f"{base_name}_package.bin"
+    headers_path = event_folder / f"{base_name}_headers.txt"
 
-    caminho_pacote.write_bytes(body)
+    package_path.write_bytes(body)
 
-    informacoes = [
-        f"evento_id: {evento_id}",
-        f"recebido_em_utc: {momento}",
-        f"ip_camera: {ip_camera}",
+    info = [
+        f"event_id: {event_id}",
+        f"received_at_utc: {moment}",
+        f"camera_ip: {camera_ip}",
         f"content_type: {content_type}",
-        f"tipo_evento: {tipo_evento}",
-        f"possui_imagem: {possui_imagem}",
-        f"quantidade_bytes: {len(body)}",
+        f"event_type: {event_type}",
+        f"has_image: {has_image}",
+        f"byte_count: {len(body)}",
         "",
         "===== HEADERS =====",
         *headers,
     ]
 
-    caminho_headers.write_text("\n".join(informacoes), encoding="utf-8")
+    headers_path.write_text("\n".join(info), encoding="utf-8")
 
     logging.info(
-        "[HIKVISION][%s] Captura de análise salva: tipo=%s categoria=%s pacote=%s bytes=%s",
-        evento_id,
-        tipo_evento,
-        categoria,
-        caminho_pacote,
+        "[HIKVISION][%s] Analysis capture saved: type=%s category=%s package=%s bytes=%s",
+        event_id,
+        event_type,
+        category,
+        package_path,
         len(body),
     )
 
 
-def agendar_captura_hikvision(
-    evento_id: str,
-    momento: str,
-    ip_camera: str,
+def schedule_hikvision_capture(
+    event_id: str,
+    moment: str,
+    camera_ip: str,
     content_type: str,
     headers: list[str],
     body: bytes,
 ) -> None:
-    """
-    Executa a gravação fora do fluxo de resposta
-    enviado para a câmera.
-    """
-    tarefa = asyncio.create_task(
+    """Runs the write outside the response flow sent to the camera."""
+    task = asyncio.create_task(
         asyncio.to_thread(
-            salvar_captura_hikvision,
-            evento_id,
-            momento,
-            ip_camera,
+            save_hikvision_capture,
+            event_id,
+            moment,
+            camera_ip,
             content_type,
             headers,
             body,
         )
     )
-    TAREFAS_CAPTURA_HIKVISION.add(tarefa)
-    tarefa.add_done_callback(TAREFAS_CAPTURA_HIKVISION.discard)
+    HIKVISION_CAPTURE_TASKS.add(task)
+    task.add_done_callback(HIKVISION_CAPTURE_TASKS.discard)
 
 
 @app.get("/health")
@@ -252,171 +240,167 @@ async def health():
     return {
         "status": "ok",
         "kafka_enabled": settings.kafka_enabled,
-        "kafka_connected": kafka_publisher.iniciado,
+        "kafka_connected": kafka_publisher.started,
         "kafka_topic": settings.kafka_topic_normalized,
-        "fila": {
-            "tamanho": pipeline.tamanho_fila,
-            "capacidade": pipeline.capacidade_fila,
+        "queue": {
+            "size": pipeline.queue_size,
+            "capacity": pipeline.queue_capacity,
         },
         "workers": settings.ingestion_workers,
-        "rotas_cameras": {
+        "camera_routes": {
             "hikvision": "/hikvision",
             "dahua": "/dahua",
-            "legado_hikvision": "/",
-            "legado_dahua": "/CAM7442",
+            "legacy_hikvision": "/",
+            "legacy_dahua": "/CAM7442",
         },
     }
 
 
-# Rota antiga desativada. Agora é utilizada /hikvision.
+# Old route disabled. Now /hikvision is used.
 @app.post("/hikvision")
-async def receber_camera(request: Request):
-    """
-    Rota utilizada atualmente pela Hikvision.
-    """
-    inicio = time.perf_counter()
-    evento_id = uuid.uuid4().hex[:12]
+async def receive_camera(request: Request):
+    """Route currently used by Hikvision."""
+    start = time.perf_counter()
+    event_id = uuid.uuid4().hex[:12]
     body = await request.body()
-    momento = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ")
+    moment = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ")
     content_type = request.headers.get("content-type", "application/octet-stream")
-    ip_camera = request.client.host if request.client else "desconhecido"
+    camera_ip = request.client.host if request.client else "unknown"
 
-    headers_bloqueados = {"authorization", "proxy-authorization", "cookie", "set-cookie"}
-    headers_seguros = [
-        f"{nome}: {valor}"
-        for nome, valor in request.headers.items()
-        if nome.lower() not in headers_bloqueados
+    print('body', body)
+
+    blocked_headers = {"authorization", "proxy-authorization", "cookie", "set-cookie"}
+    safe_headers = [
+        f"{name}: {value}"
+        for name, value in request.headers.items()
+        if name.lower() not in blocked_headers
     ]
 
-    agendar_captura_hikvision(
-        evento_id=evento_id,
-        momento=momento,
-        ip_camera=ip_camera,
+    schedule_hikvision_capture(
+        event_id=event_id,
+        moment=moment,
+        camera_ip=camera_ip,
         content_type=content_type,
-        headers=headers_seguros,
+        headers=safe_headers,
         body=body,
     )
 
-    return enfileirar_pacote(
+    return enqueue_package(
         request=request,
         body=body,
-        evento_id=evento_id,
-        inicio=inicio,
-        origem="HIKVISION",
+        event_id=event_id,
+        start=start,
+        origin="HIKVISION",
     )
 
 
-# Rotas antigas desativadas. Agora é utilizada /dahua.
+# Old routes disabled. Now /dahua is used.
 # @app.post("/dahua")
 @app.post("/CAM7442")
-async def receber_dahua(request: Request, background_tasks: BackgroundTasks):
-    """
-    Recebe o evento da Dahua, responde rapidamente
-    e salva o pacote bruto em segundo plano.
-    """
-    inicio = time.perf_counter()
-    evento_id = uuid.uuid4().hex[:12]
-    momento = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ")
+async def receive_dahua(request: Request, background_tasks: BackgroundTasks):
+    """Receives the Dahua event, responds quickly, and saves the raw package in the background."""
+    start = time.perf_counter()
+    event_id = uuid.uuid4().hex[:12]
+    moment = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ")
     body = await request.body()
     content_type = request.headers.get("content-type", "application/octet-stream")
-    ip_camera = request.client.host if request.client else "desconhecido"
+    camera_ip = request.client.host if request.client else "unknown"
 
-    headers_bloqueados = {"authorization", "proxy-authorization", "cookie", "set-cookie"}
-    headers_seguros = []
-    for nome, valor in request.headers.items():
-        if nome.lower() in headers_bloqueados:
+    blocked_headers = {"authorization", "proxy-authorization", "cookie", "set-cookie"}
+    safe_headers = []
+    for name, value in request.headers.items():
+        if name.lower() in blocked_headers:
             continue
-        headers_seguros.append(f"{nome}: {valor}")
+        safe_headers.append(f"{name}: {value}")
 
     background_tasks.add_task(
-        salvar_captura_dahua,
-        evento_id,
-        momento,
-        ip_camera,
+        save_dahua_capture,
+        event_id,
+        moment,
+        camera_ip,
         content_type,
-        headers_seguros,
+        safe_headers,
         body,
     )
 
     logging.info(
-        "[DAHUA][%s] Requisição recebida: ip=%s content_type=%s bytes=%s primeiros_bytes=%r",
-        evento_id,
-        ip_camera,
+        "[DAHUA][%s] Request received: ip=%s content_type=%s bytes=%s first_bytes=%r",
+        event_id,
+        camera_ip,
         content_type,
         len(body),
         body[:100],
     )
 
-    return enfileirar_pacote(
+    return enqueue_package(
         request=request,
         body=body,
-        evento_id=evento_id,
-        inicio=inicio,
-        origem="DAHUA",
+        event_id=event_id,
+        start=start,
+        origin="DAHUA",
     )
 
 
 @app.post("/{device}")
-async def receber_por_device(
+async def receive_by_device(
     device: str,
     request: Request,
     background_tasks: BackgroundTasks,
 ):
     """
-    Rota dinâmica para recebimento de eventos
-    de diferentes fabricantes de câmeras.
+    Dynamic route for receiving events from different camera
+    manufacturers.
 
-    Exemplos:
+    Examples:
     POST /hikvision
     POST /dahua
     """
-    fabricante = device.strip().lower()
+    manufacturer = device.strip().lower()
 
-    if fabricante in {"hikvision", "hik"}:
-        return await receber_camera(request=request)
+    if manufacturer in {"hikvision", "hik"}:
+        return await receive_camera(request=request)
 
-    if fabricante in {"dahua", "dh"}:
-        return await receber_dahua(request=request, background_tasks=background_tasks)
+    if manufacturer in {"dahua", "dh"}:
+        return await receive_dahua(request=request, background_tasks=background_tasks)
 
-    logging.warning("[DEVICE] Fabricante não suportado: %s", device)
+    logging.warning("[DEVICE] Unsupported manufacturer: %s", device)
 
     return JSONResponse(
         status_code=404,
         content={
-            "erro": "Fabricante não suportado",
-            "device_recebido": device,
-            "fabricantes_suportados": ["hikvision", "dahua"],
+            "error": "Unsupported manufacturer",
+            "device_received": device,
+            "supported_manufacturers": ["hikvision", "dahua"],
         },
     )
 
 
 @app.get("/painel", include_in_schema=False)
-async def abrir_painel():
-    if not PAINEL_HTML.is_file():
+async def open_panel():
+    if not PANEL_HTML.is_file():
         return JSONResponse(
             status_code=404,
             content={
-                "status": "erro",
-                "mensagem": "Arquivo do painel não encontrado",
-                "caminho": str(PAINEL_HTML),
+                "status": "error",
+                "message": "Panel file not found",
+                "path": str(PANEL_HTML),
             },
         )
 
-    return FileResponse(PAINEL_HTML)
+    return FileResponse(PANEL_HTML)
 
 
 @app.websocket("/ws/eventos")
-async def websocket_eventos(websocket: WebSocket):
-    await event_hub.conectar(websocket)
+async def websocket_events(websocket: WebSocket):
+    await event_hub.connect(websocket)
 
     try:
         while True:
-            # O painel envia "ping" periodicamente
-            # para manter a conexão aberta.
+            # The panel sends "ping" periodically to keep the connection open.
             await websocket.receive_text()
     except WebSocketDisconnect:
         pass
     except Exception:
-        logging.exception("Erro na conexão WebSocket do painel")
+        logging.exception("Error in the panel's WebSocket connection")
     finally:
-        await event_hub.desconectar(websocket)
+        await event_hub.disconnect(websocket)

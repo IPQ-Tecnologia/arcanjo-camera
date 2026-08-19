@@ -21,495 +21,480 @@ from app.domain.models.camera_event import (
 logger = logging.getLogger(__name__)
 
 
-ESCALA_COORDENADAS = None
-LIMITE_BOX_IMAGEM_INTEIRA = 0.90
-PASTA_IMAGENS = Path("imagens_eventos")
-NAMESPACE_HIKVISION = {"ns": "http://www.hikvision.com/ver20/XMLSchema"}
+COORDINATE_SCALE = None
+FULL_IMAGE_BOX_LIMIT = 0.90
+IMAGES_FOLDER = Path("event_images")
+HIKVISION_NAMESPACE = {"ns": "http://www.hikvision.com/ver20/XMLSchema"}
 
 
-def obter_boundary(content_type: str, body: bytes) -> str | None:
-    correspondencia = re.search(
+def get_boundary(content_type: str, body: bytes) -> str | None:
+    match = re.search(
         r"boundary\s*=\s*[\"']?([^;\"'\s]+)",
         content_type or "",
         flags=re.IGNORECASE,
     )
-    if correspondencia:
-        return correspondencia.group(1).strip()
+    if match:
+        return match.group(1).strip()
 
-    primeira_linha = body.split(b"\r\n", 1)[0].strip()
-    if primeira_linha.startswith(b"--") and len(primeira_linha) > 2:
-        return primeira_linha[2:].decode("utf-8", errors="ignore").strip()
-
-    return None
-
-
-def extrair_imagem(body: bytes, boundary: str) -> bytes | None:
-    for parte in body.split(boundary.encode()):
-        if b"Content-Type: image/jpeg" not in parte:
-            continue
-
-        inicio = parte.find(b"\xff\xd8\xff")
-        if inicio == -1:
-            continue
-
-        fim = parte.find(b"\xff\xd9", inicio)
-        if fim != -1:
-            return parte[inicio : fim + 2]
-
-        return parte[inicio:]
+    first_line = body.split(b"\r\n", 1)[0].strip()
+    if first_line.startswith(b"--") and len(first_line) > 2:
+        return first_line[2:].decode("utf-8", errors="ignore").strip()
 
     return None
 
 
-def extrair_xml(body: bytes, boundary: str) -> str | None:
-    for parte in body.split(boundary.encode()):
-        eh_xml = (
-            b"Content-Type: application/xml" in parte
-            or b"Content-Type: text/xml" in parte
-        )
-        if not eh_xml:
+def extract_image(body: bytes, boundary: str) -> bytes | None:
+    for part in body.split(boundary.encode()):
+        if b"Content-Type: image/jpeg" not in part:
             continue
 
-        inicio = parte.find(b"\r\n\r\n")
-        if inicio == -1:
+        start = part.find(b"\xff\xd8\xff")
+        if start == -1:
             continue
 
-        xml_bytes = parte[inicio + 4 :]
-        fim = xml_bytes.rfind(b">")
-        if fim != -1:
-            xml_bytes = xml_bytes[: fim + 1]
+        end = part.find(b"\xff\xd9", start)
+        if end != -1:
+            return part[start : end + 2]
+
+        return part[start:]
+
+    return None
+
+
+def extract_xml(body: bytes, boundary: str) -> str | None:
+    for part in body.split(boundary.encode()):
+        is_xml = b"Content-Type: application/xml" in part or b"Content-Type: text/xml" in part
+        if not is_xml:
+            continue
+
+        start = part.find(b"\r\n\r\n")
+        if start == -1:
+            continue
+
+        xml_bytes = part[start + 4 :]
+        end = xml_bytes.rfind(b">")
+        if end != -1:
+            xml_bytes = xml_bytes[: end + 1]
 
         return xml_bytes.decode("utf-8", errors="ignore").strip()
 
     return None
 
 
-def limpar_xml_direto(body: bytes) -> str:
+def clean_direct_xml(body: bytes) -> str:
     xml = body.decode("utf-8-sig", errors="ignore").strip()
 
-    inicio = xml.find("<")
-    fim = xml.rfind(">")
-    if inicio == -1 or fim == -1:
-        raise ValueError("Corpo XML inválido")
+    start = xml.find("<")
+    end = xml.rfind(">")
+    if start == -1 or end == -1:
+        raise ValueError("Invalid XML body")
 
-    return xml[inicio : fim + 1]
+    return xml[start : end + 1]
 
 
-def converter_data_utc(data_hora: str | None) -> datetime:
-    if not data_hora:
-        data_utc = datetime.now(timezone.utc)
-        logger.info(
-            "[CONVERSÃO DATA HIKVISION] data_hora vazia; usando=%s", data_utc.isoformat()
-        )
-        return data_utc
+def convert_utc_date(date_time: str | None) -> datetime:
+    if not date_time:
+        utc_date = datetime.now(timezone.utc)
+        logger.info("[HIKVISION DATE CONVERSION] date_time empty; using=%s", utc_date.isoformat())
+        return utc_date
 
-    logger.info("[CONVERSÃO DATA HIKVISION] data_hora_original=%r", data_hora)
+    logger.info("[HIKVISION DATE CONVERSION] original_date_time=%r", date_time)
 
-    texto = data_hora.strip()
-    logger.info("[CONVERSÃO DATA HIKVISION] texto_apos_strip=%r", texto)
+    text = date_time.strip()
+    logger.info("[HIKVISION DATE CONVERSION] text_after_strip=%r", text)
 
-    if texto.endswith("Z"):
-        texto = texto[:-1] + "+00:00"
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
 
-    logger.info("[CONVERSÃO DATA HIKVISION] texto_para_fromisoformat=%r", texto)
+    logger.info("[HIKVISION DATE CONVERSION] text_for_fromisoformat=%r", text)
 
-    data = datetime.fromisoformat(texto)
+    date = datetime.fromisoformat(text)
     logger.info(
-        "[CONVERSÃO DATA HIKVISION] data_fromisoformat=%s tzinfo=%s",
-        data.isoformat(),
-        data.tzinfo,
+        "[HIKVISION DATE CONVERSION] date_fromisoformat=%s tzinfo=%s",
+        date.isoformat(),
+        date.tzinfo,
     )
 
-    if data.tzinfo is None:
-        data = data.replace(tzinfo=timezone.utc)
+    if date.tzinfo is None:
+        date = date.replace(tzinfo=timezone.utc)
 
-    data_utc = data.astimezone(timezone.utc)
-    logger.info("[CONVERSÃO DATA HIKVISION] data_astimezone_utc=%s", data_utc.isoformat())
+    utc_date = date.astimezone(timezone.utc)
+    logger.info("[HIKVISION DATE CONVERSION] date_astimezone_utc=%s", utc_date.isoformat())
 
-    return data_utc
+    return utc_date
 
 
-def pegar_texto(raiz: ET.Element, caminho: str, namespace: dict[str, str]) -> str | None:
-    elemento = raiz.find(caminho, namespace)
-    if elemento is not None and elemento.text:
-        return elemento.text.strip()
+def get_text(root: ET.Element, path: str, namespace: dict[str, str]) -> str | None:
+    element = root.find(path, namespace)
+    if element is not None and element.text:
+        return element.text.strip()
 
     return None
 
 
-def pegar_texto_por_nome_local(raiz: ET.Element, nomes: tuple[str, ...]) -> str | None:
-    nomes_normalizados = {nome.lower() for nome in nomes}
+def get_text_by_local_name(root: ET.Element, names: tuple[str, ...]) -> str | None:
+    normalized_names = {name.lower() for name in names}
 
-    for elemento in raiz.iter():
-        if nome_local(elemento.tag) not in nomes_normalizados:
+    for element in root.iter():
+        if local_name(element.tag) not in normalized_names:
             continue
 
-        if elemento.text and elemento.text.strip():
-            return elemento.text.strip()
+        if element.text and element.text.strip():
+            return element.text.strip()
 
     return None
 
 
-def nome_local(tag: str) -> str:
+def local_name(tag: str) -> str:
     return tag.split("}")[-1].strip().lower()
 
 
-def numero(valor) -> float | None:
+def to_number(value) -> float | None:
     try:
-        return float(str(valor).strip().replace(",", "."))
+        return float(str(value).strip().replace(",", "."))
     except (TypeError, ValueError):
         return None
 
 
-def primeiro_valor(valores: dict[str, str], nomes: tuple[str, ...]) -> float | None:
-    for nome in nomes:
-        if nome not in valores:
+def first_value(values: dict[str, str], names: tuple[str, ...]) -> float | None:
+    for name in names:
+        if name not in values:
             continue
 
-        valor = numero(valores[nome])
-        if valor is not None:
-            return valor
+        value = to_number(values[name])
+        if value is not None:
+            return value
 
     return None
 
 
-def criar_box(elemento: ET.Element) -> dict | None:
-    valores: dict[str, str] = {}
+def build_box(element: ET.Element) -> dict | None:
+    values: dict[str, str] = {}
 
-    for filho in elemento.iter():
-        if filho is elemento or not filho.text:
+    for child in element.iter():
+        if child is element or not child.text:
             continue
 
-        chave = nome_local(filho.tag)
-        valores.setdefault(chave, filho.text.strip())
+        key = local_name(child.tag)
+        values.setdefault(key, child.text.strip())
 
-    x = primeiro_valor(valores, ("x", "positionx", "left", "xmin", "startx"))
-    y = primeiro_valor(valores, ("y", "positiony", "top", "ymin", "starty"))
-    largura = primeiro_valor(valores, ("width", "largura", "boxwidth", "targetwidth"))
-    altura = primeiro_valor(valores, ("height", "altura", "boxheight", "targetheight"))
-    direita = primeiro_valor(valores, ("right", "xmax", "endx", "x2"))
-    inferior = primeiro_valor(valores, ("bottom", "ymax", "endy", "y2"))
+    x = first_value(values, ("x", "positionx", "left", "xmin", "startx"))
+    y = first_value(values, ("y", "positiony", "top", "ymin", "starty"))
+    width = first_value(values, ("width", "largura", "boxwidth", "targetwidth"))
+    height = first_value(values, ("height", "altura", "boxheight", "targetheight"))
+    right = first_value(values, ("right", "xmax", "endx", "x2"))
+    bottom = first_value(values, ("bottom", "ymax", "endy", "y2"))
 
-    if largura is None and x is not None and direita is not None:
-        largura = direita - x
+    if width is None and x is not None and right is not None:
+        width = right - x
 
-    if altura is None and y is not None and inferior is not None:
-        altura = inferior - y
+    if height is None and y is not None and bottom is not None:
+        height = bottom - y
 
-    if any(valor is None for valor in (x, y, largura, altura)):
+    if any(value is None for value in (x, y, width, height)):
         return None
 
-    if largura <= 0 or altura <= 0:
+    if width <= 0 or height <= 0:
         return None
 
     return {
-        "origem_xml": nome_local(elemento.tag),
+        "xml_source": local_name(element.tag),
         "x": x,
         "y": y,
-        "largura": largura,
-        "altura": altura,
+        "width": width,
+        "height": height,
     }
 
 
-def extrair_bounding_boxes(raiz: ET.Element) -> list[dict]:
+def extract_bounding_boxes(root: ET.Element) -> list[dict]:
     """
-    Extrai somente caixas que podem representar o alvo detectado.
+    Extracts only boxes that can represent the detected target.
 
-    A Hikvision também envia retângulos referentes à região configurada
-    da regra. Essas regiões não devem ser tratadas como pessoas.
+    Hikvision also sends rectangles for the configured rule region.
+    Those regions must not be treated as people.
     """
-    grupos_prioridade = (
+    priority_groups = (
         ("targetrect", "targetrectangle", "objectrect"),
         ("boundingbox", "bounding_box", "bounding-box"),
         ("detectionrect",),
     )
 
-    for nomes in grupos_prioridade:
+    for names in priority_groups:
         boxes: list[dict] = []
-        assinaturas: set[tuple[float, float, float, float]] = set()
+        seen: set[tuple[float, float, float, float]] = set()
 
-        for elemento in raiz.iter():
-            tag = nome_local(elemento.tag)
-            if tag not in nomes:
+        for element in root.iter():
+            tag = local_name(element.tag)
+            if tag not in names:
                 continue
 
-            box = criar_box(elemento)
+            box = build_box(element)
             if box is None:
                 continue
 
-            assinatura = tuple(
-                round(box[chave], 6) for chave in ("x", "y", "largura", "altura")
-            )
-            if assinatura in assinaturas:
+            signature = tuple(round(box[key], 6) for key in ("x", "y", "width", "height"))
+            if signature in seen:
                 continue
 
-            assinaturas.add(assinatura)
+            seen.add(signature)
             boxes.append(box)
 
-        # Usa o primeiro grupo que realmente encontrou caixas.
-        # targetRect tem prioridade sobre regiões genéricas.
+        # Uses the first group that actually found boxes. targetRect
+        # takes priority over generic regions.
         if boxes:
             return boxes
 
     return []
 
 
-def obter_escala_xml(raiz: ET.Element) -> tuple[float, float] | None:
-    largura = None
-    altura = None
+def get_xml_scale(root: ET.Element) -> tuple[float, float] | None:
+    width = None
+    height = None
 
-    nomes_largura = {"normalizedscreenwidth", "coordinatewidth", "referencewidth"}
-    nomes_altura = {"normalizedscreenheight", "coordinateheight", "referenceheight"}
+    width_names = {"normalizedscreenwidth", "coordinatewidth", "referencewidth"}
+    height_names = {"normalizedscreenheight", "coordinateheight", "referenceheight"}
 
-    for elemento in raiz.iter():
-        tag = nome_local(elemento.tag)
-        if tag in nomes_largura and elemento.text:
-            largura = numero(elemento.text)
+    for element in root.iter():
+        tag = local_name(element.tag)
+        if tag in width_names and element.text:
+            width = to_number(element.text)
 
-        if tag in nomes_altura and elemento.text:
-            altura = numero(elemento.text)
+        if tag in height_names and element.text:
+            height = to_number(element.text)
 
-    if largura and altura:
-        return largura, altura
+    if width and height:
+        return width, height
 
     return None
 
 
-def definir_escala(
+def determine_scale(
     boxes: list[dict],
-    raiz: ET.Element,
-    largura_img: int,
-    altura_img: int,
+    root: ET.Element,
+    image_width: int,
+    image_height: int,
 ) -> tuple[float, float]:
-    if ESCALA_COORDENADAS == "pixels":
-        return float(largura_img), float(altura_img)
+    if COORDINATE_SCALE == "pixels":
+        return float(image_width), float(image_height)
 
-    if isinstance(ESCALA_COORDENADAS, (int, float)):
-        escala = float(ESCALA_COORDENADAS)
-        return escala, escala
+    if isinstance(COORDINATE_SCALE, (int, float)):
+        scale = float(COORDINATE_SCALE)
+        return scale, scale
 
-    escala_xml = obter_escala_xml(raiz)
-    if escala_xml:
-        return escala_xml
+    xml_scale = get_xml_scale(root)
+    if xml_scale:
+        return xml_scale
 
-    maior_valor = max(
-        max(box["x"] + box["largura"], box["y"] + box["altura"]) for box in boxes
-    )
-    if maior_valor <= 1.5:
+    max_value = max(max(box["x"] + box["width"], box["y"] + box["height"]) for box in boxes)
+    if max_value <= 1.5:
         return 1.0, 1.0
 
-    ultrapassa_imagem = any(
-        box["x"] + box["largura"] > largura_img or box["y"] + box["altura"] > altura_img
+    exceeds_image = any(
+        box["x"] + box["width"] > image_width or box["y"] + box["height"] > image_height
         for box in boxes
     )
-    if ultrapassa_imagem and maior_valor <= 1100:
+    if exceeds_image and max_value <= 1100:
         return 1000.0, 1000.0
 
-    return float(largura_img), float(altura_img)
+    return float(image_width), float(image_height)
 
 
-def converter_boxes_para_pixels(
+def convert_boxes_to_pixels(
     boxes: list[dict],
-    raiz: ET.Element,
-    largura_img: int,
-    altura_img: int,
+    root: ET.Element,
+    image_width: int,
+    image_height: int,
 ) -> list[dict]:
     if not boxes:
         return []
 
-    escala_x, escala_y = definir_escala(boxes, raiz, largura_img, altura_img)
+    scale_x, scale_y = determine_scale(boxes, root, image_width, image_height)
 
-    resultado: list[dict] = []
+    result: list[dict] = []
 
     for box in boxes:
-        x = round(box["x"] * largura_img / escala_x)
-        y = round(box["y"] * altura_img / escala_y)
-        largura = round(box["largura"] * largura_img / escala_x)
-        altura = round(box["altura"] * altura_img / escala_y)
+        x = round(box["x"] * image_width / scale_x)
+        y = round(box["y"] * image_height / scale_y)
+        width = round(box["width"] * image_width / scale_x)
+        height = round(box["height"] * image_height / scale_y)
 
-        x = max(0, min(x, largura_img - 1))
-        y = max(0, min(y, altura_img - 1))
-        largura = max(1, min(largura, largura_img - x))
-        altura = max(1, min(altura, altura_img - y))
+        x = max(0, min(x, image_width - 1))
+        y = max(0, min(y, image_height - 1))
+        width = max(1, min(width, image_width - x))
+        height = max(1, min(height, image_height - y))
 
-        proporcao = (largura * altura) / (largura_img * altura_img)
+        ratio = (width * height) / (image_width * image_height)
 
-        resultado.append(
+        result.append(
             {
-                "origem_xml": box["origem_xml"],
+                "xml_source": box["xml_source"],
                 "x": x,
                 "y": y,
-                "largura": largura,
-                "altura": altura,
-                "x2": x + largura,
-                "y2": y + altura,
-                "proporcao_imagem": round(proporcao, 4),
+                "width": width,
+                "height": height,
+                "x2": x + width,
+                "y2": y + height,
+                "image_ratio": round(ratio, 4),
             }
         )
 
-    return resultado
+    return result
 
 
-def escolher_bounding_box(boxes_pixels: list[dict]) -> dict | None:
-    if not boxes_pixels:
+def choose_bounding_box(pixel_boxes: list[dict]) -> dict | None:
+    if not pixel_boxes:
         return None
 
-    especificos = [
-        box for box in boxes_pixels if box["proporcao_imagem"] < LIMITE_BOX_IMAGEM_INTEIRA
-    ]
-    candidatos = especificos or boxes_pixels
+    specific = [box for box in pixel_boxes if box["image_ratio"] < FULL_IMAGE_BOX_LIMIT]
+    candidates = specific or pixel_boxes
 
-    return min(candidatos, key=lambda box: box["largura"] * box["altura"])
+    return min(candidates, key=lambda box: box["width"] * box["height"])
 
 
-def sanitizar_nome(valor, padrao: str) -> str:
-    texto = str(valor or padrao)
+def sanitize_name(value, default: str) -> str:
+    text = str(value or default)
     return "".join(
-        caractere if caractere.isalnum() or caractere in "-_" else "_"
-        for caractere in texto
+        character if character.isalnum() or character in "-_" else "_" for character in text
     )
 
 
-def criar_nome_base(data_hora: datetime, tipo_evento: str | None, evento_id: str) -> str:
-    data_nome = data_hora.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    tipo_nome = sanitizar_nome(tipo_evento, "evento")
+def build_base_name(date_time: datetime, event_type: str | None, event_id: str) -> str:
+    date_name = date_time.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    type_name = sanitize_name(event_type, "evento")
 
-    return f"{data_nome}_{tipo_nome}_{evento_id}"
-
-
-def salvar_imagem_original(imagem: bytes, nome_base: str) -> str:
-    PASTA_IMAGENS.mkdir(parents=True, exist_ok=True)
-    caminho = PASTA_IMAGENS / f"{nome_base}_original.jpg"
-    caminho.write_bytes(imagem)
-
-    return str(caminho)
+    return f"{date_name}_{type_name}_{event_id}"
 
 
-def salvar_imagem_marcada(imagem: bytes, nome_base: str, box: dict | None) -> str | None:
+def save_original_image(image: bytes, base_name: str) -> str:
+    IMAGES_FOLDER.mkdir(parents=True, exist_ok=True)
+    path = IMAGES_FOLDER / f"{base_name}_original.jpg"
+    path.write_bytes(image)
+
+    return str(path)
+
+
+def save_annotated_image(image: bytes, base_name: str, box: dict | None) -> str | None:
     if box is None:
         return None
 
-    PASTA_IMAGENS.mkdir(parents=True, exist_ok=True)
-    caminho = PASTA_IMAGENS / f"{nome_base}_marcada.jpg"
+    IMAGES_FOLDER.mkdir(parents=True, exist_ok=True)
+    path = IMAGES_FOLDER / f"{base_name}_marcada.jpg"
 
-    with Image.open(io.BytesIO(imagem)) as imagem_pil:
-        imagem_pil = imagem_pil.convert("RGB")
-        desenho = ImageDraw.Draw(imagem_pil)
-        desenho.rectangle(
+    with Image.open(io.BytesIO(image)) as pil_image:
+        pil_image = pil_image.convert("RGB")
+        draw = ImageDraw.Draw(pil_image)
+        draw.rectangle(
             [box["x"], box["y"], box["x2"], box["y2"]],
             outline="red",
             width=5,
         )
-        imagem_pil.save(caminho, "JPEG", quality=95)
+        pil_image.save(path, "JPEG", quality=95)
 
-    return str(caminho)
+    return str(path)
 
 
-def converter_box_modelo(box: dict | None) -> BoundingBox | None:
+def convert_box_to_model(box: dict | None) -> BoundingBox | None:
     if box is None:
         return None
 
     return BoundingBox(
-        origem=box["origem_xml"],
+        source=box["xml_source"],
         x=box["x"],
         y=box["y"],
-        largura=box["largura"],
-        altura=box["altura"],
+        width=box["width"],
+        height=box["height"],
         x2=box["x2"],
         y2=box["y2"],
-        proporcao_imagem=box.get("proporcao_imagem"),
+        image_ratio=box.get("image_ratio"),
     )
 
 
-def _nome_local_attributes_hikvision(tag: str) -> str:
+def _local_name_hikvision_attributes(tag: str) -> str:
     return tag.rsplit("}", 1)[-1].lower()
 
 
-def _primeiro_texto_attributes_hikvision(
-    raiz: ET.Element, nomes: tuple[str, ...]
-) -> str | None:
-    nomes_normalizados = {nome.lower() for nome in nomes}
+def _first_text_hikvision_attributes(root: ET.Element, names: tuple[str, ...]) -> str | None:
+    normalized_names = {name.lower() for name in names}
 
-    for elemento in raiz.iter():
-        nome = _nome_local_attributes_hikvision(elemento.tag)
-        if nome not in nomes_normalizados:
+    for element in root.iter():
+        name = _local_name_hikvision_attributes(element.tag)
+        if name not in normalized_names:
             continue
 
-        if elemento.text and elemento.text.strip():
-            return elemento.text.strip()
+        if element.text and element.text.strip():
+            return element.text.strip()
 
     return None
 
 
-def _numero_attributes_hikvision(valor) -> float | None:
+def _number_hikvision_attributes(value) -> float | None:
     try:
-        return float(str(valor).strip().replace(",", "."))
+        return float(str(value).strip().replace(",", "."))
     except (TypeError, ValueError):
         return None
 
 
-def _normalizar_coordenada_hikvision(valor) -> float | None:
-    numero = _numero_attributes_hikvision(valor)
-    if numero is None:
+def _normalize_hikvision_coordinate(value) -> float | None:
+    number = _number_hikvision_attributes(value)
+    if number is None:
         return None
 
-    # As coordenadas das regiões Hikvision normalmente usam uma escala
-    # de 0 a 1000.
-    if numero > 1:
-        numero = numero / 1000
+    # Hikvision region coordinates normally use a 0-to-1000 scale.
+    if number > 1:
+        number = number / 1000
 
-    return max(0.0, min(1.0, numero))
+    return max(0.0, min(1.0, number))
 
 
-def _extrair_geometria_hikvision(raiz: ET.Element) -> list[EventPoint]:
-    pontos: list[EventPoint] = []
+def _extract_hikvision_geometry(root: ET.Element) -> list[EventPoint]:
+    points: list[EventPoint] = []
 
-    for elemento in raiz.iter():
-        if _nome_local_attributes_hikvision(elemento.tag) != "regioncoordinates":
+    for element in root.iter():
+        if _local_name_hikvision_attributes(element.tag) != "regioncoordinates":
             continue
 
         x = None
         y = None
 
-        for filho in elemento.iter():
-            nome = _nome_local_attributes_hikvision(filho.tag)
-            if not filho.text:
+        for child in element.iter():
+            name = _local_name_hikvision_attributes(child.tag)
+            if not child.text:
                 continue
 
-            if nome == "positionx":
-                x = _normalizar_coordenada_hikvision(filho.text)
-            elif nome == "positiony":
-                y = _normalizar_coordenada_hikvision(filho.text)
+            if name == "positionx":
+                x = _normalize_hikvision_coordinate(child.text)
+            elif name == "positiony":
+                y = _normalize_hikvision_coordinate(child.text)
 
         if x is not None and y is not None:
-            pontos.append(EventPoint(x=x, y=y))
+            points.append(EventPoint(x=x, y=y))
 
-    return pontos
+    return points
 
 
-def _normalizar_target_type_hikvision(
-    alvo_detectado: str | None,
-    tipo_evento: str | None = None,
+def _normalize_hikvision_target_type(
+    target_detected: str | None,
+    event_type: str | None = None,
 ) -> str | None:
-    if alvo_detectado:
-        alvo = str(alvo_detectado).strip().lower()
-        mapeamento = {
+    if target_detected:
+        target = str(target_detected).strip().lower()
+        mapping = {
             "human": "person",
             "person": "person",
             "vehicle": "vehicle",
             "car": "vehicle",
             "face": "face",
         }
-        return mapeamento.get(alvo, alvo.replace(" ", "_").replace("-", "_"))
+        return mapping.get(target, target.replace(" ", "_").replace("-", "_"))
 
-    tipo = str(tipo_evento or "").strip().lower()
-    if tipo == "facedetection":
+    type_ = str(event_type or "").strip().lower()
+    if type_ == "facedetection":
         return "face"
 
     return None
 
 
-def _normalizar_event_type_hikvision(tipo_evento: str, target_type: str | None) -> str:
+def _normalize_hikvision_event_type(event_type: str, target_type: str | None) -> str:
     if target_type == "person":
         return "person_detection"
 
@@ -519,8 +504,8 @@ def _normalizar_event_type_hikvision(tipo_evento: str, target_type: str | None) 
     if target_type == "face":
         return "face_detection"
 
-    tipo = str(tipo_evento or "").strip().lower()
-    mapeamento = {
+    type_ = str(event_type or "").strip().lower()
+    mapping = {
         "fielddetection": "intrusion_detection",
         "linedetection": "line_crossing_detection",
         "vmd": "motion_detection",
@@ -529,76 +514,76 @@ def _normalizar_event_type_hikvision(tipo_evento: str, target_type: str | None) 
         "duration": "duration",
     }
 
-    return mapeamento.get(tipo, tipo.replace(" ", "_").replace("-", "_") or "unknown_event")
+    return mapping.get(type_, type_.replace(" ", "_").replace("-", "_") or "unknown_event")
 
 
-def _categoria_evento_hikvision(tipo_evento: str) -> str:
-    categorias = {
+def _hikvision_event_category(event_type: str) -> str:
+    categories = {
         "fielddetection": "intrusion",
         "linedetection": "line_crossing",
         "vmd": "motion",
         "videoloss": "video_loss",
     }
-    tipo_normalizado = tipo_evento.strip().lower()
+    normalized_type = event_type.strip().lower()
 
-    return categorias.get(tipo_normalizado, tipo_normalizado)
+    return categories.get(normalized_type, normalized_type)
 
 
-def _montar_atributos_hikvision(
-    raiz: ET.Element,
-    tipo_evento: str,
-    estado: str | None,
-    alvo_detectado: str | None,
+def _build_hikvision_attributes(
+    root: ET.Element,
+    event_type: str,
+    state: str | None,
+    target_detected: str | None,
 ) -> EventAttributes:
-    geometria = _extrair_geometria_hikvision(raiz)
-    tipo_normalizado = tipo_evento.strip().lower()
+    geometry = _extract_hikvision_geometry(root)
+    normalized_type = event_type.strip().lower()
 
-    if tipo_normalizado == "linedetection":
+    if normalized_type == "linedetection":
         geometry_type = "line"
-    elif tipo_normalizado == "fielddetection":
+    elif normalized_type == "fielddetection":
         geometry_type = "region"
-    elif len(geometria) == 2:
+    elif len(geometry) == 2:
         geometry_type = "line"
-    elif len(geometria) >= 3:
+    elif len(geometry) >= 3:
         geometry_type = "region"
     else:
         geometry_type = None
 
     source_event_id = None
-    for nome, valor in raiz.attrib.items():
-        if _nome_local_attributes_hikvision(nome) == "id":
-            source_event_id = str(valor)
+    for name, value in root.attrib.items():
+        if _local_name_hikvision_attributes(name) == "id":
+            source_event_id = str(value)
             break
 
-    sensitivity = _numero_attributes_hikvision(
-        _primeiro_texto_attributes_hikvision(raiz, ("sensitivityLevel",))
+    sensitivity = _number_hikvision_attributes(
+        _first_text_hikvision_attributes(root, ("sensitivityLevel",))
     )
 
     return EventAttributes(
         manufacturer="hikvision",
-        vendor_event_type=tipo_evento,
-        category=_categoria_evento_hikvision(tipo_evento),
-        target_type=alvo_detectado,
-        state=estado,
+        vendor_event_type=event_type,
+        category=_hikvision_event_category(event_type),
+        target_type=target_detected,
+        state=state,
         action=None,
         source_event_id=source_event_id,
-        rule_id=_primeiro_texto_attributes_hikvision(raiz, ("regionID", "ruleID")),
-        rule_name=_primeiro_texto_attributes_hikvision(
-            raiz, ("ruleName", "regionName", "lineName")
+        rule_id=_first_text_hikvision_attributes(root, ("regionID", "ruleID")),
+        rule_name=_first_text_hikvision_attributes(
+            root, ("ruleName", "regionName", "lineName")
         ),
         object_id=None,
         sensitivity=sensitivity,
-        direction=_primeiro_texto_attributes_hikvision(
-            raiz, ("direction", "targetDirection", "lineCrossingDirection")
+        direction=_first_text_hikvision_attributes(
+            root, ("direction", "targetDirection", "lineCrossingDirection")
         ),
         confidence=None,
         geometry_type=geometry_type,
-        geometry=geometria,
+        geometry=geometry,
         vendor_data={
             key: value
             for key, value in {
-                "vendor_target_type": alvo_detectado,
-                "vendor_state": estado,
+                "vendor_target_type": target_detected,
+                "vendor_state": state,
             }.items()
             if value is not None
         },
@@ -606,9 +591,9 @@ def _montar_atributos_hikvision(
 
 
 class HikvisionAdapter(CameraAdapter):
-    fabricante = "hikvision"
+    manufacturer = "hikvision"
 
-    def consegue_processar(self, content_type: str, body: bytes) -> bool:
+    def can_handle(self, content_type: str, body: bytes) -> bool:
         body_lower = body.lower()
 
         return (
@@ -617,105 +602,97 @@ class HikvisionAdapter(CameraAdapter):
             or b"<eventtype>" in body_lower
         )
 
-    def normalizar(self, pacote: RawCameraPackage, body: bytes) -> CameraEvent:
-        content_type = pacote.content_type or ""
-        tipo_conteudo = content_type.lower()
-        xml_direto = "application/xml" in tipo_conteudo or "text/xml" in tipo_conteudo
+    def normalize(self, package: RawCameraPackage, body: bytes) -> CameraEvent:
+        content_type = package.content_type or ""
+        lower_content_type = content_type.lower()
+        direct_xml = "application/xml" in lower_content_type or "text/xml" in lower_content_type
 
-        imagem: bytes | None = None
+        image: bytes | None = None
 
-        if xml_direto:
-            formato_pacote = "xml_direto"
-            xml = limpar_xml_direto(body)
+        if direct_xml:
+            package_format = "direct_xml"
+            xml = clean_direct_xml(body)
         else:
-            formato_pacote = "multipart"
-            boundary = obter_boundary(content_type, body)
+            package_format = "multipart"
+            boundary = get_boundary(content_type, body)
             if not boundary:
-                raise ValueError("Boundary não encontrado")
+                raise ValueError("Boundary not found")
 
-            xml = extrair_xml(body, boundary)
-            imagem = extrair_imagem(body, boundary)
+            xml = extract_xml(body, boundary)
+            image = extract_image(body, boundary)
             if xml is None:
-                raise ValueError("XML não encontrado no multipart")
+                raise ValueError("XML not found in multipart")
 
-        raiz = ET.fromstring(xml)
+        root = ET.fromstring(xml)
 
-        tipo_evento = (
-            pegar_texto(raiz, "ns:eventType", NAMESPACE_HIKVISION) or "desconhecido"
-        )
-        data_hora_texto = pegar_texto(raiz, "ns:dateTime", NAMESPACE_HIKVISION)
-        data_hora = converter_data_utc(data_hora_texto)
-        estado = pegar_texto(raiz, "ns:eventState", NAMESPACE_HIKVISION)
-        nome_camera = pegar_texto(raiz, "ns:channelName", NAMESPACE_HIKVISION)
-        camera_id = pegar_texto(raiz, "ns:channelID", NAMESPACE_HIKVISION)
-        modelo_camera = pegar_texto_por_nome_local(
-            raiz, ("deviceModel", "model", "modelName")
-        )
-        alvo_detectado = pegar_texto(raiz, ".//ns:detectionTarget", NAMESPACE_HIKVISION)
+        event_type = get_text(root, "ns:eventType", HIKVISION_NAMESPACE) or "desconhecido"
+        date_time_text = get_text(root, "ns:dateTime", HIKVISION_NAMESPACE)
+        date_time = convert_utc_date(date_time_text)
+        state = get_text(root, "ns:eventState", HIKVISION_NAMESPACE)
+        camera_name = get_text(root, "ns:channelName", HIKVISION_NAMESPACE)
+        camera_id = get_text(root, "ns:channelID", HIKVISION_NAMESPACE)
+        camera_model = get_text_by_local_name(root, ("deviceModel", "model", "modelName"))
+        target_detected = get_text(root, ".//ns:detectionTarget", HIKVISION_NAMESPACE)
 
-        alvo_normalizado = _normalizar_target_type_hikvision(alvo_detectado, tipo_evento)
-        tipo_evento_normalizado = _normalizar_event_type_hikvision(
-            tipo_evento, alvo_normalizado
-        )
+        normalized_target = _normalize_hikvision_target_type(target_detected, event_type)
+        normalized_event_type = _normalize_hikvision_event_type(event_type, normalized_target)
 
-        boxes_xml = extrair_bounding_boxes(raiz)
-        boxes_pixels: list[dict] = []
-        box_escolhido: dict | None = None
+        xml_boxes = extract_bounding_boxes(root)
+        pixel_boxes: list[dict] = []
+        chosen_box: dict | None = None
 
-        largura_img = None
-        altura_img = None
-        caminho_original = None
-        caminho_marcada = None
+        image_width = None
+        image_height = None
+        original_path = None
+        annotated_path = None
         image_data = None
 
-        if imagem is not None:
-            with Image.open(io.BytesIO(imagem)) as imagem_pil:
-                largura_img, altura_img = imagem_pil.size
+        if image is not None:
+            with Image.open(io.BytesIO(image)) as pil_image:
+                image_width, image_height = pil_image.size
 
-            boxes_pixels = converter_boxes_para_pixels(
-                boxes_xml, raiz, largura_img, altura_img
-            )
-            box_escolhido = escolher_bounding_box(boxes_pixels)
+            pixel_boxes = convert_boxes_to_pixels(xml_boxes, root, image_width, image_height)
+            chosen_box = choose_bounding_box(pixel_boxes)
 
-            nome_base = criar_nome_base(data_hora, tipo_evento, pacote.evento_id)
-            caminho_original = salvar_imagem_original(imagem, nome_base)
-            caminho_marcada = salvar_imagem_marcada(imagem, nome_base, box_escolhido)
+            base_name = build_base_name(date_time, event_type, package.event_id)
+            original_path = save_original_image(image, base_name)
+            annotated_path = save_annotated_image(image, base_name, chosen_box)
 
             image_data = ImageData(
-                largura=largura_img,
-                altura=altura_img,
-                formato="jpeg",
-                caminho_original=caminho_original,
-                caminho_marcada=caminho_marcada,
+                width=image_width,
+                height=image_height,
+                format="jpeg",
+                original_path=original_path,
+                annotated_path=annotated_path,
             )
 
-        boxes_modelo = [converter_box_modelo(box) for box in boxes_pixels]
+        model_boxes = [convert_box_to_model(box) for box in pixel_boxes]
 
         return CameraEvent(
-            evento_id=pacote.evento_id,
-            fabricante=self.fabricante,
-            modelo_camera=modelo_camera,
+            event_id=package.event_id,
+            manufacturer=self.manufacturer,
+            camera_model=camera_model,
             camera_id=camera_id,
-            nome_camera=nome_camera,
-            ip_camera=pacote.ip_camera,
-            tipo_evento=tipo_evento_normalizado,
-            estado=estado,
-            data_hora=data_hora,
-            alvo_detectado=alvo_normalizado,
-            attributes=_montar_atributos_hikvision(
-                raiz=raiz,
-                tipo_evento=tipo_evento,
-                estado=estado,
-                alvo_detectado=alvo_detectado,
+            camera_name=camera_name,
+            camera_ip=package.camera_ip,
+            event_type=normalized_event_type,
+            state=state,
+            timestamp=date_time,
+            target_type=normalized_target,
+            attributes=_build_hikvision_attributes(
+                root=root,
+                event_type=event_type,
+                state=state,
+                target_detected=target_detected,
             ),
-            bounding_boxes=[box for box in boxes_modelo if box is not None],
-            bounding_box_escolhida=converter_box_modelo(box_escolhido),
-            imagem=image_data,
-            dados_extras={
-                "formato_pacote": formato_pacote,
-                "imagem_recebida": imagem is not None,
-                "quantidade_bounding_boxes": len(boxes_pixels),
-                "bounding_boxes_xml": boxes_xml,
+            bounding_boxes=[box for box in model_boxes if box is not None],
+            selected_bounding_box=convert_box_to_model(chosen_box),
+            image=image_data,
+            extra_data={
+                "package_format": package_format,
+                "image_received": image is not None,
+                "bounding_box_count": len(pixel_boxes),
+                "xml_bounding_boxes": xml_boxes,
                 "content_type": content_type,
             },
         )

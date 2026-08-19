@@ -6,51 +6,41 @@ from app.core.config import settings
 from app.messaging.kafka_producer import kafka_publisher
 
 
-ARQUIVO_PAYLOAD = Path("payload_alarm_teste.json")
+PAYLOAD_FILE = Path("payload_alarm_teste.json")
 
 
 async def main() -> None:
-    if not ARQUIVO_PAYLOAD.exists():
-        raise FileNotFoundError(
-            "Arquivo payload_alarm_teste.json não encontrado"
-        )
+    if not PAYLOAD_FILE.exists():
+        raise FileNotFoundError("File payload_alarm_teste.json not found")
 
-    dados = json.loads(
-        ARQUIVO_PAYLOAD.read_text(encoding="utf-8")
-    )
+    data = json.loads(PAYLOAD_FILE.read_text(encoding="utf-8"))
 
-    evento_id = dados["event"]["id"]
-    topico = settings.kafka_topic_normalized
+    event_id = data["event"]["id"]
+    topic = settings.kafka_topic_normalized
 
-    tamanho_mensagem = len(
-        json.dumps(
-            dados,
-            ensure_ascii=False,
-            separators=(",", ":")
-        ).encode("utf-8")
-    )
+    message_size = len(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
 
-    print("===== PUBLICAÇÃO KAFKA =====")
-    print("Tópico:", topico)
-    print("Evento ID:", evento_id)
-    print("Tamanho:", tamanho_mensagem, "bytes")
+    print("===== KAFKA PUBLICATION =====")
+    print("Topic:", topic)
+    print("Event ID:", event_id)
+    print("Size:", message_size, "bytes")
 
     try:
         await kafka_publisher.start()
 
-        resultado = await kafka_publisher.publicar(
-            topico=topico,
-            evento_id=evento_id,
-            dados=dados
+        result = await kafka_publisher.publish(
+            topic=topic,
+            event_id=event_id,
+            data=data,
         )
 
-        print("Mensagem publicada com sucesso.")
-        print("Metadados:", resultado)
+        print("Message published successfully.")
+        print("Metadata:", result)
 
     finally:
         await kafka_publisher.stop()
 
-    print("===== FIM DA PUBLICAÇÃO =====")
+    print("===== END OF PUBLICATION =====")
 
 
 if __name__ == "__main__":

@@ -1,89 +1,45 @@
 import asyncio
 
-from app.services.person_tracker import (
-    DetectionBox,
-    PersonTracker,
-)
+from app.services.person_tracker import DetectionBox, PersonTracker
 
 
 async def main() -> None:
-    tracker = PersonTracker(
-        intervalo_reprocessamento=5.0,
-        tempo_para_saida=8.0,
-    )
+    tracker = PersonTracker(reprocessing_interval=5.0, exit_timeout=8.0)
 
-    primeira_caixa = DetectionBox(
-        x=600,
-        y=250,
-        largura=100,
-        altura=190,
-    )
+    first_box = DetectionBox(x=600, y=250, width=100, height=190)
+    similar_box = DetectionBox(x=608, y=254, width=102, height=188)
 
-    caixa_parecida = DetectionBox(
-        x=608,
-        y=254,
-        largura=102,
-        altura=188,
-    )
-
-    primeira = await tracker.registrar(
+    first = await tracker.register(
         camera="Camera 01",
-        evento_id="evento-001",
-        bbox=primeira_caixa,
-        agora=0.0,
+        event_id="evento-001",
+        bbox=first_box,
+        now=0.0,
     )
 
-    repetida = await tracker.registrar(
+    repeated = await tracker.register(
         camera="Camera 01",
-        evento_id="evento-002",
-        bbox=caixa_parecida,
-        agora=1.0,
+        event_id="evento-002",
+        bbox=similar_box,
+        now=1.0,
     )
 
-    atualizada = await tracker.registrar(
+    updated = await tracker.register(
         camera="Camera 01",
-        evento_id="evento-003",
-        bbox=caixa_parecida,
-        agora=6.0,
+        event_id="evento-003",
+        bbox=similar_box,
+        now=6.0,
     )
 
-    saidas = await tracker.coletar_saidas(
-        agora=15.0,
-    )
+    exits = await tracker.collect_exits(now=15.0)
 
-    print(
-        "1:",
-        primeira.status,
-        primeira.deve_processar,
-        primeira.pessoa_id,
-    )
+    print("1:", first.status, first.should_process, first.person_id)
+    print("2:", repeated.status, repeated.should_process, repeated.person_id)
+    print("3:", updated.status, updated.should_process, updated.person_id)
+    print("4:", exits[0].status, exits[0].person_id)
 
     print(
-        "2:",
-        repetida.status,
-        repetida.deve_processar,
-        repetida.pessoa_id,
-    )
-
-    print(
-        "3:",
-        atualizada.status,
-        atualizada.deve_processar,
-        atualizada.pessoa_id,
-    )
-
-    print(
-        "4:",
-        saidas[0].status,
-        saidas[0].pessoa_id,
-    )
-
-    print(
-        "Mesma pessoa:",
-        primeira.pessoa_id
-        == repetida.pessoa_id
-        == atualizada.pessoa_id
-        == saidas[0].pessoa_id,
+        "Same person:",
+        first.person_id == repeated.person_id == updated.person_id == exits[0].person_id,
     )
 
 

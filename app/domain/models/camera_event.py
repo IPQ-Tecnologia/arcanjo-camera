@@ -61,145 +61,75 @@ class EventAttributes(BaseModel):
     confidence: float | None = None
 
     geometry_type: str | None = None
-    geometry: list[EventPoint] = Field(
-        default_factory=list
-    )
+    geometry: list[EventPoint] = Field(default_factory=list)
 
     raw_bounding_box: list[float] | None = None
 
-    vendor_data: dict[str, Any] = Field(
-        default_factory=dict
-    )
+    vendor_data: dict[str, Any] = Field(default_factory=dict)
 
 
 class BoundingBox(BaseModel):
-    origem: str | None = Field(
-        default=None,
-        serialization_alias="source",
-    )
+    source: str | None = None
 
     x: int
     y: int
 
-    largura: int = Field(
-        serialization_alias="width",
-    )
-
-    altura: int = Field(
-        serialization_alias="height",
-    )
+    width: int
+    height: int
 
     x2: int
     y2: int
 
-    proporcao_imagem: float | None = Field(
-        default=None,
-        serialization_alias="image_ratio",
-    )
+    image_ratio: float | None = None
 
 
 class ImageData(BaseModel):
-    largura: int | None = Field(
-        default=None,
-        serialization_alias="width",
-    )
+    width: int | None = None
+    height: int | None = None
+    format: str | None = None
 
-    altura: int | None = Field(
-        default=None,
-        serialization_alias="height",
-    )
-
-    formato: str | None = Field(
-        default=None,
-        serialization_alias="format",
-    )
-
-    caminho_original: str | None = Field(
-        default=None,
-        serialization_alias="original_path",
-    )
-
-    caminho_marcada: str | None = Field(
-        default=None,
-        serialization_alias="annotated_path",
-    )
+    original_path: str | None = None
+    annotated_path: str | None = None
 
 
 class CameraEvent(BaseModel):
     schema_version: str = "1.0"
 
-    evento_id: str = Field(
-        serialization_alias="event_id",
-    )
+    event_id: str
+    manufacturer: str
 
-    fabricante: str = Field(
-        serialization_alias="manufacturer",
-    )
-
-    modelo_camera: str | None = Field(
-        default=None,
-        serialization_alias="camera_model",
-    )
-
+    camera_model: str | None = None
     camera_id: str | None = None
+    camera_name: str | None = None
+    camera_ip: str | None = None
 
-    nome_camera: str | None = Field(
-        default=None,
-        serialization_alias="camera_name",
-    )
+    event_type: str
+    state: str | None = None
+    timestamp: datetime
 
-    ip_camera: str | None = Field(
-        default=None,
-        serialization_alias="camera_ip",
-    )
-
-    tipo_evento: str = Field(
-        serialization_alias="event_type",
-    )
-
-    estado: str | None = Field(
-        default=None,
-        serialization_alias="state",
-    )
-
-    data_hora: datetime = Field(
-        serialization_alias="timestamp",
-    )
-
-    alvo_detectado: str | None = Field(
-        default=None,
-        serialization_alias="target_type",
-    )
+    target_type: str | None = None
 
     attributes: EventAttributes | None = None
 
-    bounding_boxes: list[BoundingBox] = Field(
-        default_factory=list
-    )
+    bounding_boxes: list[BoundingBox] = Field(default_factory=list)
 
-    bounding_box_escolhida: BoundingBox | None = Field(
-        default=None,
-        serialization_alias="selected_bounding_box",
-    )
+    selected_bounding_box: BoundingBox | None = None
 
-    imagem: ImageData | None = Field(
-        default=None,
-        serialization_alias="image",
-    )
+    image: ImageData | None = None
 
-    # Mantido internamente para depuração e processamento.
-    # Não faz parte do contrato normalizado externo.
-    dados_extras: dict[str, Any] = Field(
+    # Kept internally for debugging and processing.
+    # Not part of the external normalized contract.
+    extra_data: dict[str, Any] = Field(
         default_factory=dict,
         exclude=True,
     )
 
 
 class RawCameraPackage(BaseModel):
-    evento_id: str
-    recebido_em: datetime
+    event_id: str
+    received_at: datetime
 
     content_type: str
-    ip_camera: str | None = None
+    camera_ip: str | None = None
 
-    caminho_pacote: str
+    package_path: str

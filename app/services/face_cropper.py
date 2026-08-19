@@ -12,300 +12,292 @@ import numpy as np
 
 @dataclass(frozen=True)
 class FaceCropResult:
-    imagem_base64: str
-    caminho_arquivo: str
+    image_base64: str
+    file_path: str
     x: int
     y: int
-    largura: int
-    altura: int
+    width: int
+    height: int
     score: float
 
     def to_dict(self) -> dict:
         return {
-            "imagem_base64": self.imagem_base64,
-            "caminho_arquivo": self.caminho_arquivo,
+            "image_base64": self.image_base64,
+            "file_path": self.file_path,
             "score": self.score,
             "bounding_box": {
                 "x": self.x,
                 "y": self.y,
-                "largura": self.largura,
-                "altura": self.altura,
+                "width": self.width,
+                "height": self.height,
             },
         }
 
 
-_RAIZ_PROJETO = Path(__file__).resolve().parents[2]
-_CAMINHO_MODELO = (
-    _RAIZ_PROJETO / "models" / "face_detection" / "face_detection_yunet_2023mar.onnx"
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_MODEL_PATH = (
+    _PROJECT_ROOT / "models" / "face_detection" / "face_detection_yunet_2023mar.onnx"
 )
 _DETECTOR_LOCK = Lock()
 
 
-def _criar_detector():
-    if not _CAMINHO_MODELO.exists():
-        raise RuntimeError(f"Modelo YuNet ausente: {_CAMINHO_MODELO}")
+def _create_detector():
+    if not _MODEL_PATH.exists():
+        raise RuntimeError(f"Missing YuNet model: {_MODEL_PATH}")
 
     if not hasattr(cv2, "FaceDetectorYN"):
-        raise RuntimeError("Esta versão do OpenCV não possui cv2.FaceDetectorYN")
+        raise RuntimeError("This OpenCV version doesn't have cv2.FaceDetectorYN")
 
-    return cv2.FaceDetectorYN.create(str(_CAMINHO_MODELO), "", (320, 320), 0.70, 0.30, 5000)
-
-
-_DETECTOR = _criar_detector()
+    return cv2.FaceDetectorYN.create(str(_MODEL_PATH), "", (320, 320), 0.70, 0.30, 5000)
 
 
-def _limitar_caixa(
+_DETECTOR = _create_detector()
+
+
+def _clamp_box(
     x: int,
     y: int,
-    largura: int,
-    altura: int,
-    largura_imagem: int,
-    altura_imagem: int,
+    width: int,
+    height: int,
+    image_width: int,
+    image_height: int,
 ) -> tuple[int, int, int, int]:
-    x1 = max(0, min(x, largura_imagem - 1))
-    y1 = max(0, min(y, altura_imagem - 1))
-    x2 = max(x1 + 1, min(x + largura, largura_imagem))
-    y2 = max(y1 + 1, min(y + altura, altura_imagem))
+    x1 = max(0, min(x, image_width - 1))
+    y1 = max(0, min(y, image_height - 1))
+    x2 = max(x1 + 1, min(x + width, image_width))
+    y2 = max(y1 + 1, min(y + height, image_height))
 
     return x1, y1, x2, y2
 
 
-def _detectar_faces_yunet(
-    recorte_pessoa: np.ndarray,
+def _detect_faces_yunet(
+    person_crop: np.ndarray,
 ) -> list[tuple[int, int, int, int, float]]:
-    altura_pessoa, largura_pessoa = recorte_pessoa.shape[:2]
+    person_height, person_width = person_crop.shape[:2]
 
-    if largura_pessoa < 35 or altura_pessoa < 70:
+    if person_width < 35 or person_height < 70:
         return []
 
-    # O rosto deve estar principalmente na parte superior da caixa da
-    # pessoa.
-    altura_regiao = max(1, int(altura_pessoa * 0.68))
-    regiao_cabeca = recorte_pessoa[0:altura_regiao, 0:largura_pessoa]
-    altura_regiao, largura_regiao = regiao_cabeca.shape[:2]
+    # The face should be mostly in the upper part of the person's box.
+    region_height = max(1, int(person_height * 0.68))
+    head_region = person_crop[0:region_height, 0:person_width]
+    region_height, region_width = head_region.shape[:2]
 
-    # Amplia recortes pequenos para ajudar na detecção de rostos
-    # distantes.
-    escala = min(
-        3.0, max(1.0, 240 / max(1, largura_regiao), 240 / max(1, altura_regiao))
-    )
+    # Upscales small crops to help detect distant faces.
+    scale = min(3.0, max(1.0, 240 / max(1, region_width), 240 / max(1, region_height)))
 
-    if escala > 1.0:
-        imagem_analise = cv2.resize(
-            regiao_cabeca, None, fx=escala, fy=escala, interpolation=cv2.INTER_CUBIC
+    if scale > 1.0:
+        analysis_image = cv2.resize(
+            head_region, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC
         )
     else:
-        imagem_analise = regiao_cabeca
+        analysis_image = head_region
 
-    altura_analise, largura_analise = imagem_analise.shape[:2]
+    analysis_height, analysis_width = analysis_image.shape[:2]
 
-    # O pipeline possui vários workers. Protege o detector
-    # compartilhado porque setInputSize altera seu estado interno.
+    # The pipeline has several workers. Protects the shared detector
+    # because setInputSize changes its internal state.
     with _DETECTOR_LOCK:
-        _DETECTOR.setInputSize((largura_analise, altura_analise))
-        _, deteccoes = _DETECTOR.detect(imagem_analise)
+        _DETECTOR.setInputSize((analysis_width, analysis_height))
+        _, detections = _DETECTOR.detect(analysis_image)
 
-    if deteccoes is None:
+    if detections is None:
         return []
 
-    resultados: list[tuple[int, int, int, int, float]] = []
+    results: list[tuple[int, int, int, int, float]] = []
 
-    for deteccao in deteccoes:
-        score = float(deteccao[-1])
+    for detection in detections:
+        score = float(detection[-1])
         if score < 0.70:
             continue
 
-        x = int(round(float(deteccao[0]) / escala))
-        y = int(round(float(deteccao[1]) / escala))
-        largura_face = int(round(float(deteccao[2]) / escala))
-        altura_face = int(round(float(deteccao[3]) / escala))
+        x = int(round(float(detection[0]) / scale))
+        y = int(round(float(detection[1]) / scale))
+        face_width = int(round(float(detection[2]) / scale))
+        face_height = int(round(float(detection[3]) / scale))
 
-        x1, y1, x2, y2 = _limitar_caixa(
+        x1, y1, x2, y2 = _clamp_box(
             x=x,
             y=y,
-            largura=largura_face,
-            altura=altura_face,
-            largura_imagem=largura_regiao,
-            altura_imagem=altura_regiao,
+            width=face_width,
+            height=face_height,
+            image_width=region_width,
+            image_height=region_height,
         )
-        largura_face = x2 - x1
-        altura_face = y2 - y1
+        face_width = x2 - x1
+        face_height = y2 - y1
 
-        if largura_face < 12 or altura_face < 12:
+        if face_width < 12 or face_height < 12:
             continue
 
-        proporcao = largura_face / max(1, altura_face)
-        proporcao_largura = largura_face / max(1, largura_pessoa)
-        proporcao_altura = altura_face / max(1, altura_pessoa)
-        centro_y = (y1 + altura_face / 2) / max(1, altura_pessoa)
+        ratio = face_width / max(1, face_height)
+        width_ratio = face_width / max(1, person_width)
+        height_ratio = face_height / max(1, person_height)
+        center_y = (y1 + face_height / 2) / max(1, person_height)
 
-        # Filtros adicionais contra objetos da sala.
-        if not 0.60 <= proporcao <= 1.55:
+        # Additional filters against random room objects.
+        if not 0.60 <= ratio <= 1.55:
             continue
 
-        if not 0.07 <= proporcao_largura <= 0.90:
+        if not 0.07 <= width_ratio <= 0.90:
             continue
 
-        if not 0.04 <= proporcao_altura <= 0.50:
+        if not 0.04 <= height_ratio <= 0.50:
             continue
 
-        if centro_y > 0.67:
+        if center_y > 0.67:
             continue
 
-        resultados.append((x1, y1, largura_face, altura_face, score))
+        results.append((x1, y1, face_width, face_height, score))
 
-    resultados.sort(key=lambda item: (item[4], item[2] * item[3]), reverse=True)
+    results.sort(key=lambda item: (item[4], item[2] * item[3]), reverse=True)
 
-    return resultados
+    return results
 
 
-def recortar_rosto(
-    caminho_imagem: str,
+def crop_face(
+    image_path: str,
     bounding_box: Any | None = None,
-    pasta_saida: str = "recortes_faciais",
-    nome_arquivo: str | None = None,
+    output_folder: str = "face_crops",
+    file_name: str | None = None,
 ) -> FaceCropResult | None:
-    # Nunca detecta rosto na cena completa. A caixa da pessoa
-    # confirmada é obrigatória.
+    # Never detects a face on the full scene. The confirmed person box
+    # is required.
     if bounding_box is None:
         return None
 
-    imagem = cv2.imread(caminho_imagem)
-    if imagem is None:
-        raise ValueError(f"Imagem inválida: {caminho_imagem}")
+    image = cv2.imread(image_path)
+    if image is None:
+        raise ValueError(f"Invalid image: {image_path}")
 
-    altura_imagem, largura_imagem = imagem.shape[:2]
+    image_height, image_width = image.shape[:2]
 
-    x_pessoa = int(bounding_box.x)
-    y_pessoa = int(bounding_box.y)
-    largura_pessoa = int(bounding_box.largura)
-    altura_pessoa = int(bounding_box.altura)
+    person_x = int(bounding_box.x)
+    person_y = int(bounding_box.y)
+    person_width = int(bounding_box.width)
+    person_height = int(bounding_box.height)
 
-    # Dá uma pequena margem ao redor da pessoa. Algumas caixas
-    # começam abaixo do cabelo ou cortam parte da cabeça nas bordas.
-    margem_x = int(largura_pessoa * 0.10)
-    margem_superior = int(altura_pessoa * 0.16)
-    margem_inferior = int(altura_pessoa * 0.03)
+    # Adds a small margin around the person. Some boxes start below
+    # the hair or cut off part of the head at the edges.
+    margin_x = int(person_width * 0.10)
+    top_margin = int(person_height * 0.16)
+    bottom_margin = int(person_height * 0.03)
 
-    x1, y1, x2, y2 = _limitar_caixa(
-        x=x_pessoa - margem_x,
-        y=y_pessoa - margem_superior,
-        largura=largura_pessoa + margem_x * 2,
-        altura=altura_pessoa + margem_superior + margem_inferior,
-        largura_imagem=largura_imagem,
-        altura_imagem=altura_imagem,
+    x1, y1, x2, y2 = _clamp_box(
+        x=person_x - margin_x,
+        y=person_y - top_margin,
+        width=person_width + margin_x * 2,
+        height=person_height + top_margin + bottom_margin,
+        image_width=image_width,
+        image_height=image_height,
     )
 
-    recorte_pessoa = imagem[y1:y2, x1:x2]
-    if recorte_pessoa.size == 0:
+    person_crop = image[y1:y2, x1:x2]
+    if person_crop.size == 0:
         return None
 
-    faces = _detectar_faces_yunet(recorte_pessoa)
+    faces = _detect_faces_yunet(person_crop)
     if not faces:
         return None
 
-    # Posição da bounding box original da pessoa dentro do recorte
-    # ampliado.
-    pessoa_local_x = x_pessoa - x1
-    pessoa_local_y = y_pessoa - y1
+    # Position of the person's original bounding box within the
+    # upscaled crop.
+    local_person_x = person_x - x1
+    local_person_y = person_y - y1
 
-    # O rosto esperado deve ficar próximo ao centro horizontal e à
-    # região superior desta pessoa.
-    centro_esperado_x = pessoa_local_x + largura_pessoa / 2
-    centro_esperado_y = pessoa_local_y + altura_pessoa * 0.18
+    # The expected face should be close to the horizontal center and
+    # the upper region of this person.
+    expected_center_x = local_person_x + person_width / 2
+    expected_center_y = local_person_y + person_height * 0.18
 
-    # Aceita uma pequena tolerância lateral porque algumas bounding
-    # boxes cortam parte da cabeça.
-    tolerancia_x = max(12, int(largura_pessoa * 0.15))
-    limite_x_min = pessoa_local_x - tolerancia_x
-    limite_x_max = pessoa_local_x + largura_pessoa + tolerancia_x
+    # Accepts a small lateral tolerance because some bounding boxes
+    # cut off part of the head.
+    x_tolerance = max(12, int(person_width * 0.15))
+    min_x_limit = local_person_x - x_tolerance
+    max_x_limit = local_person_x + person_width + x_tolerance
 
-    candidatos_face = []
+    face_candidates = []
 
     for face in faces:
         fx, fy, fw, fh, fscore = face
 
-        centro_face_x = fx + fw / 2
-        centro_face_y = fy + fh / 2
+        face_center_x = fx + fw / 2
+        face_center_y = fy + fh / 2
 
-        if not (limite_x_min <= centro_face_x <= limite_x_max):
+        if not (min_x_limit <= face_center_x <= max_x_limit):
             continue
 
-        # Evita associar um rosto muito abaixo da região esperada da
-        # cabeça dessa pessoa.
-        if centro_face_y > pessoa_local_y + altura_pessoa * 0.48:
+        # Avoids matching a face far below this person's expected
+        # head region.
+        if face_center_y > local_person_y + person_height * 0.48:
             continue
 
-        distancia_x = abs(centro_face_x - centro_esperado_x) / max(1, largura_pessoa)
-        distancia_y = abs(centro_face_y - centro_esperado_y) / max(1, altura_pessoa)
-        distancia = distancia_x * 1.5 + distancia_y
+        distance_x = abs(face_center_x - expected_center_x) / max(1, person_width)
+        distance_y = abs(face_center_y - expected_center_y) / max(1, person_height)
+        distance = distance_x * 1.5 + distance_y
 
-        candidatos_face.append((distancia, -fscore, face))
+        face_candidates.append((distance, -fscore, face))
 
-    if not candidatos_face:
+    if not face_candidates:
         return None
 
-    candidatos_face.sort(key=lambda item: (item[0], item[1]))
-    x_face, y_face, largura_face, altura_face, _score = candidatos_face[0][2]
+    face_candidates.sort(key=lambda item: (item[0], item[1]))
+    face_x, face_y, face_width, face_height, _score = face_candidates[0][2]
 
-    margem_rosto_x = int(largura_face * 0.32)
-    margem_rosto_superior = int(altura_face * 0.36)
-    margem_rosto_inferior = int(altura_face * 0.42)
+    face_margin_x = int(face_width * 0.32)
+    face_top_margin = int(face_height * 0.36)
+    face_bottom_margin = int(face_height * 0.42)
 
-    rx1 = max(0, x_face - margem_rosto_x)
-    ry1 = max(0, y_face - margem_rosto_superior)
-    rx2 = min(recorte_pessoa.shape[1], x_face + largura_face + margem_rosto_x)
-    ry2 = min(recorte_pessoa.shape[0], y_face + altura_face + margem_rosto_inferior)
+    rx1 = max(0, face_x - face_margin_x)
+    ry1 = max(0, face_y - face_top_margin)
+    rx2 = min(person_crop.shape[1], face_x + face_width + face_margin_x)
+    ry2 = min(person_crop.shape[0], face_y + face_height + face_bottom_margin)
 
-    recorte_rosto = recorte_pessoa[ry1:ry2, rx1:rx2]
-    if recorte_rosto.size == 0:
+    face_crop = person_crop[ry1:ry2, rx1:rx2]
+    if face_crop.size == 0:
         return None
 
-    pasta = Path(pasta_saida)
-    pasta.mkdir(parents=True, exist_ok=True)
+    folder = Path(output_folder)
+    folder.mkdir(parents=True, exist_ok=True)
 
-    if not nome_arquivo:
-        nome_arquivo = Path(caminho_imagem).stem + "_face.jpg"
+    if not file_name:
+        file_name = Path(image_path).stem + "_face.jpg"
 
-    if not nome_arquivo.lower().endswith((".jpg", ".jpeg")):
-        nome_arquivo += ".jpg"
+    if not file_name.lower().endswith((".jpg", ".jpeg")):
+        file_name += ".jpg"
 
-    # Amplia recortes faciais pequenos antes de salvar e transformar
-    # em Base64.
-    altura_recorte, largura_recorte = recorte_rosto.shape[:2]
-    largura_minima = 300
+    # Upscales small face crops before saving and converting to
+    # Base64.
+    crop_height, crop_width = face_crop.shape[:2]
+    min_width = 300
 
-    if largura_recorte < largura_minima:
-        fator_escala = largura_minima / largura_recorte
-        nova_largura = largura_minima
-        nova_altura = max(1, round(altura_recorte * fator_escala))
+    if crop_width < min_width:
+        scale_factor = min_width / crop_width
+        new_width = min_width
+        new_height = max(1, round(crop_height * scale_factor))
 
-        recorte_rosto = cv2.resize(
-            recorte_rosto, (nova_largura, nova_altura), interpolation=cv2.INTER_CUBIC
+        face_crop = cv2.resize(
+            face_crop, (new_width, new_height), interpolation=cv2.INTER_CUBIC
         )
 
-    caminho_saida = pasta / nome_arquivo
+    output_path = folder / file_name
 
-    salvo = cv2.imwrite(
-        str(caminho_saida), recorte_rosto, [cv2.IMWRITE_JPEG_QUALITY, 94]
-    )
-    if not salvo:
-        raise RuntimeError("Não foi possível salvar o recorte facial")
+    saved = cv2.imwrite(str(output_path), face_crop, [cv2.IMWRITE_JPEG_QUALITY, 94])
+    if not saved:
+        raise RuntimeError("Could not save the face crop")
 
-    codificado, buffer = cv2.imencode(
-        ".jpg", recorte_rosto, [cv2.IMWRITE_JPEG_QUALITY, 94]
-    )
-    if not codificado:
-        raise RuntimeError("Não foi possível converter o recorte facial")
+    encoded, buffer = cv2.imencode(".jpg", face_crop, [cv2.IMWRITE_JPEG_QUALITY, 94])
+    if not encoded:
+        raise RuntimeError("Could not encode the face crop")
 
-    imagem_base64 = base64.b64encode(buffer.tobytes()).decode("ascii")
+    image_base64 = base64.b64encode(buffer.tobytes()).decode("ascii")
 
     return FaceCropResult(
-        imagem_base64=imagem_base64,
-        caminho_arquivo=str(caminho_saida),
+        image_base64=image_base64,
+        file_path=str(output_path),
         score=round(float(_score), 6),
         x=x1 + rx1,
         y=y1 + ry1,
-        largura=rx2 - rx1,
-        altura=ry2 - ry1,
+        width=rx2 - rx1,
+        height=ry2 - ry1,
     )

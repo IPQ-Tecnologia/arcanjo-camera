@@ -1,187 +1,72 @@
 import asyncio
 
-from app.services.person_movement import (
-    PersonMovementMemory,
-)
-from app.services.person_tracker import (
-    DetectionBox,
-)
+from app.services.person_movement import PersonMovementMemory
+from app.services.person_tracker import DetectionBox
 
 
-def criar_box(
-    x: int,
-    y: int,
-    largura: int,
-    altura: int,
-) -> DetectionBox:
-    return DetectionBox(
-        x=x,
-        y=y,
-        largura=largura,
-        altura=altura,
+def build_box(x: int, y: int, width: int, height: int) -> DetectionBox:
+    return DetectionBox(x=x, y=y, width=width, height=height)
+
+
+async def run_test() -> None:
+    memory = PersonMovementMemory()
+
+    person_id = "camera-01-teste"
+
+    first = await memory.register(
+        person_id=person_id,
+        bbox=build_box(x=100, y=100, width=100, height=200),
+        now=100.0,
     )
 
+    assert first.movimento_horizontal == "inicial"
+    assert first.quantidade_amostras == 1
 
-async def executar_teste() -> None:
-    memoria = PersonMovementMemory()
-
-    pessoa_id = "camera-01-teste"
-
-    primeira = await memoria.registrar(
-        pessoa_id=pessoa_id,
-        bbox=criar_box(
-            x=100,
-            y=100,
-            largura=100,
-            altura=200,
-        ),
-        agora=100.0,
+    second = await memory.register(
+        person_id=person_id,
+        bbox=build_box(x=150, y=100, width=100, height=200),
+        now=102.0,
     )
 
-    assert (
-        primeira.movimento_horizontal
-        == "inicial"
+    assert second.movimento_horizontal == "direita"
+    assert second.movimento_vertical == "parado"
+    assert second.tendencia_distancia == "estavel"
+    assert second.velocidade_pixels_segundo == 25.0
+
+    third = await memory.register(
+        person_id=person_id,
+        bbox=build_box(x=135, y=60, width=130, height=240),
+        now=104.0,
     )
 
-    assert (
-        primeira.quantidade_amostras
-        == 1
+    assert third.movimento_horizontal == "parado"
+    assert third.movimento_vertical == "cima"
+    assert third.tendencia_distancia == "aproximando"
+
+    fourth = await memory.register(
+        person_id=person_id,
+        bbox=build_box(x=80, y=60, width=90, height=180),
+        now=106.0,
     )
 
-    segunda = await memoria.registrar(
-        pessoa_id=pessoa_id,
-        bbox=criar_box(
-            x=150,
-            y=100,
-            largura=100,
-            altura=200,
-        ),
-        agora=102.0,
-    )
+    assert fourth.movimento_horizontal == "esquerda"
+    assert fourth.tendencia_distancia == "afastando"
+    assert fourth.quantidade_amostras == 4
+    assert fourth.tempo_observado_segundos == 6.0
+    assert fourth.distancia_total_pixels > 0
 
-    assert (
-        segunda.movimento_horizontal
-        == "direita"
-    )
-
-    assert (
-        segunda.movimento_vertical
-        == "parado"
-    )
-
-    assert (
-        segunda.tendencia_distancia
-        == "estavel"
-    )
-
-    assert (
-        segunda.velocidade_pixels_segundo
-        == 25.0
-    )
-
-    terceira = await memoria.registrar(
-        pessoa_id=pessoa_id,
-        bbox=criar_box(
-            x=135,
-            y=60,
-            largura=130,
-            altura=240,
-        ),
-        agora=104.0,
-    )
-
-    assert (
-        terceira.movimento_horizontal
-        == "parado"
-    )
-
-    assert (
-        terceira.movimento_vertical
-        == "cima"
-    )
-
-    assert (
-        terceira.tendencia_distancia
-        == "aproximando"
-    )
-
-    quarta = await memoria.registrar(
-        pessoa_id=pessoa_id,
-        bbox=criar_box(
-            x=80,
-            y=60,
-            largura=90,
-            altura=180,
-        ),
-        agora=106.0,
-    )
-
-    assert (
-        quarta.movimento_horizontal
-        == "esquerda"
-    )
-
-    assert (
-        quarta.tendencia_distancia
-        == "afastando"
-    )
-
-    assert (
-        quarta.quantidade_amostras
-        == 4
-    )
-
-    assert (
-        quarta.tempo_observado_segundos
-        == 6.0
-    )
-
-    assert (
-        quarta.distancia_total_pixels
-        > 0
-    )
-
-    final = await memoria.finalizar(
-        pessoa_id
-    )
+    final = await memory.finalize(person_id)
 
     assert final is not None
+    assert memory.person_count == 0
 
-    assert (
-        memoria.quantidade_pessoas
-        == 0
-    )
-
-    print(
-        "===== ANÁLISE DE MOVIMENTO ====="
-    )
-
-    print(
-        "Primeira:",
-        primeira.to_dict(),
-    )
-
-    print(
-        "Segunda:",
-        segunda.to_dict(),
-    )
-
-    print(
-        "Terceira:",
-        terceira.to_dict(),
-    )
-
-    print(
-        "Quarta:",
-        quarta.to_dict(),
-    )
-
-    print(
-        "\nTeste concluído com sucesso."
-    )
+    print("===== MOVEMENT ANALYSIS =====")
+    print("First:", first.to_dict())
+    print("Second:", second.to_dict())
+    print("Third:", third.to_dict())
+    print("Fourth:", fourth.to_dict())
+    print("\nTest completed successfully.")
 
 
 if __name__ == "__main__":
-    asyncio.run(
-        executar_teste()
-    )
+    asyncio.run(run_test())

@@ -6,9 +6,14 @@ from dataclasses import asdict, dataclass
 from app.domain.models.camera_event import BoundingBox
 
 
+# NOTE: ScenePerson, PersonProximity and SceneContextAnalysis are
+# serialized as-is (via to_dict) into the panel/Kafka payload, so
+# their field names are a wire contract and are intentionally kept in
+# Portuguese, matching the frontend and any external consumer. Only
+# the internal code around them is in English.
 @dataclass(frozen=True)
 class ScenePerson:
-    """Representa uma pessoa identificada na cena."""
+    """Represents a person identified in the scene."""
 
     indice: int
     origem: str
@@ -33,7 +38,7 @@ class ScenePerson:
 
 @dataclass(frozen=True)
 class PersonProximity:
-    """Representa a distância entre duas pessoas."""
+    """Represents the distance between two people."""
 
     pessoa_a: int
     pessoa_b: int
@@ -47,7 +52,7 @@ class PersonProximity:
 
 @dataclass(frozen=True)
 class SceneContextAnalysis:
-    """Resultado completo da análise do contexto da cena."""
+    """Full result of the scene context analysis."""
 
     quantidade_pessoas: int
 
@@ -67,10 +72,8 @@ class SceneContextAnalysis:
     def to_dict(self) -> dict:
         return {
             "quantidade_pessoas": self.quantidade_pessoas,
-            "pessoas": [pessoa.to_dict() for pessoa in self.pessoas],
-            "proximidades": [
-                proximidade.to_dict() for proximidade in self.proximidades
-            ],
+            "pessoas": [person.to_dict() for person in self.pessoas],
+            "proximidades": [proximity.to_dict() for proximity in self.proximidades],
             "pessoas_esquerda": self.pessoas_esquerda,
             "pessoas_centro": self.pessoas_centro,
             "pessoas_direita": self.pessoas_direita,
@@ -81,292 +84,282 @@ class SceneContextAnalysis:
         }
 
 
-def analisar_contexto_cena(
-    largura_imagem: int,
-    altura_imagem: int,
+def analyze_scene_context(
+    image_width: int,
+    image_height: int,
     bounding_boxes: list[BoundingBox],
 ) -> SceneContextAnalysis:
     """
-    Analisa a distribuição das pessoas na cena.
+    Analyzes how people are distributed across the scene.
 
-    A análise considera:
+    The analysis considers:
 
-    - quantidade de pessoas;
-    - posição horizontal;
-    - posição vertical;
-    - tamanho no enquadramento;
-    - proximidade entre as pessoas.
+    - number of people;
+    - horizontal position;
+    - vertical position;
+    - size in the frame;
+    - proximity between people.
     """
-    if largura_imagem <= 0:
-        raise ValueError("A largura da imagem deve ser positiva")
+    if image_width <= 0:
+        raise ValueError("The image width must be positive")
 
-    if altura_imagem <= 0:
-        raise ValueError("A altura da imagem deve ser positiva")
+    if image_height <= 0:
+        raise ValueError("The image height must be positive")
 
-    caixas_validas = _filtrar_caixas_validas(
-        largura_imagem=largura_imagem,
-        altura_imagem=altura_imagem,
+    valid_boxes = _filter_valid_boxes(
+        image_width=image_width,
+        image_height=image_height,
         bounding_boxes=bounding_boxes,
     )
 
-    pessoas = [
-        _criar_pessoa(
-            indice=indice,
+    people = [
+        _create_person(
+            index=index,
             bounding_box=bounding_box,
-            largura_imagem=largura_imagem,
-            altura_imagem=altura_imagem,
+            image_width=image_width,
+            image_height=image_height,
         )
-        for indice, bounding_box in enumerate(caixas_validas, start=1)
+        for index, bounding_box in enumerate(valid_boxes, start=1)
     ]
 
-    proximidades = _calcular_proximidades(
-        pessoas=pessoas,
-        largura_imagem=largura_imagem,
-        altura_imagem=altura_imagem,
+    proximities = _calculate_proximities(
+        people=people,
+        image_width=image_width,
+        image_height=image_height,
     )
 
-    pessoas_esquerda = sum(
-        1 for pessoa in pessoas if pessoa.posicao_horizontal == "esquerda"
+    people_left = sum(1 for person in people if person.posicao_horizontal == "esquerda")
+    people_center = sum(1 for person in people if person.posicao_horizontal == "centro")
+    people_right = sum(1 for person in people if person.posicao_horizontal == "direita")
+
+    very_close_pairs = sum(
+        1 for proximity in proximities if proximity.classificacao == "muito_proximas"
     )
-    pessoas_centro = sum(
-        1 for pessoa in pessoas if pessoa.posicao_horizontal == "centro"
-    )
-    pessoas_direita = sum(
-        1 for pessoa in pessoas if pessoa.posicao_horizontal == "direita"
+    close_pairs = sum(1 for proximity in proximities if proximity.classificacao == "proximas")
+    separate_pairs = sum(
+        1 for proximity in proximities if proximity.classificacao == "separadas"
     )
 
-    pares_muito_proximos = sum(
-        1 for proximidade in proximidades if proximidade.classificacao == "muito_proximas"
-    )
-    pares_proximos = sum(
-        1 for proximidade in proximidades if proximidade.classificacao == "proximas"
-    )
-    pares_separados = sum(
-        1 for proximidade in proximidades if proximidade.classificacao == "separadas"
-    )
-
-    descricao = _montar_descricao(
-        quantidade_pessoas=len(pessoas),
-        pessoas_esquerda=pessoas_esquerda,
-        pessoas_centro=pessoas_centro,
-        pessoas_direita=pessoas_direita,
-        pares_muito_proximos=pares_muito_proximos,
-        pares_proximos=pares_proximos,
+    description = _build_description(
+        person_count=len(people),
+        people_left=people_left,
+        people_center=people_center,
+        people_right=people_right,
+        very_close_pairs=very_close_pairs,
+        close_pairs=close_pairs,
     )
 
     return SceneContextAnalysis(
-        quantidade_pessoas=len(pessoas),
-        pessoas=pessoas,
-        proximidades=proximidades,
-        pessoas_esquerda=pessoas_esquerda,
-        pessoas_centro=pessoas_centro,
-        pessoas_direita=pessoas_direita,
-        pares_muito_proximos=pares_muito_proximos,
-        pares_proximos=pares_proximos,
-        pares_separados=pares_separados,
-        descricao=descricao,
+        quantidade_pessoas=len(people),
+        pessoas=people,
+        proximidades=proximities,
+        pessoas_esquerda=people_left,
+        pessoas_centro=people_center,
+        pessoas_direita=people_right,
+        pares_muito_proximos=very_close_pairs,
+        pares_proximos=close_pairs,
+        pares_separados=separate_pairs,
+        descricao=description,
     )
 
 
-def _filtrar_caixas_validas(
-    largura_imagem: int,
-    altura_imagem: int,
+def _filter_valid_boxes(
+    image_width: int,
+    image_height: int,
     bounding_boxes: list[BoundingBox],
 ) -> list[BoundingBox]:
     """
-    Remove caixas inválidas, extremamente pequenas ou que representam
-    praticamente a imagem inteira.
+    Removes invalid boxes, extremely small ones, or ones that
+    represent practically the entire image.
     """
-    caixas_validas: list[BoundingBox] = []
-    area_imagem = largura_imagem * altura_imagem
+    valid_boxes: list[BoundingBox] = []
+    image_area = image_width * image_height
 
     for bounding_box in bounding_boxes:
-        if bounding_box.largura <= 0 or bounding_box.altura <= 0:
+        if bounding_box.width <= 0 or bounding_box.height <= 0:
             continue
 
         if bounding_box.x2 <= bounding_box.x or bounding_box.y2 <= bounding_box.y:
             continue
 
-        area_caixa = bounding_box.largura * bounding_box.altura
-        percentual = area_caixa / area_imagem * 100
+        box_area = bounding_box.width * bounding_box.height
+        percentage = box_area / image_area * 100
 
-        # Algumas câmeras enviam uma caixa que representa
-        # praticamente a imagem inteira. Essa caixa não corresponde a
-        # uma pessoa.
-        if percentual >= 60:
+        # Some cameras send a box that represents practically the
+        # entire image. That box doesn't correspond to a person.
+        if percentage >= 60:
             continue
 
-        # Ignora caixas extremamente pequenas.
-        if percentual < 0.05:
+        # Ignores extremely small boxes.
+        if percentage < 0.05:
             continue
 
-        caixas_validas.append(bounding_box)
+        valid_boxes.append(bounding_box)
 
-    return caixas_validas
+    return valid_boxes
 
 
-def _criar_pessoa(
-    indice: int,
+def _create_person(
+    index: int,
     bounding_box: BoundingBox,
-    largura_imagem: int,
-    altura_imagem: int,
+    image_width: int,
+    image_height: int,
 ) -> ScenePerson:
-    centro_x = bounding_box.x + bounding_box.largura / 2
-    centro_y = bounding_box.y + bounding_box.altura / 2
+    center_x = bounding_box.x + bounding_box.width / 2
+    center_y = bounding_box.y + bounding_box.height / 2
 
-    percentual_quadro = round(
-        (bounding_box.largura * bounding_box.altura) / (largura_imagem * altura_imagem)
-        * 100,
+    frame_percentage = round(
+        (bounding_box.width * bounding_box.height) / (image_width * image_height) * 100,
         2,
     )
 
     return ScenePerson(
-        indice=indice,
-        origem=bounding_box.origem,
+        indice=index,
+        origem=bounding_box.source,
         x=bounding_box.x,
         y=bounding_box.y,
-        largura=bounding_box.largura,
-        altura=bounding_box.altura,
-        centro_x=round(centro_x, 2),
-        centro_y=round(centro_y, 2),
-        posicao_horizontal=_classificar_posicao_horizontal(
-            centro_x=centro_x, largura_imagem=largura_imagem
+        largura=bounding_box.width,
+        altura=bounding_box.height,
+        centro_x=round(center_x, 2),
+        centro_y=round(center_y, 2),
+        posicao_horizontal=_classify_horizontal_position(
+            center_x=center_x, image_width=image_width
         ),
-        posicao_vertical=_classificar_posicao_vertical(
-            centro_y=centro_y, altura_imagem=altura_imagem
+        posicao_vertical=_classify_vertical_position(
+            center_y=center_y, image_height=image_height
         ),
-        tamanho_no_quadro=_classificar_tamanho(percentual_quadro),
-        percentual_quadro=percentual_quadro,
+        tamanho_no_quadro=_classify_size(frame_percentage),
+        percentual_quadro=frame_percentage,
     )
 
 
-def _classificar_posicao_horizontal(centro_x: float, largura_imagem: int) -> str:
-    proporcao = centro_x / largura_imagem
+def _classify_horizontal_position(center_x: float, image_width: int) -> str:
+    ratio = center_x / image_width
 
-    if proporcao < 0.34:
+    if ratio < 0.34:
         return "esquerda"
 
-    if proporcao < 0.67:
+    if ratio < 0.67:
         return "centro"
 
     return "direita"
 
 
-def _classificar_posicao_vertical(centro_y: float, altura_imagem: int) -> str:
-    proporcao = centro_y / altura_imagem
+def _classify_vertical_position(center_y: float, image_height: int) -> str:
+    ratio = center_y / image_height
 
-    if proporcao < 0.34:
+    if ratio < 0.34:
         return "superior"
 
-    if proporcao < 0.67:
+    if ratio < 0.67:
         return "central"
 
     return "inferior"
 
 
-def _classificar_tamanho(percentual_quadro: float) -> str:
-    if percentual_quadro < 3:
+def _classify_size(frame_percentage: float) -> str:
+    if frame_percentage < 3:
         return "pequeno"
 
-    if percentual_quadro < 12:
+    if frame_percentage < 12:
         return "medio"
 
     return "grande"
 
 
-def _calcular_proximidades(
-    pessoas: list[ScenePerson],
-    largura_imagem: int,
-    altura_imagem: int,
+def _calculate_proximities(
+    people: list[ScenePerson],
+    image_width: int,
+    image_height: int,
 ) -> list[PersonProximity]:
-    proximidades: list[PersonProximity] = []
+    proximities: list[PersonProximity] = []
 
-    for indice_a in range(len(pessoas)):
-        for indice_b in range(indice_a + 1, len(pessoas)):
-            pessoa_a = pessoas[indice_a]
-            pessoa_b = pessoas[indice_b]
+    for index_a in range(len(people)):
+        for index_b in range(index_a + 1, len(people)):
+            person_a = people[index_a]
+            person_b = people[index_b]
 
-            diferenca_x = (pessoa_a.centro_x - pessoa_b.centro_x) / largura_imagem
-            diferenca_y = (pessoa_a.centro_y - pessoa_b.centro_y) / altura_imagem
-            distancia = math.sqrt(diferenca_x**2 + diferenca_y**2)
+            diff_x = (person_a.centro_x - person_b.centro_x) / image_width
+            diff_y = (person_a.centro_y - person_b.centro_y) / image_height
+            distance = math.sqrt(diff_x**2 + diff_y**2)
 
-            classificacao = _classificar_proximidade(distancia)
+            classification = _classify_proximity(distance)
 
-            proximidades.append(
+            proximities.append(
                 PersonProximity(
-                    pessoa_a=pessoa_a.indice,
-                    pessoa_b=pessoa_b.indice,
-                    distancia_normalizada=round(distancia, 3),
-                    classificacao=classificacao,
+                    pessoa_a=person_a.indice,
+                    pessoa_b=person_b.indice,
+                    distancia_normalizada=round(distance, 3),
+                    classificacao=classification,
                 )
             )
 
-    return proximidades
+    return proximities
 
 
-def _classificar_proximidade(distancia_normalizada: float) -> str:
+def _classify_proximity(normalized_distance: float) -> str:
     """
-    A distância é calculada usando as dimensões normalizadas da
-    imagem.
+    The distance is computed using the normalized dimensions of the
+    image.
 
-    Valores menores representam pessoas mais próximas.
+    Smaller values represent people who are closer together.
     """
-    if distancia_normalizada <= 0.15:
+    if normalized_distance <= 0.15:
         return "muito_proximas"
 
-    if distancia_normalizada <= 0.30:
+    if normalized_distance <= 0.30:
         return "proximas"
 
     return "separadas"
 
 
-def _montar_descricao(
-    quantidade_pessoas: int,
-    pessoas_esquerda: int,
-    pessoas_centro: int,
-    pessoas_direita: int,
-    pares_muito_proximos: int,
-    pares_proximos: int,
+def _build_description(
+    person_count: int,
+    people_left: int,
+    people_center: int,
+    people_right: int,
+    very_close_pairs: int,
+    close_pairs: int,
 ) -> str:
-    if quantidade_pessoas == 0:
-        return "Nenhuma pessoa identificada na cena."
+    if person_count == 0:
+        return "No person identified in the scene."
 
-    if quantidade_pessoas == 1:
-        if pessoas_esquerda == 1:
-            posicao = "à esquerda"
-        elif pessoas_direita == 1:
-            posicao = "à direita"
+    if person_count == 1:
+        if people_left == 1:
+            position = "on the left"
+        elif people_right == 1:
+            position = "on the right"
         else:
-            posicao = "no centro"
+            position = "in the center"
 
-        return f"Uma pessoa identificada {posicao} da cena."
+        return f"One person identified {position} of the scene."
 
-    partes = [f"{quantidade_pessoas} pessoas identificadas na cena."]
+    parts = [f"{person_count} people identified in the scene."]
 
-    distribuicao: list[str] = []
-    if pessoas_esquerda:
-        distribuicao.append(f"{pessoas_esquerda} à esquerda")
+    distribution: list[str] = []
+    if people_left:
+        distribution.append(f"{people_left} on the left")
 
-    if pessoas_centro:
-        distribuicao.append(f"{pessoas_centro} no centro")
+    if people_center:
+        distribution.append(f"{people_center} in the center")
 
-    if pessoas_direita:
-        distribuicao.append(f"{pessoas_direita} à direita")
+    if people_right:
+        distribution.append(f"{people_right} on the right")
 
-    if distribuicao:
-        partes.append("Distribuição: " + ", ".join(distribuicao) + ".")
+    if distribution:
+        parts.append("Distribution: " + ", ".join(distribution) + ".")
 
-    if pares_muito_proximos == 1:
-        partes.append("1 par muito próximo.")
-    elif pares_muito_proximos > 1:
-        partes.append(f"{pares_muito_proximos} pares muito próximos.")
+    if very_close_pairs == 1:
+        parts.append("1 very close pair.")
+    elif very_close_pairs > 1:
+        parts.append(f"{very_close_pairs} very close pairs.")
 
-    if pares_proximos == 1:
-        partes.append("1 par próximo.")
-    elif pares_proximos > 1:
-        partes.append(f"{pares_proximos} pares próximos.")
+    if close_pairs == 1:
+        parts.append("1 close pair.")
+    elif close_pairs > 1:
+        parts.append(f"{close_pairs} close pairs.")
 
-    if pares_muito_proximos == 0 and pares_proximos == 0:
-        partes.append("As pessoas estão separadas.")
+    if very_close_pairs == 0 and close_pairs == 0:
+        parts.append("The people are spread apart.")
 
-    return " ".join(partes)
+    return " ".join(parts)

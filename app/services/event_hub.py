@@ -9,47 +9,45 @@ logger = logging.getLogger(__name__)
 
 
 class EventHub:
-    """
-    Mantém os navegadores conectados e envia eventos em tempo real.
-    """
+    """Keeps connected browsers and sends events to them in real time."""
 
     def __init__(self) -> None:
-        self._conexoes: list[WebSocket] = []
+        self._connections: list[WebSocket] = []
         self._lock = asyncio.Lock()
 
     @property
-    def total_conexoes(self) -> int:
-        return len(self._conexoes)
+    def total_connections(self) -> int:
+        return len(self._connections)
 
-    async def conectar(self, websocket: WebSocket) -> None:
+    async def connect(self, websocket: WebSocket) -> None:
         await websocket.accept()
 
         async with self._lock:
-            self._conexoes.append(websocket)
+            self._connections.append(websocket)
 
-        logger.info("Painel conectado. Total: %s", self.total_conexoes)
+        logger.info("Panel connected. Total: %s", self.total_connections)
 
-    async def desconectar(self, websocket: WebSocket) -> None:
+    async def disconnect(self, websocket: WebSocket) -> None:
         async with self._lock:
-            if websocket in self._conexoes:
-                self._conexoes.remove(websocket)
+            if websocket in self._connections:
+                self._connections.remove(websocket)
 
-        logger.info("Painel desconectado. Total: %s", self.total_conexoes)
+        logger.info("Panel disconnected. Total: %s", self.total_connections)
 
-    async def publicar(self, evento: dict[str, Any]) -> None:
+    async def publish(self, event: dict[str, Any]) -> None:
         async with self._lock:
-            conexoes = list(self._conexoes)
+            connections = list(self._connections)
 
-        desconectadas: list[WebSocket] = []
+        disconnected: list[WebSocket] = []
 
-        for websocket in conexoes:
+        for websocket in connections:
             try:
-                await websocket.send_json(evento)
+                await websocket.send_json(event)
             except Exception:
-                desconectadas.append(websocket)
+                disconnected.append(websocket)
 
-        for websocket in desconectadas:
-            await self.desconectar(websocket)
+        for websocket in disconnected:
+            await self.disconnect(websocket)
 
 
 event_hub = EventHub()

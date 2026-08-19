@@ -5,28 +5,25 @@ from app.domain.models.camera_event import CameraEvent, RawCameraPackage
 
 class CameraAdapter(ABC):
     """
-    Classe base para os adaptadores de câmeras.
+    Base class for camera adapters.
 
-    Cada fabricante deverá criar uma classe que herda
-    CameraAdapter e implementa os métodos abaixo.
+    Each manufacturer must create a class that inherits from
+    CameraAdapter and implements the methods below.
     """
 
-    fabricante: str
+    manufacturer: str
 
     @abstractmethod
-    def consegue_processar(self, content_type: str, body: bytes) -> bool:
+    def can_handle(self, content_type: str, body: bytes) -> bool:
         """
-        Verifica se o adaptador reconhece o pacote recebido.
+        Checks whether the adapter recognizes the received package.
 
-        Retorna True quando o pacote pertence ao fabricante
-        suportado pelo adaptador.
+        Returns True when the package belongs to the manufacturer
+        supported by this adapter.
         """
         raise NotImplementedError
 
     @abstractmethod
-    def normalizar(self, pacote: RawCameraPackage, body: bytes) -> CameraEvent:
-        """
-        Converte o pacote específico do fabricante
-        para o modelo universal CameraEvent.
-        """
+    def normalize(self, package: RawCameraPackage, body: bytes) -> CameraEvent:
+        """Converts the manufacturer-specific package into the universal CameraEvent model."""
         raise NotImplementedError

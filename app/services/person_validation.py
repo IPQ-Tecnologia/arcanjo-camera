@@ -5,75 +5,75 @@ from typing import Any
 from app.domain.models.camera_event import BoundingBox
 
 
-def _obter_limites(caixa: Any) -> tuple[int, int, int, int]:
-    x1 = int(caixa.x)
-    y1 = int(caixa.y)
-    x2 = x1 + int(caixa.largura)
-    y2 = y1 + int(caixa.altura)
+def _get_bounds(box: Any) -> tuple[int, int, int, int]:
+    x1 = int(box.x)
+    y1 = int(box.y)
+    x2 = x1 + int(box.width)
+    y2 = y1 + int(box.height)
 
     return x1, y1, x2, y2
 
 
-def calcular_metricas_sobreposicao(caixa_a: Any, caixa_b: Any) -> tuple[float, float]:
+def calculate_overlap_metrics(box_a: Any, box_b: Any) -> tuple[float, float]:
     """
-    Retorna:
+    Returns:
 
-    - IoU entre as caixas;
-    - cobertura da menor caixa pela interseção.
+    - IoU between the boxes;
+    - coverage of the smaller box by the intersection.
     """
-    ax1, ay1, ax2, ay2 = _obter_limites(caixa_a)
-    bx1, by1, bx2, by2 = _obter_limites(caixa_b)
+    ax1, ay1, ax2, ay2 = _get_bounds(box_a)
+    bx1, by1, bx2, by2 = _get_bounds(box_b)
 
-    intersecao_x1 = max(ax1, bx1)
-    intersecao_y1 = max(ay1, by1)
-    intersecao_x2 = min(ax2, bx2)
-    intersecao_y2 = min(ay2, by2)
+    intersection_x1 = max(ax1, bx1)
+    intersection_y1 = max(ay1, by1)
+    intersection_x2 = min(ax2, bx2)
+    intersection_y2 = min(ay2, by2)
 
-    largura_intersecao = max(0, intersecao_x2 - intersecao_x1)
-    altura_intersecao = max(0, intersecao_y2 - intersecao_y1)
-    area_intersecao = largura_intersecao * altura_intersecao
+    intersection_width = max(0, intersection_x2 - intersection_x1)
+    intersection_height = max(0, intersection_y2 - intersection_y1)
+    intersection_area = intersection_width * intersection_height
 
     area_a = max(1, (ax2 - ax1) * (ay2 - ay1))
     area_b = max(1, (bx2 - bx1) * (by2 - by1))
-    area_uniao = area_a + area_b - area_intersecao
+    union_area = area_a + area_b - intersection_area
 
-    iou = area_intersecao / area_uniao if area_uniao > 0 else 0.0
-    cobertura_menor = area_intersecao / min(area_a, area_b)
+    iou = intersection_area / union_area if union_area > 0 else 0.0
+    smaller_coverage = intersection_area / min(area_a, area_b)
 
-    return iou, cobertura_menor
+    return iou, smaller_coverage
 
 
-def validar_boxes_camera_com_yolo(
-    caixas_camera: list[BoundingBox],
-    caixas_yolo: list[BoundingBox],
-    iou_minimo: float = 0.12,
-    cobertura_minima: float = 0.50,
+def validate_camera_boxes_with_yolo(
+    camera_boxes: list[BoundingBox],
+    yolo_boxes: list[BoundingBox],
+    min_iou: float = 0.12,
+    min_coverage: float = 0.50,
 ) -> list[BoundingBox]:
     """
-    Mantém somente as caixas da câmera que possuem correspondência
-    espacial com uma pessoa detectada pelo YOLO.
+    Keeps only the camera boxes that have a spatial match with a
+    person detected by YOLO.
 
-    A caixa original da câmera é preservada para que o restante do
-    pipeline continue funcionando sem alterações.
+    The camera's original box is preserved so the rest of the
+    pipeline keeps working without changes.
     """
-    if not caixas_camera:
+    if not camera_boxes:
         return []
 
-    if not caixas_yolo:
+    if not yolo_boxes:
         return []
 
-    caixas_validadas: list[BoundingBox] = []
+    validated_boxes: list[BoundingBox] = []
 
-    for caixa_camera in caixas_camera:
-        caixa_confirmada = False
+    for camera_box in camera_boxes:
+        confirmed = False
 
-        for caixa_yolo in caixas_yolo:
-            iou, cobertura = calcular_metricas_sobreposicao(caixa_camera, caixa_yolo)
-            if iou >= iou_minimo or cobertura >= cobertura_minima:
-                caixa_confirmada = True
+        for yolo_box in yolo_boxes:
+            iou, coverage = calculate_overlap_metrics(camera_box, yolo_box)
+            if iou >= min_iou or coverage >= min_coverage:
+                confirmed = True
                 break
 
-        if caixa_confirmada:
-            caixas_validadas.append(caixa_camera)
+        if confirmed:
+            validated_boxes.append(camera_box)
 
-    return caixas_validadas
+    return validated_boxes

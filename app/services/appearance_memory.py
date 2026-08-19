@@ -5,6 +5,10 @@ from dataclasses import asdict, dataclass, field
 from app.services.scene_analyzer import PersonVisualAnalysis
 
 
+# NOTE: StableAppearance is serialized as-is (via to_dict) into the
+# panel/Kafka payload, so its field names are a wire contract and are
+# intentionally kept in Portuguese, matching the frontend and any
+# external consumer. Only the internal code around it is in English.
 @dataclass(frozen=True)
 class StableAppearance:
     cor_roupa_predominante: str
@@ -24,268 +28,256 @@ class StableAppearance:
 
 @dataclass
 class _AppearanceState:
-    cores: Counter[str] = field(default_factory=Counter)
-    tamanhos: Counter[str] = field(default_factory=Counter)
+    colors: Counter[str] = field(default_factory=Counter)
+    sizes: Counter[str] = field(default_factory=Counter)
 
-    soma_vermelho: int = 0
-    soma_verde: int = 0
-    soma_azul: int = 0
+    red_sum: int = 0
+    green_sum: int = 0
+    blue_sum: int = 0
 
-    soma_percentual: float = 0.0
-    quantidade_amostras: int = 0
+    percentage_sum: float = 0.0
+    sample_count: int = 0
 
-    ultima_cor: str = "indefinida"
+    last_color: str = "indefinida"
 
-    # Cor apresentada como resultado estável. É separada da última
-    # leitura para evitar alternância causada por iluminação e sombra.
-    cor_estavel: str = "indefinida"
+    # Color shown as the stable result. Kept separate from the latest
+    # reading to avoid flip-flopping caused by lighting and shadows.
+    stable_color: str = "indefinida"
 
-    ultima_posicao: str = "centro"
-    ultimo_tamanho: str = "medio"
+    last_position: str = "centro"
+    last_size: str = "medio"
 
 
 class AppearanceMemory:
     def __init__(self) -> None:
-        self._sessoes: dict[str, _AppearanceState] = {}
+        self._sessions: dict[str, _AppearanceState] = {}
         self._lock = asyncio.Lock()
 
     @property
-    def quantidade_sessoes(self) -> int:
-        return len(self._sessoes)
+    def session_count(self) -> int:
+        return len(self._sessions)
 
-    async def registrar(
+    async def register(
         self,
-        pessoa_id: str,
-        analise: PersonVisualAnalysis,
+        person_id: str,
+        analysis: PersonVisualAnalysis,
     ) -> StableAppearance:
-        if not pessoa_id:
-            raise ValueError("pessoa_id não pode ser vazio")
+        if not person_id:
+            raise ValueError("person_id cannot be empty")
 
         async with self._lock:
-            estado = self._sessoes.get(pessoa_id)
-            if estado is None:
-                estado = _AppearanceState()
-                self._sessoes[pessoa_id] = estado
+            state = self._sessions.get(person_id)
+            if state is None:
+                state = _AppearanceState()
+                self._sessions[person_id] = state
 
-            estado.cores[analise.cor_roupa_aproximada] += 1
-            estado.tamanhos[analise.tamanho_no_quadro] += 1
+            state.colors[analysis.approximate_clothing_color] += 1
+            state.sizes[analysis.size_in_frame] += 1
 
-            vermelho, verde, azul = analise.rgb_representativo
-            estado.soma_vermelho += vermelho
-            estado.soma_verde += verde
-            estado.soma_azul += azul
+            red, green, blue = analysis.representative_rgb
+            state.red_sum += red
+            state.green_sum += green
+            state.blue_sum += blue
 
-            estado.soma_percentual += analise.percentual_quadro
-            estado.quantidade_amostras += 1
+            state.percentage_sum += analysis.frame_percentage
+            state.sample_count += 1
 
-            estado.ultima_cor = analise.cor_roupa_aproximada
-            estado.ultima_posicao = analise.posicao_horizontal
-            estado.ultimo_tamanho = analise.tamanho_no_quadro
+            state.last_color = analysis.approximate_clothing_color
+            state.last_position = analysis.horizontal_position
+            state.last_size = analysis.size_in_frame
 
-            return self._montar_resultado(estado)
+            return self._build_result(state)
 
-    async def obter(self, pessoa_id: str) -> StableAppearance | None:
+    async def get(self, person_id: str) -> StableAppearance | None:
         async with self._lock:
-            estado = self._sessoes.get(pessoa_id)
-            if estado is None:
+            state = self._sessions.get(person_id)
+            if state is None:
                 return None
 
-            return self._montar_resultado(estado)
+            return self._build_result(state)
 
-    async def finalizar(self, pessoa_id: str) -> StableAppearance | None:
-        """Retorna a aparência final e remove a sessão daquela pessoa da memória."""
+    async def finalize(self, person_id: str) -> StableAppearance | None:
+        """Returns the final appearance and removes that person's session from memory."""
         async with self._lock:
-            estado = self._sessoes.pop(pessoa_id, None)
-            if estado is None:
+            state = self._sessions.pop(person_id, None)
+            if state is None:
                 return None
 
-            return self._montar_resultado(estado)
+            return self._build_result(state)
 
-    async def limpar(self) -> None:
+    async def clear(self) -> None:
         async with self._lock:
-            self._sessoes.clear()
+            self._sessions.clear()
 
-    def _montar_resultado(self, estado: _AppearanceState) -> StableAppearance:
-        quantidade = max(1, estado.quantidade_amostras)
-        cor_calculada = self._selecionar_cor_predominante(estado)
-        maior_quantidade_cor = max(estado.cores.values(), default=0)
+    def _build_result(self, state: _AppearanceState) -> StableAppearance:
+        count = max(1, state.sample_count)
+        computed_color = self._select_predominant_color(state)
+        top_color_count = max(state.colors.values(), default=0)
 
-        # Para definir a primeira cor estável, exige pelo menos três
-        # leituras da mesma cor e concordância mínima de 75%. Com três
-        # amostras, as três precisam ser iguais; com quatro, pelo
-        # menos três.
-        cor_consistente = (
-            quantidade >= 3
-            and maior_quantidade_cor >= 3
-            and maior_quantidade_cor * 4 >= quantidade * 3
+        # For the first stable color, requires at least three
+        # readings of the same color and at least 75% agreement. With
+        # three samples, all three must match; with four, at least
+        # three.
+        color_consistent = (
+            count >= 3
+            and top_color_count >= 3
+            and top_color_count * 4 >= count * 3
         )
 
-        # A roupa não muda durante uma passagem curta. Depois que a cor
-        # fica estável, leituras isoladas diferentes não apagam o
-        # resultado.
-        if estado.cor_estavel != "indefinida":
-            cor_predominante = estado.cor_estavel
-        elif cor_consistente:
-            cor_predominante = cor_calculada
-            estado.cor_estavel = cor_predominante
+        # Clothing doesn't change during a short passage. Once the
+        # color becomes stable, isolated different readings don't
+        # erase the result.
+        if state.stable_color != "indefinida":
+            predominant_color = state.stable_color
+        elif color_consistent:
+            predominant_color = computed_color
+            state.stable_color = predominant_color
         else:
-            cor_predominante = "indefinida"
+            predominant_color = "indefinida"
 
-        tamanho_predominante = self._selecionar_predominante(
-            contagem=estado.tamanhos,
-            valor_mais_recente=estado.ultimo_tamanho,
+        predominant_size = self._select_predominant(
+            counter=state.sizes,
+            most_recent_value=state.last_size,
         )
 
-        rgb_medio = (
-            round(estado.soma_vermelho / quantidade),
-            round(estado.soma_verde / quantidade),
-            round(estado.soma_azul / quantidade),
+        average_rgb = (
+            round(state.red_sum / count),
+            round(state.green_sum / count),
+            round(state.blue_sum / count),
         )
-        percentual_medio = round(estado.soma_percentual / quantidade, 2)
+        average_percentage = round(state.percentage_sum / count, 2)
 
-        descricao = self._montar_descricao(
-            cor=cor_predominante,
-            posicao=estado.ultima_posicao,
-            tamanho=tamanho_predominante,
-            quantidade=quantidade,
+        description = self._build_description(
+            color=predominant_color,
+            position=state.last_position,
+            size=predominant_size,
+            count=count,
         )
 
         return StableAppearance(
-            cor_roupa_predominante=cor_predominante,
-            rgb_medio=rgb_medio,
-            posicao_atual=estado.ultima_posicao,
-            tamanho_predominante=tamanho_predominante,
-            percentual_medio_quadro=percentual_medio,
-            quantidade_amostras=quantidade,
-            descricao=descricao,
+            cor_roupa_predominante=predominant_color,
+            rgb_medio=average_rgb,
+            posicao_atual=state.last_position,
+            tamanho_predominante=predominant_size,
+            percentual_medio_quadro=average_percentage,
+            quantidade_amostras=count,
+            descricao=description,
         )
 
-    def _selecionar_cor_predominante(self, estado: _AppearanceState) -> str:
+    def _select_predominant_color(self, state: _AppearanceState) -> str:
         """
-        Estabiliza a classificação de roupas escuras que alternam entre
-        preta e uma cor escura devido à iluminação, distância ou
-        sombra.
+        Stabilizes the classification of dark clothing that flip-flops
+        between black and a dark color due to lighting, distance or
+        shadow.
         """
-        contagem = estado.cores
-        if not contagem:
-            return estado.ultima_cor
+        colors = state.colors
+        if not colors:
+            return state.last_color
 
-        resultado_padrao = self._selecionar_predominante(
-            contagem=contagem,
-            valor_mais_recente=estado.ultima_cor,
+        default_result = self._select_predominant(
+            counter=colors,
+            most_recent_value=state.last_color,
         )
 
-        cores_escuras = ("azul-escura", "verde-escura", "vermelha-escura", "roxa-escura")
-        quantidade_preta = contagem.get("preta", 0)
-        candidatas = [
-            (cor, contagem.get(cor, 0)) for cor in cores_escuras if contagem.get(cor, 0) > 0
+        dark_colors = ("azul-escura", "verde-escura", "vermelha-escura", "roxa-escura")
+        black_count = colors.get("preta", 0)
+        candidates = [
+            (color, colors.get(color, 0)) for color in dark_colors if colors.get(color, 0) > 0
         ]
 
-        if quantidade_preta == 0 or not candidatas:
-            return resultado_padrao
+        if black_count == 0 or not candidates:
+            return default_result
 
-        maior_quantidade_escura = max(quantidade for _, quantidade in candidatas)
-        empatadas = [
-            cor for cor, quantidade in candidatas if quantidade == maior_quantidade_escura
-        ]
+        top_dark_count = max(count for _, count in candidates)
+        tied = [color for color, count in candidates if count == top_dark_count]
 
-        if estado.cor_estavel in empatadas:
-            cor_escura = estado.cor_estavel
-        elif estado.ultima_cor in empatadas:
-            cor_escura = estado.ultima_cor
+        if state.stable_color in tied:
+            dark_color = state.stable_color
+        elif state.last_color in tied:
+            dark_color = state.last_color
         else:
-            cor_escura = empatadas[0]
+            dark_color = tied[0]
 
-        cores_do_conflito = set(cores_escuras) | {"preta"}
-        maior_outra_cor = max(
-            (
-                quantidade
-                for cor, quantidade in contagem.items()
-                if cor not in cores_do_conflito
-            ),
+        conflict_colors = set(dark_colors) | {"preta"}
+        top_other_color_count = max(
+            (count for color, count in colors.items() if color not in conflict_colors),
             default=0,
         )
 
-        if maior_outra_cor > max(quantidade_preta, maior_quantidade_escura):
-            return resultado_padrao
+        if top_other_color_count > max(black_count, top_dark_count):
+            return default_result
 
-        # Já estabilizou em azul-escura, verde-escura ou outra cor
-        # escura. Um quadro preto isolado não deve alterar
-        # imediatamente o resultado.
-        if estado.cor_estavel in cores_escuras:
-            cor_estavel = estado.cor_estavel
-            quantidade_cor_estavel = contagem.get(cor_estavel, 0)
+        # Already stabilized as azul-escura, verde-escura or another
+        # dark color. An isolated black frame shouldn't immediately
+        # change the result.
+        if state.stable_color in dark_colors:
+            stable_color = state.stable_color
+            stable_color_count = colors.get(stable_color, 0)
 
-            # Permite mudar entre cores escuras apenas quando a nova
-            # cor estiver duas amostras à frente da atual.
-            if (
-                cor_escura != cor_estavel
-                and maior_quantidade_escura >= quantidade_cor_estavel + 2
-            ):
-                cor_estavel = cor_escura
-                quantidade_cor_estavel = maior_quantidade_escura
+            # Allows switching between dark colors only when the new
+            # color is two samples ahead of the current one.
+            if dark_color != stable_color and top_dark_count >= stable_color_count + 2:
+                stable_color = dark_color
+                stable_color_count = top_dark_count
 
-            # Volta para preta somente quando as leituras pretas
-            # estiverem duas amostras à frente da cor escura
-            # estabilizada.
-            if quantidade_preta >= quantidade_cor_estavel + 2:
+            # Returns to black only when the black readings are two
+            # samples ahead of the stabilized dark color.
+            if black_count >= stable_color_count + 2:
                 return "preta"
 
-            return cor_estavel
+            return stable_color
 
-        # Estava estabilizado como preto. Exige duas leituras da cor
-        # escura e empate ou vantagem para realizar a mudança.
-        if estado.cor_estavel == "preta":
-            if maior_quantidade_escura >= 2 and maior_quantidade_escura >= quantidade_preta:
-                return cor_escura
+        # Was stabilized as black. Requires two readings of the dark
+        # color and a tie or advantage to switch.
+        if state.stable_color == "preta":
+            if top_dark_count >= 2 and top_dark_count >= black_count:
+                return dark_color
 
             return "preta"
 
-        # Estado inicial, antes de uma cor estável.
-        if maior_quantidade_escura >= 2 and maior_quantidade_escura >= quantidade_preta:
-            return cor_escura
+        # Initial state, before a stable color.
+        if top_dark_count >= 2 and top_dark_count >= black_count:
+            return dark_color
 
-        return resultado_padrao
+        return default_result
 
     @staticmethod
-    def _selecionar_predominante(
-        contagem: Counter[str],
-        valor_mais_recente: str,
+    def _select_predominant(
+        counter: Counter[str],
+        most_recent_value: str,
     ) -> str:
-        if not contagem:
-            return valor_mais_recente
+        if not counter:
+            return most_recent_value
 
-        maior_quantidade = max(contagem.values())
-        empatados = [
-            valor for valor, quantidade in contagem.items() if quantidade == maior_quantidade
-        ]
+        top_count = max(counter.values())
+        tied = [value for value, count in counter.items() if count == top_count]
 
-        # Em caso de empate, utiliza o valor observado mais recentemente.
-        if valor_mais_recente in empatados:
-            return valor_mais_recente
+        # In case of a tie, uses the most recently observed value.
+        if most_recent_value in tied:
+            return most_recent_value
 
-        return empatados[0]
+        return tied[0]
 
     @staticmethod
-    def _montar_descricao(cor: str, posicao: str, tamanho: str, quantidade: int) -> str:
-        posicoes = {
-            "esquerda": "à esquerda",
-            "centro": "no centro",
-            "direita": "à direita",
+    def _build_description(color: str, position: str, size: str, count: int) -> str:
+        positions = {
+            "esquerda": "on the left",
+            "centro": "in the center",
+            "direita": "on the right",
         }
-        tamanhos = {
-            "pequeno": "pequeno",
-            "medio": "médio",
-            "grande": "grande",
+        sizes = {
+            "pequeno": "small",
+            "medio": "medium",
+            "grande": "large",
         }
 
-        posicao_formatada = posicoes.get(posicao, posicao)
-        tamanho_formatado = tamanhos.get(tamanho, tamanho)
+        formatted_position = positions.get(position, position)
+        formatted_size = sizes.get(size, size)
 
         return (
-            f"Pessoa com roupa predominantemente {cor}, localizada atualmente "
-            f"{posicao_formatada} da cena, com tamanho aparente {tamanho_formatado}. "
-            f"Resultado baseado em {quantidade} amostra(s)."
+            f"Person predominantly wearing {color}-colored clothing, currently located "
+            f"{formatted_position} of the scene, with an apparent {formatted_size} size. "
+            f"Result based on {count} sample(s)."
         )
 
 

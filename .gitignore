@@ -185,11 +185,11 @@ pyrightconfig.json
 
 
 teste_dahua_adapter_saida
-recortes_faciais
+face_crops
 logs
-imagens_eventos
-capturas_dahua
-capturas_hikvision
+event_images
+dahua_captures
+hikvision_captures
 base_dahua
 base_hikvision
 analise_noite

@@ -3,91 +3,43 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-from app.services.scene_analyzer import (
-    analisar_pessoa,
-)
+from app.services.scene_analyzer import analyze_person
 
 
-def criar_imagem_teste(
-    caminho: Path,
-) -> None:
-    imagem = Image.new(
-        mode="RGB",
-        size=(640, 480),
-        color=(235, 235, 235),
-    )
+def build_test_image(path: Path) -> None:
+    image = Image.new(mode="RGB", size=(640, 480), color=(235, 235, 235))
 
-    desenho = ImageDraw.Draw(imagem)
+    draw = ImageDraw.Draw(image)
 
-    # Cabeça
-    desenho.ellipse(
-        (290, 70, 350, 130),
-        fill=(190, 145, 110),
-    )
+    # Head
+    draw.ellipse((290, 70, 350, 130), fill=(190, 145, 110))
 
-    # Camisa preta
-    desenho.rectangle(
-        (265, 125, 375, 300),
-        fill=(20, 20, 20),
-    )
+    # Black shirt
+    draw.rectangle((265, 125, 375, 300), fill=(20, 20, 20))
 
-    # Calça
-    desenho.rectangle(
-        (280, 300, 360, 430),
-        fill=(45, 65, 100),
-    )
+    # Pants
+    draw.rectangle((280, 300, 360, 430), fill=(45, 65, 100))
 
-    caminho.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    path.parent.mkdir(parents=True, exist_ok=True)
 
-    imagem.save(
-        caminho,
-        format="JPEG",
-        quality=95,
-    )
+    image.save(path, format="JPEG", quality=95)
 
 
 def main() -> None:
-    caminho = Path(
-        "imagens_eventos/"
-        "teste_scene_analyzer.jpg"
-    )
+    path = Path("event_images/teste_scene_analyzer.jpg")
 
-    criar_imagem_teste(caminho)
+    build_test_image(path)
 
-    resultado = analisar_pessoa(
-        caminho_imagem=caminho,
-        x=250,
-        y=60,
-        largura=140,
-        altura=380,
-    )
+    result = analyze_person(image_path=path, x=250, y=60, width=140, height=380)
 
-    print("===== ANÁLISE VISUAL =====")
+    print("===== VISUAL ANALYSIS =====")
 
-    print(
-        json.dumps(
-            resultado.to_dict(),
-            ensure_ascii=False,
-            indent=2,
-        )
-    )
+    print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
 
-    assert (
-        resultado.cor_roupa_aproximada
-        == "preta"
-    )
+    assert result.approximate_clothing_color == "preta"
+    assert result.horizontal_position == "centro"
 
-    assert (
-        resultado.posicao_horizontal
-        == "centro"
-    )
-
-    print(
-        "\nTeste concluído com sucesso."
-    )
+    print("\nTest completed successfully.")
 
 
 if __name__ == "__main__":

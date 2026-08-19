@@ -1,83 +1,33 @@
-from app.services.scene_analyzer import (
-    classificar_cor_rgb,
-)
+from app.services.scene_analyzer import classify_rgb_color
 
 
-CASOS = {
-    "preto puro": (
-        (18, 18, 18),
-        "preta",
-    ),
-    "preto com luz quente": (
-        (55, 45, 35),
-        "preta",
-    ),
-    "azul escuro": (
-        (25, 42, 78),
-        "azul-escura",
-    ),
-    "azul": (
-        (50, 100, 190),
-        "azul",
-    ),
-    "cinza escuro": (
-        (90, 90, 90),
-        "cinza-escura",
-    ),
-    "cinza": (
-        (160, 160, 160),
-        "cinza",
-    ),
-    "branco": (
-        (235, 235, 235),
-        "branca",
-    ),
-    "marrom": (
-        (110, 70, 42),
-        "marrom",
-    ),
-    "vermelho": (
-        (190, 45, 45),
-        "vermelha",
-    ),
-    "verde": (
-        (55, 145, 70),
-        "verde",
-    ),
-    "amarelo": (
-        (220, 200, 45),
-        "amarela",
-    ),
+CASES = {
+    "pure black": ((18, 18, 18), "preta"),
+    "black under warm light": ((55, 45, 35), "preta"),
+    "dark blue": ((25, 42, 78), "azul-escura"),
+    "blue": ((50, 100, 190), "azul"),
+    "dark gray": ((90, 90, 90), "cinza-escura"),
+    "gray": ((160, 160, 160), "cinza"),
+    "white": ((235, 235, 235), "branca"),
+    "brown": ((110, 70, 42), "marrom"),
+    "red": ((190, 45, 45), "vermelha"),
+    "green": ((55, 145, 70), "verde"),
+    "yellow": ((220, 200, 45), "amarela"),
 }
 
 
-def executar_teste() -> None:
-    print(
-        "===== CLASSIFICAÇÃO DE CORES ====="
-    )
+def run_test() -> None:
+    print("===== COLOR CLASSIFICATION =====")
 
-    for nome, (
-        rgb,
-        esperado,
-    ) in CASOS.items():
-        resultado = classificar_cor_rgb(
-            rgb
-        )
+    for name, (rgb, expected) in CASES.items():
+        result = classify_rgb_color(rgb)
 
-        print(
-            f"{nome}: RGB={rgb} "
-            f"resultado={resultado}"
-        )
+        print(f"{name}: RGB={rgb} result={result}")
 
-        assert resultado == esperado, (
-            f"{nome}: esperado={esperado}, "
-            f"recebido={resultado}"
-        )
+        assert result == expected, f"{name}: expected={expected}, got={result}"
 
-    print(
-        "\nTeste concluído com sucesso."
-    )
+    print("\nTest completed successfully.")
 
 
 if __name__ == "__main__":
-    executar_teste()
+    run_test()

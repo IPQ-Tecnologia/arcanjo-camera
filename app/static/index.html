@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
 
@@ -8,7 +8,7 @@
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>Painel de Eventos</title>
+    <title>Camera Events Panel</title>
 
     <style>
         * {
@@ -36,24 +36,24 @@
             font-size: 24px;
         }
 
-        .status-conexao {
+        .connection-status {
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        .status-bolinha {
+        .status-dot {
             width: 12px;
             height: 12px;
             border-radius: 50%;
             background: #f59e0b;
         }
 
-        .status-bolinha.conectado {
+        .status-dot.connected {
             background: #22c55e;
         }
 
-        .status-bolinha.desconectado {
+        .status-dot.disconnected {
             background: #ef4444;
         }
 
@@ -61,14 +61,14 @@
             padding: 30px;
         }
 
-        .resumo {
+        .summary {
             display: flex;
             flex-wrap: wrap;
             gap: 20px;
             margin-bottom: 25px;
         }
 
-        .resumo-card {
+        .summary-card {
             min-width: 180px;
             padding: 18px;
             background: #191e29;
@@ -76,19 +76,19 @@
             border-radius: 10px;
         }
 
-        .resumo-card span {
+        .summary-card span {
             display: block;
             color: #9ca3af;
             font-size: 14px;
         }
 
-        .resumo-card strong {
+        .summary-card strong {
             display: block;
             margin-top: 8px;
             font-size: 28px;
         }
 
-        #eventos {
+        #events {
             display: grid;
             grid-template-columns: repeat(
                 auto-fill,
@@ -97,7 +97,7 @@
             gap: 20px;
         }
 
-        .evento-card {
+        .event-card {
             overflow: hidden;
             background: #191e29;
             border: 1px solid #2d3443;
@@ -108,32 +108,32 @@
                 opacity 0.2s;
         }
 
-        .evento-card.atualizado {
+        .event-card.updated {
             border-color: #3b82f6;
             transform: translateY(-2px);
         }
 
-        .evento-card.saiu {
+        .event-card.exited {
             opacity: 0.55;
             border-color: #6b7280;
         }
 
-        .imagens-evento {
+        .event-images {
             display: flex;
             flex-direction: column;
             background: #05070a;
         }
 
-        .imagem-bloco {
+        .image-block {
             display: none;
             border-bottom: 1px solid #2d3443;
         }
 
-        .imagem-bloco:last-child {
+        .image-block:last-child {
             border-bottom: none;
         }
 
-        .imagem-titulo {
+        .image-title {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -145,40 +145,40 @@
             font-weight: bold;
         }
 
-        .imagem-contagem {
+        .image-count {
             color: #86efac;
             font-size: 12px;
         }
 
-        .imagem-evento {
+        .event-image {
             display: block;
             width: 100%;
             background: #05070a;
             cursor: zoom-in;
         }
 
-        .imagem-recorte {
+        .crop-image {
             height: 260px;
             object-fit: contain;
         }
 
-        .imagem-rosto {
+        .face-image {
             height: 230px;
             object-fit: contain;
             background: #05070a;
         }
 
-        .imagem-cena {
+        .scene-image {
             aspect-ratio: 16 / 9;
             max-height: 440px;
             object-fit: contain;
         }
 
-        .evento-dados {
+        .event-data {
             padding: 15px;
         }
 
-        .evento-cabecalho {
+        .event-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -186,12 +186,12 @@
             margin-bottom: 12px;
         }
 
-        .evento-cabecalho h2 {
+        .event-header h2 {
             margin: 0;
             font-size: 18px;
         }
 
-        .evento-status {
+        .event-status {
             padding: 5px 9px;
             border-radius: 999px;
             background: #374151;
@@ -199,60 +199,60 @@
             font-weight: bold;
         }
 
-        .evento-status.entered {
+        .event-status.entered {
             background: #166534;
             color: #dcfce7;
         }
 
-        .evento-status.updated {
+        .event-status.updated {
             background: #1e40af;
             color: #dbeafe;
         }
 
-        .evento-status.exited {
+        .event-status.exited {
             background: #4b5563;
             color: #f3f4f6;
         }
 
-        .evento-dados p {
+        .event-data p {
             margin: 6px 0;
             color: #cbd5e1;
             font-size: 14px;
         }
 
-        .aparencia-visual,
-        .movimento-pessoa,
-        .contexto-cena {
+        .visual-appearance,
+        .person-movement,
+        .scene-context {
             display: none;
             margin-top: 14px;
             padding-top: 12px;
             border-top: 1px solid #2d3443;
         }
 
-        .secao-titulo {
+        .section-title {
             margin: 0 0 10px;
             font-size: 14px;
             color: #93c5fd;
         }
 
-        .movimento-pessoa .secao-titulo {
+        .person-movement .section-title {
             color: #fbbf24;
         }
 
-        .contexto-cena .secao-titulo {
+        .scene-context .section-title {
             color: #86efac;
         }
 
-        .descricao {
+        .description {
             line-height: 1.45;
         }
 
-        .detalhes-pessoas {
+        .person-details {
             line-height: 1.5;
             white-space: pre-line;
         }
 
-        .cor-amostra {
+        .color-swatch {
             display: inline-block;
             width: 12px;
             height: 12px;
@@ -262,7 +262,7 @@
             vertical-align: -1px;
         }
 
-        .vazio {
+        .empty {
             padding: 40px;
             color: #9ca3af;
             text-align: center;
@@ -283,16 +283,16 @@
                 padding: 20px;
             }
 
-            #eventos {
+            #events {
                 grid-template-columns: 1fr;
             }
 
-            .resumo-card {
+            .summary-card {
                 flex: 1;
                 min-width: 140px;
             }
 
-            .imagem-recorte {
+            .crop-image {
                 height: 230px;
             }
         }
@@ -301,199 +301,199 @@
 
 <body>
     <header>
-        <h1>Painel de Eventos das Câmeras</h1>
+        <h1>Camera Events Panel</h1>
 
-        <div class="status-conexao">
+        <div class="connection-status">
             <div
-                id="status-bolinha"
-                class="status-bolinha"
+                id="status-dot"
+                class="status-dot"
             ></div>
 
-            <span id="status-texto">
-                Conectando...
+            <span id="status-text">
+                Connecting...
             </span>
         </div>
     </header>
 
     <main>
-        <section class="resumo">
-            <div class="resumo-card">
-                <span>Pessoas ativas</span>
-                <strong id="pessoas-ativas">0</strong>
+        <section class="summary">
+            <div class="summary-card">
+                <span>Active people</span>
+                <strong id="active-people">0</strong>
             </div>
 
-            <div class="resumo-card">
-                <span>Pessoas que saíram</span>
-                <strong id="pessoas-sairam">0</strong>
+            <div class="summary-card">
+                <span>People who left</span>
+                <strong id="people-left">0</strong>
             </div>
 
-            <div class="resumo-card">
-                <span>Total exibido</span>
-                <strong id="total-pessoas">0</strong>
+            <div class="summary-card">
+                <span>Total shown</span>
+                <strong id="total-people">0</strong>
             </div>
 
-            <div class="resumo-card">
-                <span>Eventos processados</span>
-                <strong id="total-eventos">0</strong>
+            <div class="summary-card">
+                <span>Events processed</span>
+                <strong id="total-events">0</strong>
             </div>
         </section>
 
-        <section id="eventos">
+        <section id="events">
             <div
-                id="mensagem-vazia"
-                class="vazio"
+                id="empty-message"
+                class="empty"
             >
-                Aguardando eventos das câmeras...
+                Waiting for camera events...
             </div>
         </section>
     </main>
 
     <script>
-        const statusBolinha =
+        const statusDot =
             document.getElementById(
-                "status-bolinha"
+                "status-dot"
             );
 
-        const statusTexto =
+        const statusText =
             document.getElementById(
-                "status-texto"
+                "status-text"
             );
 
-        const pessoasAtivasElemento =
+        const activePeopleElement =
             document.getElementById(
-                "pessoas-ativas"
+                "active-people"
             );
 
-        const pessoasSairamElemento =
+        const peopleLeftElement =
             document.getElementById(
-                "pessoas-sairam"
+                "people-left"
             );
 
-        const totalPessoasElemento =
+        const totalPeopleElement =
             document.getElementById(
-                "total-pessoas"
+                "total-people"
             );
 
-        const totalEventosElemento =
+        const totalEventsElement =
             document.getElementById(
-                "total-eventos"
+                "total-events"
             );
 
-        const eventosElemento =
+        const eventsElement =
             document.getElementById(
-                "eventos"
+                "events"
             );
 
-        const cartoesPorPessoa =
+        const cardsByPerson =
             new Map();
 
-        const statusPorPessoa =
+        const statusByPerson =
             new Map();
 
-        let pessoasAtivas = 0;
-        let pessoasSairam = 0;
-        let totalPessoas = 0;
-        let totalEventos = 0;
+        let activePeople = 0;
+        let peopleLeft = 0;
+        let totalPeople = 0;
+        let totalEvents = 0;
         let heartbeatId = null;
 
-        function traduzirStatus(status) {
-            const traducoes = {
-                entered: "Entrou",
-                updated: "Atualizado",
-                suppressed: "Repetido",
-                exited: "Saiu"
+        function translateStatus(status) {
+            const translations = {
+                entered: "Entered",
+                updated: "Updated",
+                suppressed: "Repeated",
+                exited: "Left"
             };
 
             return (
-                traducoes[status]
+                translations[status]
                 || status
-                || "Detectado"
+                || "Detected"
             );
         }
 
-        function atualizarResumo() {
-            pessoasAtivasElemento.textContent =
-                pessoasAtivas;
+        function updateSummary() {
+            activePeopleElement.textContent =
+                activePeople;
 
-            pessoasSairamElemento.textContent =
-                pessoasSairam;
+            peopleLeftElement.textContent =
+                peopleLeft;
 
-            totalPessoasElemento.textContent =
-                totalPessoas;
+            totalPeopleElement.textContent =
+                totalPeople;
 
-            totalEventosElemento.textContent =
-                totalEventos;
+            totalEventsElement.textContent =
+                totalEvents;
         }
 
-        function registrarMudancaStatus(
-            pessoaId,
-            novoStatus
+        function recordStatusChange(
+            personId,
+            newStatus
         ) {
-            const statusAnterior =
-                statusPorPessoa.get(
-                    pessoaId
+            const previousStatus =
+                statusByPerson.get(
+                    personId
                 );
 
-            if (!statusAnterior) {
-                totalPessoas += 1;
+            if (!previousStatus) {
+                totalPeople += 1;
 
-                if (novoStatus === "exited") {
-                    pessoasSairam += 1;
+                if (newStatus === "exited") {
+                    peopleLeft += 1;
                 } else {
-                    pessoasAtivas += 1;
+                    activePeople += 1;
                 }
             }
 
             else if (
-                statusAnterior !== "exited"
-                && novoStatus === "exited"
+                previousStatus !== "exited"
+                && newStatus === "exited"
             ) {
-                pessoasAtivas = Math.max(
+                activePeople = Math.max(
                     0,
-                    pessoasAtivas - 1
+                    activePeople - 1
                 );
 
-                pessoasSairam += 1;
+                peopleLeft += 1;
             }
 
             else if (
-                statusAnterior === "exited"
-                && novoStatus !== "exited"
+                previousStatus === "exited"
+                && newStatus !== "exited"
             ) {
-                pessoasSairam = Math.max(
+                peopleLeft = Math.max(
                     0,
-                    pessoasSairam - 1
+                    peopleLeft - 1
                 );
 
-                pessoasAtivas += 1;
+                activePeople += 1;
             }
 
-            statusPorPessoa.set(
-                pessoaId,
-                novoStatus
+            statusByPerson.set(
+                personId,
+                newStatus
             );
 
-            atualizarResumo();
+            updateSummary();
         }
 
-        function conectarWebSocket() {
-            const protocolo =
+        function connectWebSocket() {
+            const protocol =
                 window.location.protocol === "https:"
                     ? "wss"
                     : "ws";
 
-            const endereco =
-                `${protocolo}://${window.location.host}/ws/eventos`;
+            const address =
+                `${protocol}://${window.location.host}/ws/eventos`;
 
-            const websocket =
-                new WebSocket(endereco);
+            const socket =
+                new WebSocket(address);
 
-            websocket.onopen = function () {
-                statusTexto.textContent =
-                    "Conectado";
+            socket.onopen = function () {
+                statusText.textContent =
+                    "Connected";
 
-                statusBolinha.className =
-                    "status-bolinha conectado";
+                statusDot.className =
+                    "status-dot connected";
 
                 if (heartbeatId) {
                     clearInterval(
@@ -504,10 +504,10 @@
                 heartbeatId = setInterval(
                     function () {
                         if (
-                            websocket.readyState
+                            socket.readyState
                             === WebSocket.OPEN
                         ) {
-                            websocket.send(
+                            socket.send(
                                 "ping"
                             );
                         }
@@ -516,32 +516,32 @@
                 );
             };
 
-            websocket.onmessage =
-                function (mensagem) {
+            socket.onmessage =
+                function (message) {
                     try {
-                        const evento =
+                        const event =
                             JSON.parse(
-                                mensagem.data
+                                message.data
                             );
 
-                        processarEvento(
-                            evento
+                        processEvent(
+                            event
                         );
 
-                    } catch (erro) {
+                    } catch (error) {
                         console.error(
-                            "Erro ao interpretar evento:",
-                            erro
+                            "Error parsing event:",
+                            error
                         );
                     }
                 };
 
-            websocket.onclose = function () {
-                statusTexto.textContent =
-                    "Desconectado — reconectando...";
+            socket.onclose = function () {
+                statusText.textContent =
+                    "Disconnected — reconnecting...";
 
-                statusBolinha.className =
-                    "status-bolinha desconectado";
+                statusDot.className =
+                    "status-dot disconnected";
 
                 if (heartbeatId) {
                     clearInterval(
@@ -552,1080 +552,1080 @@
                 }
 
                 setTimeout(
-                    conectarWebSocket,
+                    connectWebSocket,
                     2000
                 );
             };
 
-            websocket.onerror = function () {
-                websocket.close();
+            socket.onerror = function () {
+                socket.close();
             };
         }
 
-        function processarEvento(evento) {
+        function processEvent(event) {
             if (
-                evento.status
+                event.status
                 === "appearance_updated"
             ) {
-                atualizarEventoParcial(
-                    evento
+                updatePartialEvent(
+                    event
                 );
 
                 return;
             }
 
             if (
-                evento.status
+                event.status
                 === "suppressed"
             ) {
                 return;
             }
 
-            const pessoaId =
-                evento.pessoa_id
-                || evento.evento_id;
+            const personId =
+                event.pessoa_id
+                || event.evento_id;
 
-            if (!pessoaId) {
+            if (!personId) {
                 console.warn(
-                    "Evento sem identificador:",
-                    evento
+                    "Event with no identifier:",
+                    event
                 );
 
                 return;
             }
 
-            const cartaoExistente =
-                cartoesPorPessoa.get(
-                    pessoaId
+            const existingCard =
+                cardsByPerson.get(
+                    personId
                 );
 
             if (
-                evento.status === "exited"
-                && !cartaoExistente
+                event.status === "exited"
+                && !existingCard
             ) {
                 return;
             }
 
-            registrarMudancaStatus(
-                pessoaId,
-                evento.status || "entered"
+            recordStatusChange(
+                personId,
+                event.status || "entered"
             );
 
-            totalEventos += 1;
-            atualizarResumo();
+            totalEvents += 1;
+            updateSummary();
 
-            if (cartaoExistente) {
-                atualizarCartao(
-                    cartaoExistente,
-                    evento
+            if (existingCard) {
+                updateCard(
+                    existingCard,
+                    event
                 );
 
                 return;
             }
 
-            criarCartao(
-                pessoaId,
-                evento
+            createCard(
+                personId,
+                event
             );
         }
 
-        function criarElemento(
+        function createElement(
             tag,
-            campo,
-            classe = ""
+            field,
+            className = ""
         ) {
-            const elemento =
+            const element =
                 document.createElement(
                     tag
                 );
 
-            if (campo) {
-                elemento.dataset.campo =
-                    campo;
+            if (field) {
+                element.dataset.field =
+                    field;
             }
 
-            if (classe) {
-                elemento.className =
-                    classe;
+            if (className) {
+                element.className =
+                    className;
             }
 
-            return elemento;
+            return element;
         }
 
-        function obterCamposCard(card) {
+        function getCardFields(card) {
             return {
-                blocoRecorte: card.querySelector(
-                    '[data-campo="bloco-recorte"]'
+                cropBlock: card.querySelector(
+                    '[data-field="crop-block"]'
                 ),
 
-                imagemRecorte: card.querySelector(
-                    '[data-campo="imagem-recorte"]'
+                cropImage: card.querySelector(
+                    '[data-field="crop-image"]'
                 ),
 
-                blocoRosto: card.querySelector(
-                    '[data-campo="bloco-rosto"]'
+                faceBlock: card.querySelector(
+                    '[data-field="face-block"]'
                 ),
 
-                imagemRosto: card.querySelector(
-                    '[data-campo="imagem-rosto"]'
+                faceImage: card.querySelector(
+                    '[data-field="face-image"]'
                 ),
 
-                blocoCena: card.querySelector(
-                    '[data-campo="bloco-cena"]'
+                sceneBlock: card.querySelector(
+                    '[data-field="scene-block"]'
                 ),
 
-                tituloCena: card.querySelector(
-                    '[data-campo="titulo-cena"]'
+                sceneTitle: card.querySelector(
+                    '[data-field="scene-title"]'
                 ),
 
-                quantidadeBoxes: card.querySelector(
-                    '[data-campo="quantidade-boxes"]'
+                boxCount: card.querySelector(
+                    '[data-field="box-count"]'
                 ),
 
-                imagemCena: card.querySelector(
-                    '[data-campo="imagem-cena"]'
+                sceneImage: card.querySelector(
+                    '[data-field="scene-image"]'
                 ),
 
                 camera: card.querySelector(
-                    '[data-campo="camera"]'
+                    '[data-field="camera"]'
                 ),
 
                 status: card.querySelector(
-                    '[data-campo="status"]'
+                    '[data-field="status"]'
                 ),
 
-                tipo: card.querySelector(
-                    '[data-campo="tipo"]'
+                type: card.querySelector(
+                    '[data-field="type"]'
                 ),
 
-                horario: card.querySelector(
-                    '[data-campo="horario"]'
+                time: card.querySelector(
+                    '[data-field="time"]'
                 ),
 
-                pessoaId: card.querySelector(
-                    '[data-campo="pessoa-id"]'
+                personId: card.querySelector(
+                    '[data-field="person-id"]'
                 ),
 
-                quantidade: card.querySelector(
-                    '[data-campo="quantidade"]'
+                count: card.querySelector(
+                    '[data-field="count"]'
                 ),
 
-                aparencia: card.querySelector(
-                    '[data-campo="aparencia"]'
+                appearance: card.querySelector(
+                    '[data-field="appearance"]'
                 ),
 
-                aparenciaTitulo: card.querySelector(
-                    '[data-campo="aparencia-titulo"]'
+                appearanceTitle: card.querySelector(
+                    '[data-field="appearance-title"]'
                 ),
 
-                corRoupa: card.querySelector(
-                    '[data-campo="cor-roupa"]'
+                clothingColor: card.querySelector(
+                    '[data-field="clothing-color"]'
                 ),
 
-                posicao: card.querySelector(
-                    '[data-campo="posicao"]'
+                position: card.querySelector(
+                    '[data-field="position"]'
                 ),
 
-                tamanho: card.querySelector(
-                    '[data-campo="tamanho"]'
+                size: card.querySelector(
+                    '[data-field="size"]'
                 ),
 
-                percentual: card.querySelector(
-                    '[data-campo="percentual"]'
+                percentage: card.querySelector(
+                    '[data-field="percentage"]'
                 ),
 
-                quantidadeAmostras: card.querySelector(
-                    '[data-campo="quantidade-amostras"]'
+                sampleCount: card.querySelector(
+                    '[data-field="sample-count"]'
                 ),
 
-                descricaoAparencia: card.querySelector(
-                    '[data-campo="descricao-aparencia"]'
+                appearanceDescription: card.querySelector(
+                    '[data-field="appearance-description"]'
                 ),
 
-                movimento: card.querySelector(
-                    '[data-campo="movimento"]'
+                movement: card.querySelector(
+                    '[data-field="movement"]'
                 ),
 
-                movimentoHorizontal: card.querySelector(
-                    '[data-campo="movimento-horizontal"]'
+                movementHorizontal: card.querySelector(
+                    '[data-field="movement-horizontal"]'
                 ),
 
-                movimentoVertical: card.querySelector(
-                    '[data-campo="movimento-vertical"]'
+                movementVertical: card.querySelector(
+                    '[data-field="movement-vertical"]'
                 ),
 
-                movimentoTendencia: card.querySelector(
-                    '[data-campo="movimento-tendencia"]'
+                movementTrend: card.querySelector(
+                    '[data-field="movement-trend"]'
                 ),
 
-                movimentoVelocidade: card.querySelector(
-                    '[data-campo="movimento-velocidade"]'
+                movementSpeed: card.querySelector(
+                    '[data-field="movement-speed"]'
                 ),
 
-                movimentoDistancia: card.querySelector(
-                    '[data-campo="movimento-distancia"]'
+                movementDistance: card.querySelector(
+                    '[data-field="movement-distance"]'
                 ),
 
-                movimentoTempo: card.querySelector(
-                    '[data-campo="movimento-tempo"]'
+                movementTime: card.querySelector(
+                    '[data-field="movement-time"]'
                 ),
 
-                movimentoAmostras: card.querySelector(
-                    '[data-campo="movimento-amostras"]'
+                movementSamples: card.querySelector(
+                    '[data-field="movement-samples"]'
                 ),
 
-                movimentoDescricao: card.querySelector(
-                    '[data-campo="movimento-descricao"]'
+                movementDescription: card.querySelector(
+                    '[data-field="movement-description"]'
                 ),
 
-                contexto: card.querySelector(
-                    '[data-campo="contexto"]'
+                context: card.querySelector(
+                    '[data-field="context"]'
                 ),
 
-                contextoQuantidade: card.querySelector(
-                    '[data-campo="contexto-quantidade"]'
+                contextCount: card.querySelector(
+                    '[data-field="context-count"]'
                 ),
 
-                contextoDistribuicao: card.querySelector(
-                    '[data-campo="contexto-distribuicao"]'
+                contextDistribution: card.querySelector(
+                    '[data-field="context-distribution"]'
                 ),
 
-                contextoProximidades: card.querySelector(
-                    '[data-campo="contexto-proximidades"]'
+                contextProximities: card.querySelector(
+                    '[data-field="context-proximities"]'
                 ),
 
-                contextoPessoas: card.querySelector(
-                    '[data-campo="contexto-pessoas"]'
+                contextPeople: card.querySelector(
+                    '[data-field="context-people"]'
                 ),
 
-                contextoDescricao: card.querySelector(
-                    '[data-campo="contexto-descricao"]'
+                contextDescription: card.querySelector(
+                    '[data-field="context-description"]'
                 )
             };
         }
 
-        function atualizarEventoParcial(
-            evento
+        function updatePartialEvent(
+            event
         ) {
-            const pessoaId =
-                evento.pessoa_id
-                || evento.evento_id;
+            const personId =
+                event.pessoa_id
+                || event.evento_id;
 
             const card =
-                cartoesPorPessoa.get(
-                    pessoaId
+                cardsByPerson.get(
+                    personId
                 );
 
             if (!card) {
                 console.warn(
-                    "Atualização recebida sem cartão:",
-                    pessoaId
+                    "Update received with no card:",
+                    personId
                 );
 
                 return;
             }
 
-            const campos =
-                obterCamposCard(card);
+            const fields =
+                getCardFields(card);
 
-            campos.quantidade.textContent =
-                `Detecções: ${
-                    evento.quantidade_deteccoes
+            fields.count.textContent =
+                `Detections: ${
+                    event.quantidade_deteccoes
                     || 1
                 }`;
 
-            if (evento.imagem) {
-                preencherRecorte(
-                    evento.imagem,
-                    campos
+            if (event.imagem) {
+                fillCrop(
+                    event.imagem,
+                    fields
                 );
             }
 
-            if (evento.imagem_rosto) {
-                preencherRosto(
-                    evento.imagem_rosto,
-                    campos
+            if (event.imagem_rosto) {
+                fillFace(
+                    event.imagem_rosto,
+                    fields
                 );
             }
 
-            if (evento.aparencia) {
-                preencherAparencia(
-                    evento.aparencia,
-                    campos
+            if (event.aparencia) {
+                fillAppearance(
+                    event.aparencia,
+                    fields
                 );
             }
 
-            if (evento.movimento) {
-                preencherMovimento(
-                    evento.movimento,
-                    campos
+            if (event.movimento) {
+                fillMovement(
+                    event.movimento,
+                    fields
                 );
             }
 
-            if (evento.contexto_cena) {
-                preencherContextoCena(
-                    evento.contexto_cena,
-                    campos
+            if (event.contexto_cena) {
+                fillSceneContext(
+                    event.contexto_cena,
+                    fields
                 );
             }
 
-            if (evento.imagem_cena) {
-                preencherCenaCompleta(
-                    evento.imagem_cena,
-                    evento.quantidade_boxes_cena,
-                    campos
+            if (event.imagem_cena) {
+                fillFullScene(
+                    event.imagem_cena,
+                    event.quantidade_boxes_cena,
+                    fields
                 );
             }
 
             card.classList.add(
-                "atualizado"
+                "updated"
             );
 
             setTimeout(
                 function () {
                     card.classList.remove(
-                        "atualizado"
+                        "updated"
                     );
                 },
                 1000
             );
         }
 
-        function criarCartao(
-            pessoaId,
-            evento
+        function createCard(
+            personId,
+            event
         ) {
-            const mensagemVazia =
+            const emptyMessage =
                 document.getElementById(
-                    "mensagem-vazia"
+                    "empty-message"
                 );
 
-            if (mensagemVazia) {
-                mensagemVazia.remove();
+            if (emptyMessage) {
+                emptyMessage.remove();
             }
 
             const card =
-                criarElemento(
+                createElement(
                     "article",
                     "",
-                    "evento-card"
+                    "event-card"
                 );
 
-            card.dataset.pessoaId =
-                pessoaId;
+            card.dataset.personId =
+                personId;
 
-            const imagensEvento =
-                criarElemento(
+            const eventImages =
+                createElement(
                     "section",
                     "",
-                    "imagens-evento"
+                    "event-images"
                 );
 
-            const blocoRecorte =
-                criarElemento(
+            const cropBlock =
+                createElement(
                     "div",
-                    "bloco-recorte",
-                    "imagem-bloco"
+                    "crop-block",
+                    "image-block"
                 );
 
-            const tituloRecorte =
-                criarElemento(
+            const cropTitle =
+                createElement(
                     "div",
                     "",
-                    "imagem-titulo"
+                    "image-title"
                 );
 
-            tituloRecorte.textContent =
-                "Recorte individual";
+            cropTitle.textContent =
+                "Individual crop";
 
-            const imagemRecorte =
-                criarElemento(
+            const cropImage =
+                createElement(
                     "img",
-                    "imagem-recorte",
-                    "imagem-evento imagem-recorte"
+                    "crop-image",
+                    "event-image crop-image"
                 );
 
-            imagemRecorte.alt =
-                "Recorte individual da pessoa";
+            cropImage.alt =
+                "Individual crop of the person";
 
-            imagemRecorte.title =
-                "Clique para ampliar";
+            cropImage.title =
+                "Click to enlarge";
 
-            imagemRecorte.addEventListener(
+            cropImage.addEventListener(
                 "click",
                 () => {
-                    abrirImagemAmpliada(
-                        imagemRecorte.src,
-                        "Recorte individual"
+                    openEnlargedImage(
+                        cropImage.src,
+                        "Individual crop"
                     );
                 }
             );
 
-            blocoRecorte.appendChild(
-                tituloRecorte
+            cropBlock.appendChild(
+                cropTitle
             );
 
-            blocoRecorte.appendChild(
-                imagemRecorte
+            cropBlock.appendChild(
+                cropImage
             );
 
-            const blocoRosto =
-                criarElemento(
+            const faceBlock =
+                createElement(
                     "div",
-                    "bloco-rosto",
-                    "imagem-bloco"
+                    "face-block",
+                    "image-block"
                 );
 
-            const tituloRosto =
-                criarElemento(
-                    "div",
-                    "",
-                    "imagem-titulo"
-                );
-
-            tituloRosto.textContent =
-                "Recorte facial";
-
-            const imagemRosto =
-                criarElemento(
-                    "img",
-                    "imagem-rosto",
-                    "imagem-evento imagem-rosto"
-                );
-
-            imagemRosto.alt =
-                "Recorte facial da pessoa";
-
-            blocoRosto.appendChild(
-                tituloRosto
-            );
-
-            blocoRosto.appendChild(
-                imagemRosto
-            );
-
-            const blocoCena =
-                criarElemento(
-                    "div",
-                    "bloco-cena",
-                    "imagem-bloco"
-                );
-
-            const cabecalhoCena =
-                criarElemento(
+            const faceTitle =
+                createElement(
                     "div",
                     "",
-                    "imagem-titulo"
+                    "image-title"
                 );
 
-            const tituloCena =
-                criarElemento(
-                    "span",
-                    "titulo-cena"
-                );
+            faceTitle.textContent =
+                "Face crop";
 
-            tituloCena.textContent =
-                "Cena completa";
-
-            const quantidadeBoxes =
-                criarElemento(
-                    "span",
-                    "quantidade-boxes",
-                    "imagem-contagem"
-                );
-
-            quantidadeBoxes.textContent =
-                "0 detecções";
-
-            cabecalhoCena.appendChild(
-                tituloCena
-            );
-
-            cabecalhoCena.appendChild(
-                quantidadeBoxes
-            );
-
-            const imagemCena =
-                criarElemento(
+            const faceImage =
+                createElement(
                     "img",
-                    "imagem-cena",
-                    "imagem-evento imagem-cena"
+                    "face-image",
+                    "event-image face-image"
                 );
 
-            imagemCena.alt =
-                "Cena completa com as detecções";
+            faceImage.alt =
+                "Face crop of the person";
 
-            imagemCena.title =
-                "Clique para ampliar";
+            faceBlock.appendChild(
+                faceTitle
+            );
 
-            imagemCena.addEventListener(
+            faceBlock.appendChild(
+                faceImage
+            );
+
+            const sceneBlock =
+                createElement(
+                    "div",
+                    "scene-block",
+                    "image-block"
+                );
+
+            const sceneHeader =
+                createElement(
+                    "div",
+                    "",
+                    "image-title"
+                );
+
+            const sceneTitle =
+                createElement(
+                    "span",
+                    "scene-title"
+                );
+
+            sceneTitle.textContent =
+                "Full scene";
+
+            const boxCount =
+                createElement(
+                    "span",
+                    "box-count",
+                    "image-count"
+                );
+
+            boxCount.textContent =
+                "0 detections";
+
+            sceneHeader.appendChild(
+                sceneTitle
+            );
+
+            sceneHeader.appendChild(
+                boxCount
+            );
+
+            const sceneImage =
+                createElement(
+                    "img",
+                    "scene-image",
+                    "event-image scene-image"
+                );
+
+            sceneImage.alt =
+                "Full scene with detections";
+
+            sceneImage.title =
+                "Click to enlarge";
+
+            sceneImage.addEventListener(
                 "click",
                 () => {
-                    abrirImagemAmpliada(
-                        imagemCena.src,
-                        "Cena completa da câmera"
+                    openEnlargedImage(
+                        sceneImage.src,
+                        "Full camera scene"
                     );
                 }
             );
 
-            blocoCena.appendChild(
-                cabecalhoCena
+            sceneBlock.appendChild(
+                sceneHeader
             );
 
-            blocoCena.appendChild(
-                imagemCena
+            sceneBlock.appendChild(
+                sceneImage
             );
 
-            imagensEvento.appendChild(
-                blocoRecorte
+            eventImages.appendChild(
+                cropBlock
             );
 
-            imagensEvento.appendChild(
-                blocoRosto
+            eventImages.appendChild(
+                faceBlock
             );
 
-            imagensEvento.appendChild(
-                blocoCena
+            eventImages.appendChild(
+                sceneBlock
             );
 
-            const dados =
-                criarElemento(
+            const data =
+                createElement(
                     "div",
                     "",
-                    "evento-dados"
+                    "event-data"
                 );
 
-            const cabecalho =
-                criarElemento(
+            const header =
+                createElement(
                     "div",
                     "",
-                    "evento-cabecalho"
+                    "event-header"
                 );
 
-            const titulo =
-                criarElemento(
+            const title =
+                createElement(
                     "h2",
                     "camera"
                 );
 
             const status =
-                criarElemento(
+                createElement(
                     "span",
                     "status",
-                    "evento-status"
+                    "event-status"
                 );
 
-            cabecalho.appendChild(
-                titulo
+            header.appendChild(
+                title
             );
 
-            cabecalho.appendChild(
+            header.appendChild(
                 status
             );
 
-            const tipo =
-                criarElemento(
+            const type =
+                createElement(
                     "p",
-                    "tipo"
+                    "type"
                 );
 
-            const horario =
-                criarElemento(
+            const time =
+                createElement(
                     "p",
-                    "horario"
+                    "time"
                 );
 
-            const identificadorPessoa =
-                criarElemento(
+            const personIdField =
+                createElement(
                     "p",
-                    "pessoa-id"
+                    "person-id"
                 );
 
-            const quantidade =
-                criarElemento(
+            const count =
+                createElement(
                     "p",
-                    "quantidade"
+                    "count"
                 );
 
-            const aparencia =
-                criarElemento(
+            const appearance =
+                createElement(
                     "section",
-                    "aparencia",
-                    "aparencia-visual"
+                    "appearance",
+                    "visual-appearance"
                 );
 
-            const aparenciaTitulo =
-                criarElemento(
+            const appearanceTitle =
+                createElement(
                     "h3",
-                    "aparencia-titulo",
-                    "secao-titulo"
+                    "appearance-title",
+                    "section-title"
                 );
 
-            aparenciaTitulo.textContent =
-                "Aparência estável";
+            appearanceTitle.textContent =
+                "Stable appearance";
 
-            const corRoupa =
-                criarElemento(
+            const clothingColor =
+                createElement(
                     "p",
-                    "cor-roupa"
+                    "clothing-color"
                 );
 
-            const posicao =
-                criarElemento(
+            const position =
+                createElement(
                     "p",
-                    "posicao"
+                    "position"
                 );
 
-            const tamanho =
-                criarElemento(
+            const size =
+                createElement(
                     "p",
-                    "tamanho"
+                    "size"
                 );
 
-            const percentual =
-                criarElemento(
+            const percentage =
+                createElement(
                     "p",
-                    "percentual"
+                    "percentage"
                 );
 
-            const quantidadeAmostras =
-                criarElemento(
+            const sampleCount =
+                createElement(
                     "p",
-                    "quantidade-amostras"
+                    "sample-count"
                 );
 
-            const descricaoAparencia =
-                criarElemento(
+            const appearanceDescription =
+                createElement(
                     "p",
-                    "descricao-aparencia",
-                    "descricao"
+                    "appearance-description",
+                    "description"
                 );
 
-            aparencia.appendChild(
-                aparenciaTitulo
+            appearance.appendChild(
+                appearanceTitle
             );
 
-            aparencia.appendChild(
-                corRoupa
+            appearance.appendChild(
+                clothingColor
             );
 
-            aparencia.appendChild(
-                posicao
+            appearance.appendChild(
+                position
             );
 
-            aparencia.appendChild(
-                tamanho
+            appearance.appendChild(
+                size
             );
 
-            aparencia.appendChild(
-                percentual
+            appearance.appendChild(
+                percentage
             );
 
-            aparencia.appendChild(
-                quantidadeAmostras
+            appearance.appendChild(
+                sampleCount
             );
 
-            aparencia.appendChild(
-                descricaoAparencia
+            appearance.appendChild(
+                appearanceDescription
             );
 
-            const movimento =
-                criarElemento(
+            const movement =
+                createElement(
                     "section",
-                    "movimento",
-                    "movimento-pessoa"
+                    "movement",
+                    "person-movement"
                 );
 
-            const movimentoTitulo =
-                criarElemento(
-                    "h3",
-                    "",
-                    "secao-titulo"
-                );
-
-            movimentoTitulo.textContent =
-                "Movimento e permanência";
-
-            const movimentoHorizontal =
-                criarElemento(
-                    "p",
-                    "movimento-horizontal"
-                );
-
-            const movimentoVertical =
-                criarElemento(
-                    "p",
-                    "movimento-vertical"
-                );
-
-            const movimentoTendencia =
-                criarElemento(
-                    "p",
-                    "movimento-tendencia"
-                );
-
-            const movimentoVelocidade =
-                criarElemento(
-                    "p",
-                    "movimento-velocidade"
-                );
-
-            const movimentoDistancia =
-                criarElemento(
-                    "p",
-                    "movimento-distancia"
-                );
-
-            const movimentoTempo =
-                criarElemento(
-                    "p",
-                    "movimento-tempo"
-                );
-
-            const movimentoAmostras =
-                criarElemento(
-                    "p",
-                    "movimento-amostras"
-                );
-
-            const movimentoDescricao =
-                criarElemento(
-                    "p",
-                    "movimento-descricao",
-                    "descricao"
-                );
-
-            movimento.appendChild(
-                movimentoTitulo
-            );
-
-            movimento.appendChild(
-                movimentoHorizontal
-            );
-
-            movimento.appendChild(
-                movimentoVertical
-            );
-
-            movimento.appendChild(
-                movimentoTendencia
-            );
-
-            movimento.appendChild(
-                movimentoVelocidade
-            );
-
-            movimento.appendChild(
-                movimentoDistancia
-            );
-
-            movimento.appendChild(
-                movimentoTempo
-            );
-
-            movimento.appendChild(
-                movimentoAmostras
-            );
-
-            movimento.appendChild(
-                movimentoDescricao
-            );
-
-            const contexto =
-                criarElemento(
-                    "section",
-                    "contexto",
-                    "contexto-cena"
-                );
-
-            const contextoTitulo =
-                criarElemento(
+            const movementTitle =
+                createElement(
                     "h3",
                     "",
-                    "secao-titulo"
+                    "section-title"
                 );
 
-            contextoTitulo.textContent =
-                "Contexto da cena";
+            movementTitle.textContent =
+                "Movement and dwell time";
 
-            const contextoQuantidade =
-                criarElemento(
+            const movementHorizontal =
+                createElement(
                     "p",
-                    "contexto-quantidade"
+                    "movement-horizontal"
                 );
 
-            const contextoDistribuicao =
-                criarElemento(
+            const movementVertical =
+                createElement(
                     "p",
-                    "contexto-distribuicao"
+                    "movement-vertical"
                 );
 
-            const contextoProximidades =
-                criarElemento(
+            const movementTrend =
+                createElement(
                     "p",
-                    "contexto-proximidades"
+                    "movement-trend"
                 );
 
-            const contextoPessoas =
-                criarElemento(
+            const movementSpeed =
+                createElement(
                     "p",
-                    "contexto-pessoas",
-                    "detalhes-pessoas"
+                    "movement-speed"
                 );
 
-            const contextoDescricao =
-                criarElemento(
+            const movementDistance =
+                createElement(
                     "p",
-                    "contexto-descricao",
-                    "descricao"
+                    "movement-distance"
                 );
 
-            contexto.appendChild(
-                contextoTitulo
+            const movementTime =
+                createElement(
+                    "p",
+                    "movement-time"
+                );
+
+            const movementSamples =
+                createElement(
+                    "p",
+                    "movement-samples"
+                );
+
+            const movementDescription =
+                createElement(
+                    "p",
+                    "movement-description",
+                    "description"
+                );
+
+            movement.appendChild(
+                movementTitle
             );
 
-            contexto.appendChild(
-                contextoQuantidade
+            movement.appendChild(
+                movementHorizontal
             );
 
-            contexto.appendChild(
-                contextoDistribuicao
+            movement.appendChild(
+                movementVertical
             );
 
-            contexto.appendChild(
-                contextoProximidades
+            movement.appendChild(
+                movementTrend
             );
 
-            contexto.appendChild(
-                contextoPessoas
+            movement.appendChild(
+                movementSpeed
             );
 
-            contexto.appendChild(
-                contextoDescricao
+            movement.appendChild(
+                movementDistance
             );
 
-            dados.appendChild(
-                cabecalho
+            movement.appendChild(
+                movementTime
             );
 
-            dados.appendChild(
-                tipo
+            movement.appendChild(
+                movementSamples
             );
 
-            dados.appendChild(
-                horario
+            movement.appendChild(
+                movementDescription
             );
 
-            dados.appendChild(
-                identificadorPessoa
+            const context =
+                createElement(
+                    "section",
+                    "context",
+                    "scene-context"
+                );
+
+            const contextTitle =
+                createElement(
+                    "h3",
+                    "",
+                    "section-title"
+                );
+
+            contextTitle.textContent =
+                "Scene context";
+
+            const contextCount =
+                createElement(
+                    "p",
+                    "context-count"
+                );
+
+            const contextDistribution =
+                createElement(
+                    "p",
+                    "context-distribution"
+                );
+
+            const contextProximities =
+                createElement(
+                    "p",
+                    "context-proximities"
+                );
+
+            const contextPeople =
+                createElement(
+                    "p",
+                    "context-people",
+                    "person-details"
+                );
+
+            const contextDescription =
+                createElement(
+                    "p",
+                    "context-description",
+                    "description"
+                );
+
+            context.appendChild(
+                contextTitle
             );
 
-            dados.appendChild(
-                quantidade
+            context.appendChild(
+                contextCount
             );
 
-            dados.appendChild(
-                aparencia
+            context.appendChild(
+                contextDistribution
             );
 
-            dados.appendChild(
-                movimento
+            context.appendChild(
+                contextProximities
             );
 
-            dados.appendChild(
-                contexto
+            context.appendChild(
+                contextPeople
+            );
+
+            context.appendChild(
+                contextDescription
+            );
+
+            data.appendChild(
+                header
+            );
+
+            data.appendChild(
+                type
+            );
+
+            data.appendChild(
+                time
+            );
+
+            data.appendChild(
+                personIdField
+            );
+
+            data.appendChild(
+                count
+            );
+
+            data.appendChild(
+                appearance
+            );
+
+            data.appendChild(
+                movement
+            );
+
+            data.appendChild(
+                context
             );
 
             card.appendChild(
-                imagensEvento
+                eventImages
             );
 
             card.appendChild(
-                dados
+                data
             );
 
-            eventosElemento.prepend(
+            eventsElement.prepend(
                 card
             );
 
-            cartoesPorPessoa.set(
-                pessoaId,
+            cardsByPerson.set(
+                personId,
                 card
             );
 
-            atualizarCartao(
+            updateCard(
                 card,
-                evento
+                event
             );
 
-            limitarQuantidadeCartoes();
+            limitCardCount();
         }
 
-        function abrirImagemAmpliada(
-            origem,
-            titulo
+        function openEnlargedImage(
+            src,
+            title
         ) {
-            if (!origem) {
+            if (!src) {
                 return;
             }
 
-            const janela = window.open(
+            const newWindow = window.open(
                 "",
                 "_blank"
             );
 
-            if (!janela) {
+            if (!newWindow) {
                 return;
             }
 
-            janela.document.title =
-                titulo || "Imagem ampliada";
+            newWindow.document.title =
+                title || "Enlarged image";
 
-            janela.document.body.style.margin =
+            newWindow.document.body.style.margin =
                 "0";
 
-            janela.document.body.style.background =
+            newWindow.document.body.style.background =
                 "#05070a";
 
-            janela.document.body.style.width =
+            newWindow.document.body.style.width =
                 "100vw";
 
-            janela.document.body.style.height =
+            newWindow.document.body.style.height =
                 "100vh";
 
-            janela.document.body.style.display =
+            newWindow.document.body.style.display =
                 "flex";
 
-            janela.document.body.style.alignItems =
+            newWindow.document.body.style.alignItems =
                 "center";
 
-            janela.document.body.style.justifyContent =
+            newWindow.document.body.style.justifyContent =
                 "center";
 
-            janela.document.body.style.overflow =
+            newWindow.document.body.style.overflow =
                 "hidden";
 
-            const imagem =
-                janela.document.createElement(
+            const img =
+                newWindow.document.createElement(
                     "img"
                 );
 
-            imagem.src = origem;
-            imagem.alt =
-                titulo || "Imagem ampliada";
+            img.src = src;
+            img.alt =
+                title || "Enlarged image";
 
-            imagem.style.width = "100vw";
-            imagem.style.height = "100vh";
-            imagem.style.objectFit = "contain";
-            imagem.style.background = "#05070a";
+            img.style.width = "100vw";
+            img.style.height = "100vh";
+            img.style.objectFit = "contain";
+            img.style.background = "#05070a";
 
-            janela.document.body.appendChild(
-                imagem
+            newWindow.document.body.appendChild(
+                img
             );
 
-            janela.opener = null;
+            newWindow.opener = null;
         }
 
-        function preencherRecorte(
-            imagemBase64,
-            campos
+        function fillCrop(
+            imageBase64,
+            fields
         ) {
-            if (!imagemBase64) {
+            if (!imageBase64) {
                 return;
             }
 
-            campos.blocoRecorte.style.display =
+            fields.cropBlock.style.display =
                 "block";
 
-            campos.imagemRecorte.src =
-                `data:image/jpeg;base64,${imagemBase64}`;
+            fields.cropImage.src =
+                `data:image/jpeg;base64,${imageBase64}`;
         }
 
-        function preencherRosto(
-            imagemBase64,
-            campos
+        function fillFace(
+            imageBase64,
+            fields
         ) {
             if (
-                !imagemBase64
-                || !campos.blocoRosto
-                || !campos.imagemRosto
+                !imageBase64
+                || !fields.faceBlock
+                || !fields.faceImage
             ) {
                 return;
             }
 
-            campos.blocoRosto.style.display =
+            fields.faceBlock.style.display =
                 "block";
 
-            campos.imagemRosto.src =
-                `data:image/jpeg;base64,${imagemBase64}`;
+            fields.faceImage.src =
+                `data:image/jpeg;base64,${imageBase64}`;
         }
 
-        function preencherCenaCompleta(
-            imagemBase64,
-            quantidadeBoxes,
-            campos
+        function fillFullScene(
+            imageBase64,
+            boxCount,
+            fields
         ) {
-            if (!imagemBase64) {
+            if (!imageBase64) {
                 return;
             }
 
-            const quantidade =
+            const count =
                 Number(
-                    quantidadeBoxes || 0
+                    boxCount || 0
                 );
 
-            campos.blocoCena.style.display =
+            fields.sceneBlock.style.display =
                 "block";
 
-            campos.imagemCena.src =
-                `data:image/jpeg;base64,${imagemBase64}`;
+            fields.sceneImage.src =
+                `data:image/jpeg;base64,${imageBase64}`;
 
-            campos.tituloCena.textContent =
-                "Cena completa com detecções";
+            fields.sceneTitle.textContent =
+                "Full scene with detections";
 
-            if (quantidade === 1) {
-                campos.quantidadeBoxes.textContent =
-                    "1 detecção";
+            if (count === 1) {
+                fields.boxCount.textContent =
+                    "1 detection";
             } else {
-                campos.quantidadeBoxes.textContent =
-                    `${quantidade} detecções`;
+                fields.boxCount.textContent =
+                    `${count} detections`;
             }
         }
 
-        function preencherAparencia(
-            aparencia,
-            campos
+        function fillAppearance(
+            appearance,
+            fields
         ) {
-            campos.aparencia.style.display =
+            fields.appearance.style.display =
                 "block";
 
-            const corPredominante =
-                aparencia.cor_roupa_predominante
+            const predominantColor =
+                appearance.cor_roupa_predominante
                 || "indefinida";
 
-            const corConfirmada =
-                corPredominante !== "indefinida";
+            const colorConfirmed =
+                predominantColor !== "indefinida";
 
-            if (campos.aparenciaTitulo) {
-                campos.aparenciaTitulo.textContent =
-                    corConfirmada
-                        ? "Aparência estável"
-                        : "Aparência em análise";
+            if (fields.appearanceTitle) {
+                fields.appearanceTitle.textContent =
+                    colorConfirmed
+                        ? "Stable appearance"
+                        : "Appearance being analyzed";
             }
 
             const rgb =
-                aparencia.rgb_medio;
+                appearance.rgb_medio;
 
-            let amostraCor = "";
+            let colorSwatch = "";
 
             if (
-                corConfirmada
+                colorConfirmed
                 && Array.isArray(rgb)
                 && rgb.length === 3
             ) {
-                amostraCor =
+                colorSwatch =
                     `<span
-                        class="cor-amostra"
+                        class="color-swatch"
                         style="
                             background-color:
                             rgb(
@@ -1637,396 +1637,396 @@
                     ></span>`;
             }
 
-            if (corConfirmada) {
-                campos.corRoupa.innerHTML =
-                    `${amostraCor}Cor predominante: ${
-                        corPredominante
+            if (colorConfirmed) {
+                fields.clothingColor.innerHTML =
+                    `${colorSwatch}Predominant color: ${
+                        predominantColor
                     }`;
             } else {
-                campos.corRoupa.textContent =
-                    "Cor predominante: analisando...";
+                fields.clothingColor.textContent =
+                    "Predominant color: analyzing...";
             }
 
-            campos.posicao.textContent =
-                `Posição atual: ${
-                    aparencia.posicao_atual
+            fields.position.textContent =
+                `Current position: ${
+                    appearance.posicao_atual
                     || "-"
                 }`;
 
-            campos.tamanho.textContent =
-                `Tamanho predominante: ${
-                    aparencia.tamanho_predominante
+            fields.size.textContent =
+                `Predominant size: ${
+                    appearance.tamanho_predominante
                     || "-"
                 }`;
 
-            campos.percentual.textContent =
-                `Área média ocupada: ${
-                    aparencia.percentual_medio_quadro
+            fields.percentage.textContent =
+                `Average area occupied: ${
+                    appearance.percentual_medio_quadro
                     ?? "-"
                 }%`;
 
-            campos.quantidadeAmostras.textContent =
-                `Amostras analisadas: ${
-                    aparencia.quantidade_amostras
+            fields.sampleCount.textContent =
+                `Samples analyzed: ${
+                    appearance.quantidade_amostras
                     || 1
                 }`;
 
-            if (corConfirmada) {
-                campos.descricaoAparencia.textContent =
-                    `Descrição estável: ${
-                        aparencia.descricao
+            if (colorConfirmed) {
+                fields.appearanceDescription.textContent =
+                    `Stable description: ${
+                        appearance.descricao
                         || "-"
                     }`;
             } else {
-                campos.descricaoAparencia.textContent =
-                    "Aguardando leituras consistentes "
-                    + "para confirmar a cor da roupa.";
+                fields.appearanceDescription.textContent =
+                    "Waiting for consistent readings "
+                    + "to confirm the clothing color.";
             }
         }
 
-        function formatarTextoMovimento(
-            valor
+        function formatMovementText(
+            value
         ) {
             if (
-                valor === null
-                || valor === undefined
-                || valor === ""
+                value === null
+                || value === undefined
+                || value === ""
             ) {
                 return "-";
             }
 
-            const texto = String(valor)
+            const text = String(value)
                 .replaceAll("_", " ");
 
             return (
-                texto.charAt(0).toUpperCase()
-                + texto.slice(1)
+                text.charAt(0).toUpperCase()
+                + text.slice(1)
             );
         }
 
-        function formatarNumeroMovimento(
-            valor,
-            casasDecimais = 2
+        function formatMovementNumber(
+            value,
+            decimalPlaces = 2
         ) {
-            const numero = Number(valor);
+            const number = Number(value);
 
-            if (!Number.isFinite(numero)) {
+            if (!Number.isFinite(number)) {
                 return "-";
             }
 
-            return numero.toLocaleString(
-                "pt-BR",
+            return number.toLocaleString(
+                "en-US",
                 {
                     minimumFractionDigits:
-                        casasDecimais,
+                        decimalPlaces,
                     maximumFractionDigits:
-                        casasDecimais
+                        decimalPlaces
                 }
             );
         }
 
-        function preencherMovimento(
-            movimento,
-            campos
+        function fillMovement(
+            movement,
+            fields
         ) {
             if (
-                !movimento
-                || !campos.movimento
+                !movement
+                || !fields.movement
             ) {
                 return;
             }
 
-            campos.movimento.style.display =
+            fields.movement.style.display =
                 "block";
 
-            campos.movimentoHorizontal.textContent =
-                `Direção horizontal: ${
-                    formatarTextoMovimento(
-                        movimento
+            fields.movementHorizontal.textContent =
+                `Horizontal direction: ${
+                    formatMovementText(
+                        movement
                             .movimento_horizontal
                     )
                 }`;
 
-            campos.movimentoVertical.textContent =
-                `Direção vertical: ${
-                    formatarTextoMovimento(
-                        movimento
+            fields.movementVertical.textContent =
+                `Vertical direction: ${
+                    formatMovementText(
+                        movement
                             .movimento_vertical
                     )
                 }`;
 
-            campos.movimentoTendencia.textContent =
-                `Distância aparente: ${
-                    formatarTextoMovimento(
-                        movimento
+            fields.movementTrend.textContent =
+                `Apparent distance: ${
+                    formatMovementText(
+                        movement
                             .tendencia_distancia
                     )
                 }`;
 
-            campos.movimentoVelocidade.textContent =
-                `Velocidade aproximada: ${
-                    formatarNumeroMovimento(
-                        movimento
+            fields.movementSpeed.textContent =
+                `Approximate speed: ${
+                    formatMovementNumber(
+                        movement
                             .velocidade_pixels_segundo
                         ?? 0
                     )
                 } px/s`;
 
-            campos.movimentoDistancia.textContent =
-                `Distância percorrida: ${
-                    formatarNumeroMovimento(
-                        movimento
+            fields.movementDistance.textContent =
+                `Distance traveled: ${
+                    formatMovementNumber(
+                        movement
                             .distancia_total_pixels
                         ?? 0
                     )
                 } px`;
 
-            campos.movimentoTempo.textContent =
-                `Tempo observado: ${
-                    formatarNumeroMovimento(
-                        movimento
+            fields.movementTime.textContent =
+                `Observed time: ${
+                    formatMovementNumber(
+                        movement
                             .tempo_observado_segundos
                         ?? 0
                     )
                 } s`;
 
-            campos.movimentoAmostras.textContent =
-                `Amostras de movimento: ${
-                    movimento
+            fields.movementSamples.textContent =
+                `Movement samples: ${
+                    movement
                         .quantidade_amostras
                     || 1
                 }`;
 
-            campos.movimentoDescricao.textContent =
-                `Descrição do movimento: ${
-                    movimento.descricao
+            fields.movementDescription.textContent =
+                `Movement description: ${
+                    movement.descricao
                     || "-"
                 }`;
         }
 
-        function montarDistribuicao(
-            contexto
+        function buildDistribution(
+            context
         ) {
-            const partes = [];
+            const parts = [];
 
-            if (contexto.pessoas_esquerda) {
-                partes.push(
-                    `${contexto.pessoas_esquerda} à esquerda`
+            if (context.pessoas_esquerda) {
+                parts.push(
+                    `${context.pessoas_esquerda} on the left`
                 );
             }
 
-            if (contexto.pessoas_centro) {
-                partes.push(
-                    `${contexto.pessoas_centro} no centro`
+            if (context.pessoas_centro) {
+                parts.push(
+                    `${context.pessoas_centro} in the center`
                 );
             }
 
-            if (contexto.pessoas_direita) {
-                partes.push(
-                    `${contexto.pessoas_direita} à direita`
+            if (context.pessoas_direita) {
+                parts.push(
+                    `${context.pessoas_direita} on the right`
                 );
             }
 
-            if (partes.length === 0) {
-                return "sem distribuição";
+            if (parts.length === 0) {
+                return "no distribution";
             }
 
-            return partes.join(", ");
+            return parts.join(", ");
         }
 
-        function preencherContextoCena(
-            contexto,
-            campos
+        function fillSceneContext(
+            context,
+            fields
         ) {
-            campos.contexto.style.display =
+            fields.context.style.display =
                 "block";
 
-            campos.contextoQuantidade.textContent =
-                `Pessoas identificadas: ${
-                    contexto.quantidade_pessoas
+            fields.contextCount.textContent =
+                `People identified: ${
+                    context.quantidade_pessoas
                     ?? 0
                 }`;
 
-            campos.contextoDistribuicao.textContent =
-                `Distribuição: ${
-                    montarDistribuicao(
-                        contexto
+            fields.contextDistribution.textContent =
+                `Distribution: ${
+                    buildDistribution(
+                        context
                     )
                 }`;
 
-            campos.contextoProximidades.textContent =
-                `Pares muito próximos: ${
-                    contexto.pares_muito_proximos
+            fields.contextProximities.textContent =
+                `Very close pairs: ${
+                    context.pares_muito_proximos
                     ?? 0
-                } | Pares próximos: ${
-                    contexto.pares_proximos
+                } | Close pairs: ${
+                    context.pares_proximos
                     ?? 0
-                } | Pares separados: ${
-                    contexto.pares_separados
+                } | Separated pairs: ${
+                    context.pares_separados
                     ?? 0
                 }`;
 
-            const pessoas =
+            const people =
                 Array.isArray(
-                    contexto.pessoas
+                    context.pessoas
                 )
-                    ? contexto.pessoas
+                    ? context.pessoas
                     : [];
 
-            if (pessoas.length > 0) {
-                const detalhes =
-                    pessoas
+            if (people.length > 0) {
+                const details =
+                    people
                     .slice(0, 8)
                     .map(
-                        function (pessoa) {
+                        function (person) {
                             return (
-                                `Pessoa ${pessoa.indice}: `
-                                + `${pessoa.posicao_horizontal || "-"}, `
-                                + `${pessoa.posicao_vertical || "-"}, `
-                                + `tamanho ${pessoa.tamanho_no_quadro || "-"}, `
-                                + `${pessoa.percentual_quadro ?? "-"}% do quadro`
+                                `Person ${person.indice}: `
+                                + `${person.posicao_horizontal || "-"}, `
+                                + `${person.posicao_vertical || "-"}, `
+                                + `size ${person.tamanho_no_quadro || "-"}, `
+                                + `${person.percentual_quadro ?? "-"}% of frame`
                             );
                         }
                     );
 
-                if (pessoas.length > 8) {
-                    detalhes.push(
-                        `E mais ${
-                            pessoas.length - 8
-                        } pessoa(s).`
+                if (people.length > 8) {
+                    details.push(
+                        `And ${
+                            people.length - 8
+                        } more person(s).`
                     );
                 }
 
-                campos.contextoPessoas.textContent =
-                    "Detalhes:\n"
-                    + detalhes.join("\n");
+                fields.contextPeople.textContent =
+                    "Details:\n"
+                    + details.join("\n");
 
             } else {
-                campos.contextoPessoas.textContent =
-                    "Detalhes: nenhuma pessoa válida.";
+                fields.contextPeople.textContent =
+                    "Details: no valid person.";
             }
 
-            campos.contextoDescricao.textContent =
-                `Descrição da cena: ${
-                    contexto.descricao
+            fields.contextDescription.textContent =
+                `Scene description: ${
+                    context.descricao
                     || "-"
                 }`;
         }
 
-        function atualizarCartao(
+        function updateCard(
             card,
-            evento
+            event
         ) {
-            const campos =
-                obterCamposCard(card);
+            const fields =
+                getCardFields(card);
 
-            if (evento.imagem) {
-                preencherRecorte(
-                    evento.imagem,
-                    campos
+            if (event.imagem) {
+                fillCrop(
+                    event.imagem,
+                    fields
                 );
             }
 
-            if (evento.imagem_rosto) {
-                preencherRosto(
-                    evento.imagem_rosto,
-                    campos
+            if (event.imagem_rosto) {
+                fillFace(
+                    event.imagem_rosto,
+                    fields
                 );
             }
 
-            if (evento.imagem_cena) {
-                preencherCenaCompleta(
-                    evento.imagem_cena,
-                    evento.quantidade_boxes_cena,
-                    campos
+            if (event.imagem_cena) {
+                fillFullScene(
+                    event.imagem_cena,
+                    event.quantidade_boxes_cena,
+                    fields
                 );
             }
 
-            if (evento.camera) {
-                campos.camera.textContent =
-                    evento.camera;
+            if (event.camera) {
+                fields.camera.textContent =
+                    event.camera;
             }
 
-            campos.status.textContent =
-                traduzirStatus(
-                    evento.status
+            fields.status.textContent =
+                translateStatus(
+                    event.status
                 );
 
-            campos.status.className =
-                `evento-status ${evento.status || ""}`;
+            fields.status.className =
+                `event-status ${event.status || ""}`;
 
-            if (evento.tipo) {
-                campos.tipo.textContent =
-                    `Evento: ${evento.tipo}`;
+            if (event.tipo) {
+                fields.type.textContent =
+                    `Event: ${event.tipo}`;
             }
 
             if (
-                evento.status === "exited"
+                event.status === "exited"
             ) {
-                campos.horario.textContent =
-                    `Saída: ${
-                        evento.datetime || "-"
+                fields.time.textContent =
+                    `Exit: ${
+                        event.datetime || "-"
                     }`;
 
             } else {
-                campos.horario.textContent =
-                    `Última captura: ${
-                        evento.datetime || "-"
+                fields.time.textContent =
+                    `Last capture: ${
+                        event.datetime || "-"
                     }`;
             }
 
-            campos.pessoaId.textContent =
-                `Pessoa: ${
-                    evento.pessoa_id || "-"
+            fields.personId.textContent =
+                `Person: ${
+                    event.pessoa_id || "-"
                 }`;
 
-            campos.quantidade.textContent =
-                `Detecções: ${
-                    evento.quantidade_deteccoes
+            fields.count.textContent =
+                `Detections: ${
+                    event.quantidade_deteccoes
                     || 1
                 }`;
 
-            if (evento.aparencia) {
-                preencherAparencia(
-                    evento.aparencia,
-                    campos
+            if (event.aparencia) {
+                fillAppearance(
+                    event.aparencia,
+                    fields
                 );
             }
 
-            if (evento.movimento) {
-                preencherMovimento(
-                    evento.movimento,
-                    campos
+            if (event.movimento) {
+                fillMovement(
+                    event.movimento,
+                    fields
                 );
             }
 
-            if (evento.contexto_cena) {
-                preencherContextoCena(
-                    evento.contexto_cena,
-                    campos
+            if (event.contexto_cena) {
+                fillSceneContext(
+                    event.contexto_cena,
+                    fields
                 );
             }
 
             card.classList.remove(
-                "atualizado",
-                "saiu"
+                "updated",
+                "exited"
             );
 
             if (
-                evento.status === "updated"
+                event.status === "updated"
             ) {
                 card.classList.add(
-                    "atualizado"
+                    "updated"
                 );
 
-                eventosElemento.prepend(
+                eventsElement.prepend(
                     card
                 );
 
                 setTimeout(
                     function () {
                         card.classList.remove(
-                            "atualizado"
+                            "updated"
                         );
                     },
                     1500
@@ -2034,78 +2034,78 @@
             }
 
             if (
-                evento.status === "exited"
+                event.status === "exited"
             ) {
                 card.classList.add(
-                    "saiu"
+                    "exited"
                 );
             }
         }
 
-        function limitarQuantidadeCartoes() {
+        function limitCardCount() {
             while (
-                eventosElemento.children.length
+                eventsElement.children.length
                 > 50
             ) {
-                const ultimo =
-                    eventosElemento
+                const last =
+                    eventsElement
                     .lastElementChild;
 
-                if (!ultimo) {
+                if (!last) {
                     break;
                 }
 
-                const pessoaId =
-                    ultimo.dataset.pessoaId;
+                const personId =
+                    last.dataset.personId;
 
-                if (pessoaId) {
-                    const statusRemovido =
-                        statusPorPessoa.get(
-                            pessoaId
+                if (personId) {
+                    const removedStatus =
+                        statusByPerson.get(
+                            personId
                         );
 
                     if (
-                        statusRemovido
+                        removedStatus
                         === "exited"
                     ) {
-                        pessoasSairam =
+                        peopleLeft =
                             Math.max(
                                 0,
-                                pessoasSairam - 1
+                                peopleLeft - 1
                             );
                     }
 
-                    else if (statusRemovido) {
-                        pessoasAtivas =
+                    else if (removedStatus) {
+                        activePeople =
                             Math.max(
                                 0,
-                                pessoasAtivas - 1
+                                activePeople - 1
                             );
                     }
 
-                    totalPessoas =
+                    totalPeople =
                         Math.max(
                             0,
-                            totalPessoas - 1
+                            totalPeople - 1
                         );
 
-                    cartoesPorPessoa.delete(
-                        pessoaId
+                    cardsByPerson.delete(
+                        personId
                     );
 
-                    statusPorPessoa.delete(
-                        pessoaId
+                    statusByPerson.delete(
+                        personId
                     );
                 }
 
-                ultimo.remove();
+                last.remove();
             }
 
-            atualizarResumo();
+            updateSummary();
         }
 
-        atualizarResumo();
-        conectarWebSocket();
+        updateSummary();
+        connectWebSocket();
     </script>
 </body>
 </html>
