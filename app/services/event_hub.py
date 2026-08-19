@@ -27,25 +27,16 @@ class EventHub:
         async with self._lock:
             self._conexoes.append(websocket)
 
-        logger.info(
-            "Painel conectado. Total: %s",
-            self.total_conexoes,
-        )
+        logger.info("Painel conectado. Total: %s", self.total_conexoes)
 
     async def desconectar(self, websocket: WebSocket) -> None:
         async with self._lock:
             if websocket in self._conexoes:
                 self._conexoes.remove(websocket)
 
-        logger.info(
-            "Painel desconectado. Total: %s",
-            self.total_conexoes,
-        )
+        logger.info("Painel desconectado. Total: %s", self.total_conexoes)
 
-    async def publicar(
-        self,
-        evento: dict[str, Any],
-    ) -> None:
+    async def publicar(self, evento: dict[str, Any]) -> None:
         async with self._lock:
             conexoes = list(self._conexoes)
 
@@ -54,7 +45,6 @@ class EventHub:
         for websocket in conexoes:
             try:
                 await websocket.send_json(evento)
-
             except Exception:
                 desconectadas.append(websocket)
 

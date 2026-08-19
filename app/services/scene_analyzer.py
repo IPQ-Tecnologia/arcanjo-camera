@@ -8,34 +8,17 @@ from typing import Literal
 
 from PIL import Image, ImageFilter
 
-from app.services.person_detector_yolo import (
-    obter_rgb_roupa_segmentada,
-)
+from app.services.person_detector_yolo import obter_rgb_roupa_segmentada
 
 
-PosicaoHorizontal = Literal[
-    "esquerda",
-    "centro",
-    "direita",
-]
-
-TamanhoNoQuadro = Literal[
-    "pequeno",
-    "medio",
-    "grande",
-]
+PosicaoHorizontal = Literal["esquerda", "centro", "direita"]
+TamanhoNoQuadro = Literal["pequeno", "medio", "grande"]
 
 
 @dataclass(frozen=True)
 class PersonVisualAnalysis:
     cor_roupa_aproximada: str
-
-    rgb_representativo: tuple[
-        int,
-        int,
-        int,
-    ]
-
+    rgb_representativo: tuple[int, int, int]
     posicao_horizontal: PosicaoHorizontal
     tamanho_no_quadro: TamanhoNoQuadro
     percentual_quadro: float
@@ -43,10 +26,7 @@ class PersonVisualAnalysis:
 
     def to_dict(self) -> dict:
         dados = asdict(self)
-
-        dados["rgb_representativo"] = list(
-            self.rgb_representativo
-        )
+        dados["rgb_representativo"] = list(self.rgb_representativo)
 
         return dados
 
@@ -59,56 +39,20 @@ def analisar_pessoa(
     altura: int,
 ) -> PersonVisualAnalysis:
     caminho = Path(caminho_imagem)
-
     if not caminho.is_file():
-        raise FileNotFoundError(
-            f"Imagem não encontrada: {caminho}"
-        )
+        raise FileNotFoundError(f"Imagem não encontrada: {caminho}")
 
     if largura <= 0 or altura <= 0:
-        raise ValueError(
-            "A bounding box deve possuir largura "
-            "e altura positivas"
-        )
+        raise ValueError("A bounding box deve possuir largura e altura positivas")
 
     with Image.open(caminho) as imagem_aberta:
         imagem = imagem_aberta.convert("RGB")
+        largura_imagem, altura_imagem = imagem.size
 
-        largura_imagem, altura_imagem = (
-            imagem.size
-        )
-
-        x1 = max(
-            0,
-            min(
-                int(x),
-                largura_imagem - 1,
-            ),
-        )
-
-        y1 = max(
-            0,
-            min(
-                int(y),
-                altura_imagem - 1,
-            ),
-        )
-
-        x2 = max(
-            x1 + 1,
-            min(
-                int(x + largura),
-                largura_imagem,
-            ),
-        )
-
-        y2 = max(
-            y1 + 1,
-            min(
-                int(y + altura),
-                altura_imagem,
-            ),
-        )
+        x1 = max(0, min(int(x), largura_imagem - 1))
+        y1 = max(0, min(int(y), altura_imagem - 1))
+        x2 = max(x1 + 1, min(int(x + largura), largura_imagem))
+        y2 = max(y1 + 1, min(int(y + altura), altura_imagem))
 
         largura_pessoa = x2 - x1
         altura_pessoa = y2 - y1
@@ -121,8 +65,8 @@ def analisar_pessoa(
             altura=altura_pessoa,
         )
 
-        # Fallback: mantém o método antigo quando o
-        # YOLO não encontra uma máscara correspondente.
+        # Fallback: mantém o método antigo quando o YOLO não encontra
+        # uma máscara correspondente.
         if rgb is None:
             regiao_roupa = _recortar_regiao_roupa(
                 imagem=imagem,
@@ -131,44 +75,18 @@ def analisar_pessoa(
                 largura=largura_pessoa,
                 altura=altura_pessoa,
             )
+            rgb = _obter_cor_representativa(regiao_roupa)
 
-            rgb = _obter_cor_representativa(
-                regiao_roupa
-            )
-
-        cor = classificar_cor_rgb(
-            rgb
-        )
-
+        cor = classificar_cor_rgb(rgb)
         posicao = _classificar_posicao(
-            centro_x=(
-                x1 + largura_pessoa / 2
-            ),
+            centro_x=x1 + largura_pessoa / 2,
             largura_imagem=largura_imagem,
         )
-
         percentual_quadro = round(
-            (
-                largura_pessoa
-                * altura_pessoa
-            )
-            / (
-                largura_imagem
-                * altura_imagem
-            )
-            * 100,
-            2,
+            (largura_pessoa * altura_pessoa) / (largura_imagem * altura_imagem) * 100, 2
         )
-
-        tamanho = _classificar_tamanho(
-            percentual_quadro
-        )
-
-        descricao = _montar_descricao(
-            cor=cor,
-            posicao=posicao,
-            tamanho=tamanho,
-        )
+        tamanho = _classificar_tamanho(percentual_quadro)
+        descricao = _montar_descricao(cor=cor, posicao=posicao, tamanho=tamanho)
 
         return PersonVisualAnalysis(
             cor_roupa_aproximada=cor,
@@ -190,225 +108,91 @@ def _recortar_regiao_roupa(
     """
     Recorta a região central do tronco.
 
-    A área é mais estreita que a bounding box para
-    reduzir fundo, braços, rosto, mãos e calça.
+    A área é mais estreita que a bounding box para reduzir fundo,
+    braços, rosto, mãos e calça.
     """
+    roupa_x1 = int(x1 + largura * 0.27)
+    roupa_x2 = int(x1 + largura * 0.73)
+    roupa_y1 = int(y1 + altura * 0.25)
+    roupa_y2 = int(y1 + altura * 0.58)
 
-    roupa_x1 = int(
-        x1 + largura * 0.27
-    )
+    roupa_x2 = max(roupa_x1 + 1, roupa_x2)
+    roupa_y2 = max(roupa_y1 + 1, roupa_y2)
 
-    roupa_x2 = int(
-        x1 + largura * 0.73
-    )
-
-    roupa_y1 = int(
-        y1 + altura * 0.25
-    )
-
-    roupa_y2 = int(
-        y1 + altura * 0.58
-    )
-
-    roupa_x2 = max(
-        roupa_x1 + 1,
-        roupa_x2,
-    )
-
-    roupa_y2 = max(
-        roupa_y1 + 1,
-        roupa_y2,
-    )
-
-    return imagem.crop(
-        (
-            roupa_x1,
-            roupa_y1,
-            roupa_x2,
-            roupa_y2,
-        )
-    )
+    return imagem.crop((roupa_x1, roupa_y1, roupa_x2, roupa_y2))
 
 
-def _obter_cor_representativa(
-    regiao: Image.Image,
-) -> tuple[int, int, int]:
+def _obter_cor_representativa(regiao: Image.Image) -> tuple[int, int, int]:
     """
     Calcula uma cor robusta da roupa.
 
-    O método anterior descartava apenas os pixels
-    claros, deixando o resultado artificialmente
-    escuro. Agora são removidas pequenas parcelas
-    das sombras mais escuras e dos reflexos mais
-    claros antes de calcular a mediana RGB.
+    O método anterior descartava apenas os pixels claros, deixando o
+    resultado artificialmente escuro. Agora são removidas pequenas
+    parcelas das sombras mais escuras e dos reflexos mais claros antes
+    de calcular a mediana RGB.
     """
-
-    regiao_reduzida = regiao.resize(
-        (64, 64),
-        Image.Resampling.LANCZOS,
-    )
-
-    regiao_suavizada = (
-        regiao_reduzida.filter(
-            ImageFilter.MedianFilter(
-                size=3
-            )
-        )
-    )
-
-    pixels = list(
-        regiao_suavizada.getdata()
-    )
+    regiao_reduzida = regiao.resize((64, 64), Image.Resampling.LANCZOS)
+    regiao_suavizada = regiao_reduzida.filter(ImageFilter.MedianFilter(size=3))
+    pixels = list(regiao_suavizada.getdata())
 
     if not pixels:
         return (0, 0, 0)
 
-    pixels_ordenados = sorted(
-        pixels,
-        key=_calcular_luminancia,
-    )
+    pixels_ordenados = sorted(pixels, key=_calcular_luminancia)
+    quantidade = len(pixels_ordenados)
+    corte = int(quantidade * 0.08)
 
-    quantidade = len(
-        pixels_ordenados
-    )
-
-    corte = int(
-        quantidade * 0.08
-    )
-
-    if (
-        corte > 0
-        and quantidade - corte > corte
-    ):
-        candidatos = pixels_ordenados[
-            corte:quantidade - corte
-        ]
+    if corte > 0 and quantidade - corte > corte:
+        candidatos = pixels_ordenados[corte : quantidade - corte]
     else:
         candidatos = pixels_ordenados
 
-    quantidade_minima = max(
-        100,
-        quantidade // 3,
-    )
-
-    if (
-        len(candidatos)
-        < quantidade_minima
-    ):
+    quantidade_minima = max(100, quantidade // 3)
+    if len(candidatos) < quantidade_minima:
         candidatos = pixels
 
-    vermelho = int(
-        round(
-            median(
-                pixel[0]
-                for pixel in candidatos
-            )
-        )
-    )
+    vermelho = int(round(median(pixel[0] for pixel in candidatos)))
+    verde = int(round(median(pixel[1] for pixel in candidatos)))
+    azul = int(round(median(pixel[2] for pixel in candidatos)))
 
-    verde = int(
-        round(
-            median(
-                pixel[1]
-                for pixel in candidatos
-            )
-        )
-    )
-
-    azul = int(
-        round(
-            median(
-                pixel[2]
-                for pixel in candidatos
-            )
-        )
-    )
-
-    return (
-        vermelho,
-        verde,
-        azul,
-    )
+    return (vermelho, verde, azul)
 
 
-def _calcular_luminancia(
-    rgb: tuple[int, int, int],
-) -> float:
+def _calcular_luminancia(rgb: tuple[int, int, int]) -> float:
     vermelho, verde, azul = rgb
 
-    return (
-        vermelho * 0.2126
-        + verde * 0.7152
-        + azul * 0.0722
-    )
+    return vermelho * 0.2126 + verde * 0.7152 + azul * 0.0722
 
 
-def classificar_cor_rgb(
-    rgb: tuple[int, int, int],
-) -> str:
+def classificar_cor_rgb(rgb: tuple[int, int, int]) -> str:
     """
-    Classifica uma cor RGB usando HSV, luminância
-    e diferença entre os canais.
+    Classifica uma cor RGB usando HSV, luminância e diferença entre os
+    canais.
 
-    A regra evita chamar qualquer cor escura de
-    preta. Tons escuros com saturação perceptível
-    são classificados como azul-escura,
+    A regra evita chamar qualquer cor escura de preta. Tons escuros
+    com saturação perceptível são classificados como azul-escura,
     verde-escura, vermelha-escura ou roxa-escura.
     """
-
-    vermelho, verde, azul = (
-        max(0, min(255, int(canal)))
-        for canal in rgb
-    )
+    vermelho, verde, azul = (max(0, min(255, int(canal))) for canal in rgb)
 
     r = vermelho / 255
     g = verde / 255
     b = azul / 255
 
-    matiz, saturacao, brilho = (
-        colorsys.rgb_to_hsv(
-            r,
-            g,
-            b,
-        )
-    )
+    matiz, saturacao, brilho = colorsys.rgb_to_hsv(r, g, b)
+    matiz_graus = matiz * 360
+    luminancia = _calcular_luminancia((vermelho, verde, azul))
 
-    matiz_graus = (
-        matiz * 360
-    )
+    maior_canal = max(vermelho, verde, azul)
+    menor_canal = min(vermelho, verde, azul)
+    diferenca_canais = maior_canal - menor_canal
 
-    luminancia = _calcular_luminancia(
-        (
-            vermelho,
-            verde,
-            azul,
-        )
-    )
-
-    maior_canal = max(
-        vermelho,
-        verde,
-        azul,
-    )
-
-    menor_canal = min(
-        vermelho,
-        verde,
-        azul,
-    )
-
-    diferenca_canais = (
-        maior_canal
-        - menor_canal
-    )
-
-    # Zona de baixa iluminação em que preto e
-    # azul-marinho ficam visualmente indistinguíveis.
+    # Zona de baixa iluminação em que preto e azul-marinho ficam
+    # visualmente indistinguíveis.
     #
-    # Nessa faixa, pequenas diferenças entre canais
-    # podem ser apenas ruído, compressão JPEG ou
-    # iluminação da câmera. É mais seguro não
-    # inventar uma cor.
+    # Nessa faixa, pequenas diferenças entre canais podem ser apenas
+    # ruído, compressão JPEG ou iluminação da câmera. É mais seguro
+    # não inventar uma cor.
     if (
         brilho <= 0.20
         and maior_canal <= 55
@@ -417,30 +201,16 @@ def classificar_cor_rgb(
     ):
         return "escura-indefinida"
 
-    canais_ordenados = sorted(
-        (
-            vermelho,
-            verde,
-            azul,
-        ),
-        reverse=True,
-    )
+    canais_ordenados = sorted((vermelho, verde, azul), reverse=True)
+    segundo_maior_canal = canais_ordenados[1]
+    vantagem_canal_dominante = maior_canal - segundo_maior_canal
 
-    segundo_maior_canal = (
-        canais_ordenados[1]
-    )
-
-    vantagem_canal_dominante = (
-        maior_canal
-        - segundo_maior_canal
-    )
-
-    # Em regiões extremamente escuras, a matiz HSV
-    # fica instável e pequenos ruídos da câmera podem
-    # transformar preto em azul, verde ou vermelho.
+    # Em regiões extremamente escuras, a matiz HSV fica instável e
+    # pequenos ruídos da câmera podem transformar preto em azul, verde
+    # ou vermelho.
     #
-    # Só preserva uma cor muito escura quando existe
-    # sinal cromático suficiente nos pixels.
+    # Só preserva uma cor muito escura quando existe sinal cromático
+    # suficiente nos pixels.
     if brilho <= 0.18:
         cor_escura_perceptivel = (
             maior_canal >= 34
@@ -448,29 +218,21 @@ def classificar_cor_rgb(
             and diferenca_canais >= 8
             and vantagem_canal_dominante >= 5
         )
-
         if not cor_escura_perceptivel:
             return "preta"
 
-    # Preto verdadeiro ou preto iluminado.
+    # Preto verdadeiro ou preto iluminado. Em tons escuros, uma
+    # diferença maior entre canais ainda pode ser só o matiz de uma
+    # luz quente incidindo sobre um tecido preto.
     if (
-        brilho <= 0.12
-        or (
-            brilho <= 0.28
-            and diferenca_canais <= 5
-        )
-        or (
-            luminancia <= 58
-            and saturacao <= 0.14
-        )
+        brilho <= 0.14
+        or (brilho <= 0.28 and diferenca_canais <= 25)
+        or (luminancia <= 58 and saturacao <= 0.32)
     ):
         return "preta"
 
     # Branco e tons neutros.
-    if (
-        luminancia >= 218
-        and saturacao <= 0.18
-    ):
+    if luminancia >= 218 and saturacao <= 0.18:
         return "branca"
 
     if saturacao <= 0.16:
@@ -479,26 +241,18 @@ def classificar_cor_rgb(
 
         return "cinza"
 
-    # Marrom e bege ficam na faixa de laranja,
-    # mas são separados pelo brilho.
-    if (
-        15 <= matiz_graus < 48
-        and saturacao >= 0.22
-    ):
+    # Marrom e bege ficam na faixa de laranja, mas são separados pelo
+    # brilho.
+    if 15 <= matiz_graus < 48 and saturacao >= 0.22:
         if brilho <= 0.62:
             return "marrom"
 
-        if (
-            saturacao <= 0.48
-            and brilho >= 0.66
-        ):
+        if saturacao <= 0.48 and brilho >= 0.66:
             return "bege"
 
         return "laranja"
 
-    cor_base = _classificar_por_matiz(
-        matiz_graus
-    )
+    cor_base = _classificar_por_matiz(matiz_graus)
 
     # Preserva a cor de roupas escuras saturadas.
     if brilho <= 0.42:
@@ -508,22 +262,13 @@ def classificar_cor_rgb(
             "azul": "azul-escura",
             "roxa": "roxa-escura",
         }
-
-        return cores_escuras.get(
-            cor_base,
-            cor_base,
-        )
+        return cores_escuras.get(cor_base, cor_base)
 
     return cor_base
 
 
-def _classificar_por_matiz(
-    matiz_graus: float,
-) -> str:
-    if (
-        matiz_graus < 15
-        or matiz_graus >= 345
-    ):
+def _classificar_por_matiz(matiz_graus: float) -> str:
+    if matiz_graus < 15 or matiz_graus >= 345:
         return "vermelha"
 
     if matiz_graus < 48:
@@ -547,27 +292,13 @@ def _classificar_por_matiz(
     return "rosa"
 
 
-def _classificar_cor(
-    rgb: tuple[int, int, int],
-) -> str:
-    """
-    Mantém compatibilidade com testes ou imports
-    antigos que utilizavam a função privada.
-    """
-
-    return classificar_cor_rgb(
-        rgb
-    )
+def _classificar_cor(rgb: tuple[int, int, int]) -> str:
+    """Mantém compatibilidade com testes ou imports antigos que utilizavam a função privada."""
+    return classificar_cor_rgb(rgb)
 
 
-def _classificar_posicao(
-    centro_x: float,
-    largura_imagem: int,
-) -> PosicaoHorizontal:
-    proporcao = (
-        centro_x
-        / largura_imagem
-    )
+def _classificar_posicao(centro_x: float, largura_imagem: int) -> PosicaoHorizontal:
+    proporcao = centro_x / largura_imagem
 
     if proporcao < 0.34:
         return "esquerda"
@@ -578,9 +309,7 @@ def _classificar_posicao(
     return "direita"
 
 
-def _classificar_tamanho(
-    percentual_quadro: float,
-) -> TamanhoNoQuadro:
+def _classificar_tamanho(percentual_quadro: float) -> TamanhoNoQuadro:
     if percentual_quadro < 3:
         return "pequeno"
 
@@ -590,35 +319,19 @@ def _classificar_tamanho(
     return "grande"
 
 
-def _montar_descricao(
-    cor: str,
-    posicao: PosicaoHorizontal,
-    tamanho: TamanhoNoQuadro,
-) -> str:
+def _montar_descricao(cor: str, posicao: PosicaoHorizontal, tamanho: TamanhoNoQuadro) -> str:
     descricoes_posicao = {
         "esquerda": "à esquerda",
         "centro": "no centro",
         "direita": "à direita",
     }
-
     descricoes_tamanho = {
-        "pequeno": (
-            "ocupando uma pequena parte "
-            "do enquadramento"
-        ),
-        "medio": (
-            "ocupando uma parte intermediária "
-            "do enquadramento"
-        ),
-        "grande": (
-            "ocupando uma grande parte "
-            "do enquadramento"
-        ),
+        "pequeno": "ocupando uma pequena parte do enquadramento",
+        "medio": "ocupando uma parte intermediária do enquadramento",
+        "grande": "ocupando uma grande parte do enquadramento",
     }
 
     return (
-        "Pessoa com roupa predominantemente "
-        f"{cor}, localizada "
-        f"{descricoes_posicao[posicao]} da cena, "
-        f"{descricoes_tamanho[tamanho]}."
+        f"Pessoa com roupa predominantemente {cor}, localizada "
+        f"{descricoes_posicao[posicao]} da cena, {descricoes_tamanho[tamanho]}."
     )

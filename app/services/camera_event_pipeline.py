@@ -4,39 +4,26 @@ from datetime import datetime, timezone
 
 from app.adapters.cameras.factory import camera_adapter_factory
 from app.core.config import settings
-from app.domain.models.camera_event import BoundingBox, CameraEvent, RawCameraPackage
+from app.domain.models.camera_event import CameraEvent, RawCameraPackage
 from app.messaging.kafka_producer import KafkaPublisher
-from app.services.alarm_detection_payload import (
-    arquivo_para_base64,
-    montar_alarm_detection_message,
-    recortar_deteccao_base64,
-)
 from app.services.appearance_memory import appearance_memory
-from app.services.event_hub import event_hub
-from app.services.face_cropper import (
-    FaceCropResult,
-    recortar_rosto,
-)
-from app.services.person_detector_yolo import (
-    detectar_pessoas_yolo,
-)
-from app.services.person_validation import (
-    validar_boxes_camera_com_yolo,
-)
-from app.services.person_tracker import (
-    DetectionBox,
-    TrackingDecision,
-    person_tracker,
-)
 from app.services.person_movement import person_movement_memory
-from app.services.scene_analyzer import analisar_pessoa
-from app.services.scene_context_analyzer import analisar_contexto_cena
-from app.services.scene_renderer import renderizar_cena_com_boxes
+from app.services.person_tracker import DetectionBox, person_tracker
+from app.services.pipeline import box_matching, scene
+from app.services.pipeline.exit_monitor import monitorar_saidas
+from app.services.pipeline.person_processing import PersonProcessor
 
 logger = logging.getLogger(__name__)
 
 
 class CameraEventPipeline:
+    """
+    Orquestra o processamento assíncrono dos eventos de câmera: recebe
+    pacotes brutos na fila, normaliza via adapter do fabricante, valida
+    as pessoas com YOLO, rastreia entre frames e delega a cada pessoa
+    detectada para o PersonProcessor (aparência/movimento/face/Kafka).
+    """
+
     def __init__(
         self,
         publisher: KafkaPublisher,
@@ -50,6 +37,7 @@ class CameraEventPipeline:
         self.queue: asyncio.Queue[tuple[RawCameraPackage, bytes]] = asyncio.Queue(
             maxsize=maxsize
         )
+        self._person_processor = PersonProcessor(publisher=publisher, topic=topic)
         self._worker_tasks: list[asyncio.Task] = []
         self._exit_task: asyncio.Task | None = None
         self._iniciado = False
@@ -74,16 +62,10 @@ class CameraEventPipeline:
             )
 
         self._worker_tasks = [
-            asyncio.create_task(
-                self._worker(numero),
-                name=f"camera-worker-{numero}",
-            )
+            asyncio.create_task(self._worker(numero), name=f"camera-worker-{numero}")
             for numero in range(1, self.worker_count + 1)
         ]
-        self._exit_task = asyncio.create_task(
-            self._monitorar_saidas(),
-            name="person-exit-monitor",
-        )
+        self._exit_task = asyncio.create_task(monitorar_saidas(), name="person-exit-monitor")
         self._iniciado = True
         logger.info("Pipeline iniciado com %s workers", self.worker_count)
 
@@ -121,961 +103,30 @@ class CameraEventPipeline:
     def adicionar(self, pacote: RawCameraPackage, body: bytes) -> None:
         self.queue.put_nowait((pacote, body))
 
-    async def _monitorar_saidas(self) -> None:
-        logger.info("Monitor automático de saídas iniciado")
+    @staticmethod
+    def _logar_horario_camera(evento_id: str, evento: CameraEvent) -> None:
+        """Compara o horário informado pela câmera com o horário do servidor."""
+        hora_camera = evento.data_hora
+        if hora_camera.tzinfo is None:
+            hora_camera = hora_camera.replace(tzinfo=timezone.utc)
 
-        while True:
-            try:
-                await asyncio.sleep(1)
-                saidas = await person_tracker.coletar_saidas()
+        hora_camera_utc = hora_camera.astimezone(timezone.utc)
+        hora_camera_local = hora_camera.astimezone()
+        hora_servidor_utc = datetime.now(timezone.utc)
+        hora_servidor_local = hora_servidor_utc.astimezone()
+        diferenca_ms = (hora_servidor_utc - hora_camera_utc).total_seconds() * 1000
 
-                for saida in saidas:
-                    aparencia_final = await appearance_memory.finalizar(
-                        saida.pessoa_id
-                    )
-                    movimento_final = await person_movement_memory.finalizar(
-                        saida.pessoa_id
-                    )
-                    momento_saida = (
-                        datetime.now(timezone.utc)
-                        .isoformat()
-                        .replace("+00:00", "Z")
-                    )
-                    evento_painel = {
-                        "evento_id": saida.evento_id,
-                        "pessoa_id": saida.pessoa_id,
-                        "status": "exited",
-                        "quantidade_deteccoes": saida.quantidade_deteccoes,
-                        "camera": saida.camera,
-                        "tipo": None,
-                        "datetime": momento_saida,
-                        "attributes": None,
-                        "imagem": None,
-                        "aparencia": (
-                            aparencia_final.to_dict()
-                            if aparencia_final is not None
-                            else None
-                        ),
-                        "movimento": (
-                            movimento_final.to_dict()
-                            if movimento_final is not None
-                            else None
-                        ),
-                        "contexto_cena": None,
-                        "imagem_cena": None,
-                        "quantidade_boxes_cena": None,
-                    }
-                    await event_hub.publicar(evento_painel)
-                    logger.info(
-                        "[RASTREAMENTO] Pessoa saiu: pessoa=%s camera=%s "
-                        "deteccoes=%s amostras_visuais=%s amostras_movimento=%s "
-                        "tempo_observado=%ss paineis=%s",
-                        saida.pessoa_id,
-                        saida.camera,
-                        saida.quantidade_deteccoes,
-                        (
-                            aparencia_final.quantidade_amostras
-                            if aparencia_final is not None
-                            else 0
-                        ),
-                        (
-                            movimento_final.quantidade_amostras
-                            if movimento_final is not None
-                            else 0
-                        ),
-                        (
-                            movimento_final.tempo_observado_segundos
-                            if movimento_final is not None
-                            else 0
-                        ),
-                        event_hub.total_conexoes,
-                    )
-
-            except asyncio.CancelledError:
-                logger.info("Monitor automático de saídas encerrado")
-                raise
-            except Exception:
-                logger.exception("Erro no monitor automático de saídas")
-
-    def _selecionar_boxes_pessoas(
-        self,
-        evento: CameraEvent,
-    ) -> list[BoundingBox]:
-        """Remove caixas inválidas, duplicadas e a caixa da imagem inteira."""
-
-        if evento.imagem is None:
-            return []
-
-        largura_imagem = evento.imagem.largura
-        altura_imagem = evento.imagem.altura
-        if not largura_imagem or not altura_imagem:
-            return []
-
-        area_imagem = largura_imagem * altura_imagem
-        assinaturas: set[tuple[int, int, int, int]] = set()
-        caixas_validas: list[BoundingBox] = []
-
-        for caixa in evento.bounding_boxes or []:
-            if caixa.largura <= 0 or caixa.altura <= 0:
-                continue
-
-            x1 = max(0, min(caixa.x, largura_imagem - 1))
-            y1 = max(0, min(caixa.y, altura_imagem - 1))
-            x2 = max(x1 + 1, min(caixa.x2, largura_imagem))
-            y2 = max(y1 + 1, min(caixa.y2, altura_imagem))
-            largura = x2 - x1
-            altura = y2 - y1
-            percentual = largura * altura / area_imagem * 100
-
-            if percentual >= 60 or percentual < 0.05:
-                continue
-
-            assinatura = (x1, y1, x2, y2)
-            if assinatura in assinaturas:
-                continue
-            assinaturas.add(assinatura)
-
-            if (
-                x1 == caixa.x
-                and y1 == caixa.y
-                and largura == caixa.largura
-                and altura == caixa.altura
-            ):
-                caixa_ajustada = caixa
-            else:
-                caixa_ajustada = caixa.model_copy(
-                    update={
-                        "x": x1,
-                        "y": y1,
-                        "largura": largura,
-                        "altura": altura,
-                        "x2": x2,
-                        "y2": y2,
-                    }
-                )
-
-            caixas_validas.append(caixa_ajustada)
-
-        if not caixas_validas and evento.bounding_box_escolhida is not None:
-            caixas_validas.append(evento.bounding_box_escolhida)
-
-        caixas_validas.sort(
-            key=lambda caixa: (
-                caixa.x + caixa.largura / 2,
-                caixa.y + caixa.altura / 2,
-            )
-        )
-        return caixas_validas
-
-    async def _analisar_aparencia(
-        self,
-        evento: CameraEvent,
-        bounding_box: BoundingBox,
-        pessoa_id: str,
-        pacote_id: str,
-    ):
-        try:
-            if evento.imagem is None or not evento.imagem.caminho_original:
-                logger.info(
-                    "[%s] Imagem sem caminho original; aparência não analisada",
-                    pacote_id,
-                )
-                return None
-
-            percentual_caixa = (
-                float(
-                    bounding_box.proporcao_imagem
-                    or 0.0
-                )
-                * 100
-            )
-
-            # Uma pessoa muito pequena não possui
-            # pixels de roupa suficientes para uma
-            # classificação confiável.
-            if (
-                bounding_box.largura < 60
-                or bounding_box.altura < 120
-                or percentual_caixa < 1.00
-            ):
-                logger.info(
-                    "[%s] Aparência ignorada: "
-                    "caixa pequena pessoa=%s "
-                    "dimensoes=%sx%s area=%.2f%%",
-                    pacote_id,
-                    pessoa_id,
-                    bounding_box.largura,
-                    bounding_box.altura,
-                    percentual_caixa,
-                )
-
-                return await appearance_memory.obter(
-                    pessoa_id
-                )
-
-            analise_visual = await asyncio.to_thread(
-                analisar_pessoa,
-                caminho_imagem=evento.imagem.caminho_original,
-                x=bounding_box.x,
-                y=bounding_box.y,
-                largura=bounding_box.largura,
-                altura=bounding_box.altura,
-            )
-            # Uma leitura ambígua não entra na
-            # votação da memória. Caso já exista uma
-            # aparência confiável, ela é preservada.
-            if (
-                analise_visual.cor_roupa_aproximada
-                == "escura-indefinida"
-            ):
-                logger.info(
-                    "[%s] Cor escura indefinida: "
-                    "pessoa=%s rgb=%s; "
-                    "mantendo aparência anterior",
-                    pacote_id,
-                    pessoa_id,
-                    analise_visual.rgb_representativo,
-                )
-
-                return await appearance_memory.obter(
-                    pessoa_id
-                )
-
-            aparencia_estavel = await appearance_memory.registrar(
-                pessoa_id=pessoa_id,
-                analise=analise_visual,
-            )
-            logger.info(
-                "[%s] Aparência estável: pessoa=%s cor=%s posição=%s "
-                "tamanho=%s área_média=%s%% amostras=%s",
-                pacote_id,
-                pessoa_id,
-                aparencia_estavel.cor_roupa_predominante,
-                aparencia_estavel.posicao_atual,
-                aparencia_estavel.tamanho_predominante,
-                aparencia_estavel.percentual_medio_quadro,
-                aparencia_estavel.quantidade_amostras,
-            )
-            return aparencia_estavel
-        except Exception:
-            logger.exception(
-                "[%s] Não foi possível analisar a aparência da pessoa=%s",
-                pacote_id,
-                pessoa_id,
-            )
-            return None
-
-    async def _analisar_contexto_cena(
-        self,
-        evento: CameraEvent,
-        bounding_boxes: list[BoundingBox],
-        pacote_id: str,
-    ):
-        try:
-            if evento.imagem is None:
-                return None
-
-            largura_imagem = evento.imagem.largura
-            altura_imagem = evento.imagem.altura
-            if not largura_imagem or not altura_imagem:
-                logger.info(
-                    "[%s] Contexto não analisado: dimensões ausentes",
-                    pacote_id,
-                )
-                return None
-
-            contexto = await asyncio.to_thread(
-                analisar_contexto_cena,
-                largura_imagem=largura_imagem,
-                altura_imagem=altura_imagem,
-                bounding_boxes=bounding_boxes,
-            )
-            logger.info(
-                "[%s] Contexto da cena: pessoas=%s esquerda=%s centro=%s "
-                "direita=%s muito_proximos=%s proximos=%s separados=%s",
-                pacote_id,
-                contexto.quantidade_pessoas,
-                contexto.pessoas_esquerda,
-                contexto.pessoas_centro,
-                contexto.pessoas_direita,
-                contexto.pares_muito_proximos,
-                contexto.pares_proximos,
-                contexto.pares_separados,
-            )
-            logger.info("[%s] Descrição da cena: %s", pacote_id, contexto.descricao)
-            return contexto
-        except Exception:
-            logger.exception("[%s] Não foi possível analisar a cena", pacote_id)
-            return None
-
-    async def _renderizar_cena(
-        self,
-        evento: CameraEvent,
-        bounding_boxes: list[BoundingBox],
-        pacote_id: str,
-    ):
-        try:
-            if evento.imagem is None or not evento.imagem.caminho_original:
-                return None
-            if not bounding_boxes:
-                return None
-
-            resultado = await asyncio.to_thread(
-                renderizar_cena_com_boxes,
-                caminho_imagem=evento.imagem.caminho_original,
-                bounding_boxes=bounding_boxes,
-            )
-            if resultado.quantidade_boxes == 0:
-                return None
-
-            logger.info(
-                "[%s] Cena renderizada: boxes=%s dimensoes=%sx%s base64=%s caracteres",
-                pacote_id,
-                resultado.quantidade_boxes,
-                resultado.largura_imagem,
-                resultado.altura_imagem,
-                len(resultado.imagem_base64),
-            )
-            return resultado
-        except Exception:
-            logger.exception(
-                "[%s] Não foi possível renderizar a cena com boxes",
-                pacote_id,
-            )
-            return None
-
-    async def _publicar_atualizacao_parcial(
-        self,
-        camera: str,
-        decisao: TrackingDecision,
-        aparencia_estavel,
-        movimento,
-        contexto_cena,
-        cena_renderizada,
-        imagem_recorte_base64: str | None,
-        indice_na_cena: int,
-        total_pessoas_cena: int,
-        pacote_id: str,
-    ) -> None:
-        atualizacao_parcial = {
-            "evento_id": decisao.evento_id,
-            "pessoa_id": decisao.pessoa_id,
-            "status": "appearance_updated",
-            "quantidade_deteccoes": decisao.quantidade_deteccoes,
-            "camera": camera,
-            "imagem": imagem_recorte_base64,
-            "aparencia": (
-                aparencia_estavel.to_dict()
-                if aparencia_estavel is not None
-                else None
-            ),
-            "movimento": (
-                movimento.to_dict()
-                if movimento is not None
-                else None
-            ),
-            "contexto_cena": (
-                contexto_cena.to_dict() if contexto_cena is not None else None
-            ),
-            "imagem_cena": (
-                cena_renderizada.imagem_base64
-                if cena_renderizada is not None
-                else None
-            ),
-            "quantidade_boxes_cena": (
-                cena_renderizada.quantidade_boxes
-                if cena_renderizada is not None
-                else 0
-            ),
-            "indice_na_cena": indice_na_cena,
-            "total_pessoas_cena": total_pessoas_cena,
-        }
-        await event_hub.publicar(atualizacao_parcial)
         logger.info(
-            "[%s] Atualização parcial: pessoa=%s indice=%s/%s "
-            "deteccoes=%s amostras=%s movimento=%s/%s velocidade=%spx_s "
-            "boxes=%s paineis=%s",
-            pacote_id,
-            decisao.pessoa_id,
-            indice_na_cena,
-            total_pessoas_cena,
-            decisao.quantidade_deteccoes,
-            (
-                aparencia_estavel.quantidade_amostras
-                if aparencia_estavel is not None
-                else 0
-            ),
-            (
-                movimento.movimento_horizontal
-                if movimento is not None
-                else "-"
-            ),
-            (
-                movimento.movimento_vertical
-                if movimento is not None
-                else "-"
-            ),
-            (
-                movimento.velocidade_pixels_segundo
-                if movimento is not None
-                else 0
-            ),
-            (
-                cena_renderizada.quantidade_boxes
-                if cena_renderizada is not None
-                else 0
-            ),
-            event_hub.total_conexoes,
+            "[%s] HORÁRIO DA CÂMERA: fabricante=%s camera=%s enviado_utc=%s "
+            "enviado_local=%s recebido_local=%s diferenca_ms=%.0f",
+            evento_id,
+            evento.fabricante,
+            evento.nome_camera or evento.camera_id or "desconhecida",
+            hora_camera_utc.isoformat(),
+            hora_camera_local.isoformat(),
+            hora_servidor_local.isoformat(),
+            diferenca_ms,
         )
-
-    async def _obter_recorte_facial(
-        self,
-        evento: CameraEvent,
-        bounding_box: BoundingBox,
-        pessoa_id: str,
-        pacote_id: str,
-    ) -> FaceCropResult | None:
-        if (
-            evento.imagem is None
-            or not evento.imagem.caminho_original
-        ):
-            return None
-
-        if (
-            bounding_box.largura < 60
-            or bounding_box.altura < 100
-        ):
-            logger.info(
-                "[%s] Face ignorada: "
-                "caixa da pessoa pequena "
-                "pessoa=%s dimensoes=%sx%s",
-                pacote_id,
-                pessoa_id,
-                bounding_box.largura,
-                bounding_box.altura,
-            )
-            return None
-
-        nome_seguro = "".join(
-            caractere
-            if (
-                caractere.isalnum()
-                or caractere in "-_"
-            )
-            else "_"
-            for caractere in pessoa_id
-        )
-
-        try:
-            resultado = await asyncio.to_thread(
-                recortar_rosto,
-                caminho_imagem=(
-                    evento.imagem.caminho_original
-                ),
-                bounding_box=bounding_box,
-                pasta_saida="recortes_faciais",
-                nome_arquivo=(
-                    f"{pacote_id}_"
-                    f"{nome_seguro}_face.jpg"
-                ),
-            )
-
-            if resultado is None:
-                logger.info(
-                    "[%s] Rosto não encontrado: "
-                    "pessoa=%s",
-                    pacote_id,
-                    pessoa_id,
-                )
-                return None
-
-            logger.info(
-                "[%s] Recorte facial criado: "
-                "pessoa=%s caixa=%s,%s %sx%s "
-                "arquivo=%s",
-                pacote_id,
-                pessoa_id,
-                resultado.x,
-                resultado.y,
-                resultado.largura,
-                resultado.altura,
-                resultado.caminho_arquivo,
-            )
-
-            return resultado
-
-        except Exception:
-            logger.exception(
-                "[%s] Erro ao gerar recorte facial: "
-                "pessoa=%s",
-                pacote_id,
-                pessoa_id,
-            )
-            return None
-
-
-    async def _processar_pessoa(
-        self,
-        evento: CameraEvent,
-        camera: str,
-        bounding_box: BoundingBox,
-        decisao: TrackingDecision,
-        contexto_cena,
-        cena_renderizada,
-        indice_na_cena: int,
-        total_pessoas_cena: int,
-        pacote_id: str,
-        enviar_alerta_evento: bool,
-        imagem_background_base64: str | None,
-    ) -> str | None:
-        aparencia_estavel = await self._analisar_aparencia(
-            evento=evento,
-            bounding_box=bounding_box,
-            pessoa_id=decisao.pessoa_id,
-            pacote_id=pacote_id,
-        )
-
-        movimento = await person_movement_memory.registrar(
-            pessoa_id=decisao.pessoa_id,
-            bbox=decisao.bbox,
-        )
-        logger.info(
-            "[%s] Movimento: pessoa=%s horizontal=%s vertical=%s "
-            "tendencia=%s velocidade=%spx_s distancia_total=%spx "
-            "tempo=%ss amostras=%s",
-            pacote_id,
-            decisao.pessoa_id,
-            movimento.movimento_horizontal,
-            movimento.movimento_vertical,
-            movimento.tendencia_distancia,
-            movimento.velocidade_pixels_segundo,
-            movimento.distancia_total_pixels,
-            movimento.tempo_observado_segundos,
-            movimento.quantidade_amostras,
-        )
-
-        if not decisao.deve_processar:
-            imagem_recorte_base64 = None
-
-            if (
-                evento.imagem is not None
-                and evento.imagem.caminho_original
-            ):
-                try:
-                    imagem_recorte_base64 = (
-                        await asyncio.to_thread(
-                            recortar_deteccao_base64,
-                            evento.imagem.caminho_original,
-                            bounding_box,
-                        )
-                    )
-                except Exception:
-                    logger.exception(
-                        "[%s] Não foi possível atualizar "
-                        "o recorte da pessoa=%s",
-                        pacote_id,
-                        decisao.pessoa_id,
-                    )
-
-            await self._publicar_atualizacao_parcial(
-                camera=camera,
-                decisao=decisao,
-                aparencia_estavel=aparencia_estavel,
-                movimento=movimento,
-                contexto_cena=contexto_cena,
-                cena_renderizada=cena_renderizada,
-                imagem_recorte_base64=(
-                    imagem_recorte_base64
-                ),
-                indice_na_cena=indice_na_cena,
-                total_pessoas_cena=total_pessoas_cena,
-                pacote_id=pacote_id,
-            )
-            logger.info(
-                "[%s] Evento repetido suprimido: pessoa=%s indice=%s/%s amostras=%s",
-                pacote_id,
-                decisao.pessoa_id,
-                indice_na_cena,
-                total_pessoas_cena,
-                (
-                    aparencia_estavel.quantidade_amostras
-                    if aparencia_estavel is not None
-                    else 0
-                ),
-            )
-            return imagem_background_base64
-
-        if evento.imagem is None or not evento.imagem.caminho_original:
-            logger.info("[%s] Pessoa ignorada: caminho original ausente", pacote_id)
-            return imagem_background_base64
-
-        resultado_face = (
-            await self._obter_recorte_facial(
-                evento=evento,
-                bounding_box=bounding_box,
-                pessoa_id=decisao.pessoa_id,
-                pacote_id=pacote_id,
-            )
-        )
-
-        imagem_rosto_base64 = (
-            resultado_face.imagem_base64
-            if resultado_face is not None
-            else None
-        )
-
-        if imagem_background_base64 is None:
-            imagem_background_base64 = await asyncio.to_thread(
-                arquivo_para_base64,
-                evento.imagem.caminho_original,
-            )
-
-        try:
-            mensagem = await asyncio.to_thread(
-                montar_alarm_detection_message,
-                evento,
-                bounding_box=bounding_box,
-                evento_id=decisao.evento_id,
-                imagem_background_base64=imagem_background_base64,
-            )
-        except ValueError as erro:
-            logger.info(
-                "[%s] Pessoa ignorada: pessoa=%s erro=%s",
-                pacote_id,
-                decisao.pessoa_id,
-                erro,
-            )
-            return imagem_background_base64
-
-        payload_face_kafka = None
-
-        evento_normalizado = evento.model_dump(
-            mode="json",
-            by_alias=True,
-            exclude_none=True,
-        )
-
-        atributos_normalizados = (
-            evento_normalizado.get(
-                "attributes"
-            )
-            or {}
-        )
-
-        vendor_event_type = (
-            atributos_normalizados.get(
-                "vendor_event_type"
-            )
-            or evento_normalizado.get(
-                "event_type"
-            )
-            or evento.tipo_evento
-        )
-
-        # O supervisor solicitou event.id numérico.
-        # Prioriza o ID original enviado pela câmera.
-        source_event_id = (
-            atributos_normalizados.get(
-                "source_event_id"
-            )
-        )
-
-        try:
-            event_id_numerico = int(
-                source_event_id
-            )
-        except (TypeError, ValueError):
-            texto_evento_id = str(
-                decisao.evento_id
-            )
-
-            # IDs multi-pessoa podem terminar em
-            # sufixos como "-01", "-02", "-03".
-            # O ID base do evento continua sendo
-            # a parte hexadecimal anterior.
-            evento_id_base = (
-                texto_evento_id
-                .split("-", 1)[0]
-            )
-
-            try:
-                event_id_numerico = int(
-                    evento_id_base,
-                    16,
-                )
-            except (TypeError, ValueError):
-                event_id_numerico = (
-                    int.from_bytes(
-                        texto_evento_id
-                        .encode("utf-8")[:8]
-                        .ljust(8, b"\0"),
-                        byteorder="big",
-                    )
-                )
-
-        # ==================================================
-        # EVENTO FACIAL
-        # ==================================================
-
-        if resultado_face is not None:
-            payload_face_kafka = {
-                "camera_name": mensagem.device.name,
-                "images": {
-                    "face": {
-                        "base64": (
-                            resultado_face.imagem_base64
-                        )
-                    }
-                }
-            }
-
-            logger.info(
-                "[%s] Payload facial simples pronto: "
-                "topico=nelore-face-capture "
-                "camera=%s "
-                "qualidade=%.4f "
-                "bbox=%s,%s-%s,%s",
-                pacote_id,
-                mensagem.device.name,
-                resultado_face.score,
-                resultado_face.x,
-                resultado_face.y,
-                (
-                    resultado_face.x
-                    + resultado_face.largura
-                ),
-                (
-                    resultado_face.y
-                    + resultado_face.altura
-                ),
-            )
-
-        # ==================================================
-        # EVENTO DE ALERTA
-        # ==================================================
-
-        payload_alerta_kafka = {
-            "schema_version": (
-                evento.schema_version
-                or "1.0"
-            ),
-            "device": {
-                "name": mensagem.device.name,
-                "brand": evento.fabricante,
-                "ip": evento.ip_camera,
-                "external_id": evento.camera_id,
-                "serial_number": None,
-                "latitude": None,
-                "longitude": None,
-            },
-            "event": {
-                "id": event_id_numerico,
-                "name": vendor_event_type,
-                "type": evento.tipo_evento,
-                "timestamp": int(
-                    mensagem.event.timestamp
-                ),
-                "datetime": (
-                    mensagem.event.datetime
-                ),
-            },
-            "image": {
-                "type": "detection",
-                "width": (
-                    evento.imagem.largura
-                    if evento.imagem is not None
-                    else 0
-                ),
-                "height": (
-                    evento.imagem.altura
-                    if evento.imagem is not None
-                    else 0
-                ),
-                "format": (
-                    evento.imagem.formato
-                    if (
-                        evento.imagem is not None
-                        and evento.imagem.formato
-                    )
-                    else "jpeg"
-                ),
-                "original_image_content": (
-                    mensagem
-                    .event
-                    .images
-                    .background
-                ),
-                "annotated_image_content": (
-                    cena_renderizada.imagem_base64
-                    if cena_renderizada is not None
-                    else ""
-                ),
-                "original_image_path": None,
-                "annotated_image_path": None,
-                "video_path": None,
-            },
-        }
-
-        if enviar_alerta_evento:
-            logger.info(
-                "[%s] Payload de alerta pronto: "
-                "topico=%s id=%s name=%s type=%s",
-                pacote_id,
-                self.topic,
-                event_id_numerico,
-                vendor_event_type,
-                evento.tipo_evento,
-            )
-        else:
-            logger.info(
-                "[%s] Pessoa presente na cena sem "
-                "vínculo com o evento da câmera: "
-                "pessoa=%s; alerta não será publicado",
-                pacote_id,
-                decisao.pessoa_id,
-            )
-
-        evento_painel = {
-            "evento_id": decisao.evento_id,
-            "pessoa_id": decisao.pessoa_id,
-            "status": decisao.status,
-            "quantidade_deteccoes": decisao.quantidade_deteccoes,
-            "camera": mensagem.device.name,
-            "tipo": mensagem.event.type,
-            "datetime": mensagem.event.datetime,
-            "attributes": (
-                mensagem.event.attributes.model_dump(
-                    mode="json"
-                )
-                if mensagem.event.attributes is not None
-                else None
-            ),
-            "imagem": mensagem.event.images.detection,
-            "imagem_rosto": imagem_rosto_base64,
-            "aparencia": (
-                aparencia_estavel.to_dict()
-                if aparencia_estavel is not None
-                else None
-            ),
-            "movimento": movimento.to_dict(),
-            "contexto_cena": (
-                contexto_cena.to_dict() if contexto_cena is not None else None
-            ),
-            "imagem_cena": (
-                cena_renderizada.imagem_base64
-                if cena_renderizada is not None
-                else None
-            ),
-            "quantidade_boxes_cena": (
-                cena_renderizada.quantidade_boxes
-                if cena_renderizada is not None
-                else 0
-            ),
-            "indice_na_cena": indice_na_cena,
-            "total_pessoas_cena": total_pessoas_cena,
-        }
-        await event_hub.publicar(evento_painel)
-        logger.info(
-            "[%s] Pessoa enviada ao painel: pessoa=%s status=%s indice=%s/%s paineis=%s",
-            pacote_id,
-            decisao.pessoa_id,
-            decisao.status,
-            indice_na_cena,
-            total_pessoas_cena,
-            event_hub.total_conexoes,
-        )
-
-        if not settings.kafka_enabled:
-            logger.info(
-                "[%s] Payload pronto; Kafka desativado: pessoa=%s",
-                pacote_id,
-                decisao.pessoa_id,
-            )
-            return imagem_background_base64
-
-        publicacoes_kafka = []
-
-        if enviar_alerta_evento:
-            publicacoes_kafka.append(
-                {
-                    "rotulo": "Alerta",
-                    "topico": self.topic,
-                    "corrotina": (
-                        self.publisher.publicar(
-                            topico=self.topic,
-                            evento_id=(
-                                decisao.evento_id
-                            ),
-                            dados=(
-                                payload_alerta_kafka
-                            ),
-                        )
-                    ),
-                }
-            )
-
-        if payload_face_kafka is not None:
-            publicacoes_kafka.append(
-                {
-                    "rotulo": "Face",
-                    "topico": (
-                        "nelore-face-capture"
-                    ),
-                    "corrotina": (
-                        self.publisher.publicar(
-                            topico=(
-                                "nelore-face-capture"
-                            ),
-                            evento_id=(
-                                decisao.evento_id
-                            ),
-                            dados=(
-                                payload_face_kafka
-                            ),
-                        )
-                    ),
-                }
-            )
-
-        resultados_kafka = await asyncio.gather(
-            *[
-                item["corrotina"]
-                for item in publicacoes_kafka
-            ],
-            return_exceptions=True,
-        )
-
-        for item, resultado_kafka in zip(
-            publicacoes_kafka,
-            resultados_kafka,
-            strict=True,
-        ):
-            if isinstance(
-                resultado_kafka,
-                BaseException,
-            ):
-                logger.error(
-                    "[%s] Erro ao publicar %s "
-                    "em %s: %r",
-                    pacote_id,
-                    item["rotulo"].lower(),
-                    item["topico"],
-                    resultado_kafka,
-                )
-                continue
-
-            logger.info(
-                "[%s] %s publicado em %s "
-                "p=%s offset=%s pessoa=%s",
-                pacote_id,
-                item["rotulo"],
-                resultado_kafka["topico"],
-                resultado_kafka["particao"],
-                resultado_kafka["offset"],
-                decisao.pessoa_id,
-            )
-
-        return imagem_background_base64
 
     async def _worker(self, numero: int) -> None:
         logger.info("Worker %s iniciado", numero)
@@ -1104,308 +155,29 @@ class CameraEventPipeline:
                     evento.model_dump_json(indent=2, by_alias=True, exclude_none=True),
                 )
 
-                hora_camera = evento.data_hora
-
-
-                if hora_camera.tzinfo is None:
-
-                    hora_camera = hora_camera.replace(
-
-                        tzinfo=timezone.utc
-
-                    )
-
-
-                hora_camera_utc = (
-
-                    hora_camera.astimezone(
-
-                        timezone.utc
-
-                    )
-
-                )
-
-
-                hora_camera_local = (
-
-                    hora_camera.astimezone()
-
-                )
-
-
-                hora_servidor_utc = (
-
-                    datetime.now(
-
-                        timezone.utc
-
-                    )
-
-                )
-
-
-                hora_servidor_local = (
-
-                    hora_servidor_utc.astimezone()
-
-                )
-
-
-                diferenca_ms = (
-
-                    hora_servidor_utc
-
-                    - hora_camera_utc
-
-                ).total_seconds() * 1000
-
-
-                logger.info(
-
-                    "[%s] HORÁRIO DA CÂMERA: "
-
-                    "fabricante=%s camera=%s "
-
-                    "enviado_utc=%s "
-
-                    "enviado_local=%s "
-
-                    "recebido_local=%s "
-
-                    "diferenca_ms=%.0f",
-
-                    pacote.evento_id,
-
-                    evento.fabricante,
-
-                    (
-
-                        evento.nome_camera
-
-                        or evento.camera_id
-
-                        or "desconhecida"
-
-                    ),
-
-                    hora_camera_utc.isoformat(),
-
-                    hora_camera_local.isoformat(),
-
-                    hora_servidor_local.isoformat(),
-
-                    diferenca_ms,
-
-                )
-
+                self._logar_horario_camera(pacote.evento_id, evento)
 
                 if evento.imagem is None:
-                    logger.info(
-                        "[%s] Evento ignorado: não possui imagem",
-                        pacote.evento_id,
-                    )
+                    logger.info("[%s] Evento ignorado: não possui imagem", pacote.evento_id)
                     continue
 
-                bounding_boxes_camera = (
-                    self._selecionar_boxes_pessoas(
-                        evento
-                    )
-                )
-
+                bounding_boxes_camera = box_matching.selecionar_boxes_pessoas(evento)
                 if not bounding_boxes_camera:
                     logger.info(
-                        "[%s] Evento ignorado: "
-                        "não possui boxes válidas "
-                        "fornecidas pela câmera",
+                        "[%s] Evento ignorado: não possui boxes válidas fornecidas pela câmera",
                         pacote.evento_id,
                     )
                     continue
 
-                bounding_boxes_yolo: list[
-                    BoundingBox
-                ] = []
-
-                yolo_executado = False
-
-                caminho_original = (
-                    evento.imagem.caminho_original
+                bounding_boxes, indices_alerta_evento = await box_matching.validar_com_yolo(
+                    evento=evento,
+                    bounding_boxes_camera=bounding_boxes_camera,
+                    pacote_id=pacote.evento_id,
                 )
-
-                if caminho_original:
-                    try:
-                        bounding_boxes_yolo = (
-                            await asyncio.to_thread(
-                                detectar_pessoas_yolo,
-                                caminho_original,
-                            )
-                        )
-
-                        yolo_executado = True
-
-                    except Exception:
-                        logger.exception(
-                            "[%s] Falha ao validar "
-                            "pessoas com YOLO; usando "
-                            "temporariamente as caixas "
-                            "da câmera",
-                            pacote.evento_id,
-                        )
-                else:
-                    logger.warning(
-                        "[%s] Imagem sem caminho "
-                        "original; validação YOLO "
-                        "não pôde ser executada",
-                        pacote.evento_id,
-                    )
-
-                indices_alerta_evento: set[int] = set()
-
-                if yolo_executado:
-                    bounding_boxes_evento = (
-                        validar_boxes_camera_com_yolo(
-                            caixas_camera=(
-                                bounding_boxes_camera
-                            ),
-                            caixas_yolo=(
-                                bounding_boxes_yolo
-                            ),
-                        )
-                    )
-
-                    quantidade_rejeitada = (
-                        len(bounding_boxes_camera)
-                        - len(bounding_boxes_evento)
-                    )
-
-                    logger.info(
-                        "[%s] Validação YOLO: "
-                        "camera=%s yolo=%s "
-                        "validadas=%s rejeitadas=%s",
-                        pacote.evento_id,
-                        len(bounding_boxes_camera),
-                        len(bounding_boxes_yolo),
-                        len(bounding_boxes_evento),
-                        quantidade_rejeitada,
-                    )
-
-                    if quantidade_rejeitada > 0:
-                        logger.info(
-                            "[%s] Possível falso "
-                            "positivo rejeitado pelo "
-                            "YOLO",
-                            pacote.evento_id,
-                        )
-
-                    if bounding_boxes_evento:
-                        # Todas as pessoas detectadas pelo
-                        # YOLO seguem para tracker/painel/face.
-                        bounding_boxes = (
-                            bounding_boxes_yolo
-                        )
-
-                        # Descobre qual pessoa YOLO corresponde
-                        # à box que realmente gerou o evento
-                        # informado pela câmera.
-                        for caixa_evento in bounding_boxes_evento:
-                            melhor_indice = None
-                            melhor_iou = -1.0
-
-                            for indice_yolo, caixa_yolo in enumerate(
-                                bounding_boxes
-                            ):
-                                x1_inter = max(
-                                    caixa_evento.x,
-                                    caixa_yolo.x,
-                                )
-                                y1_inter = max(
-                                    caixa_evento.y,
-                                    caixa_yolo.y,
-                                )
-                                x2_inter = min(
-                                    caixa_evento.x
-                                    + caixa_evento.largura,
-                                    caixa_yolo.x
-                                    + caixa_yolo.largura,
-                                )
-                                y2_inter = min(
-                                    caixa_evento.y
-                                    + caixa_evento.altura,
-                                    caixa_yolo.y
-                                    + caixa_yolo.altura,
-                                )
-
-                                largura_inter = max(
-                                    0,
-                                    x2_inter - x1_inter,
-                                )
-                                altura_inter = max(
-                                    0,
-                                    y2_inter - y1_inter,
-                                )
-
-                                area_inter = (
-                                    largura_inter
-                                    * altura_inter
-                                )
-
-                                if area_inter <= 0:
-                                    continue
-
-                                area_evento = max(
-                                    1,
-                                    caixa_evento.largura
-                                    * caixa_evento.altura,
-                                )
-                                area_yolo = max(
-                                    1,
-                                    caixa_yolo.largura
-                                    * caixa_yolo.altura,
-                                )
-
-                                area_uniao = (
-                                    area_evento
-                                    + area_yolo
-                                    - area_inter
-                                )
-
-                                iou = (
-                                    area_inter
-                                    / max(1, area_uniao)
-                                )
-
-                                if iou > melhor_iou:
-                                    melhor_iou = iou
-                                    melhor_indice = indice_yolo
-
-                            if melhor_indice is not None:
-                                indices_alerta_evento.add(
-                                    melhor_indice
-                                )
-
-                        logger.info(
-                            "[%s] Pessoas da cena via YOLO: "
-                            "pessoas=%s alvos_evento=%s",
-                            pacote.evento_id,
-                            len(bounding_boxes),
-                            sorted(indices_alerta_evento),
-                        )
-
-                    else:
-                        bounding_boxes = []
-
-                else:
-                    bounding_boxes = (
-                        bounding_boxes_camera
-                    )
-                    indices_alerta_evento = set(
-                        range(len(bounding_boxes))
-                    )
 
                 if not bounding_boxes:
                     logger.info(
-                        "[%s] Evento ignorado: "
-                        "nenhuma caixa foi confirmada "
+                        "[%s] Evento ignorado: nenhuma caixa foi confirmada "
                         "como pessoa pelo YOLO",
                         pacote.evento_id,
                     )
@@ -1419,10 +191,7 @@ class CameraEventPipeline:
                 )
                 caixas_rastreamento = [
                     DetectionBox(
-                        x=caixa.x,
-                        y=caixa.y,
-                        largura=caixa.largura,
-                        altura=caixa.altura,
+                        x=caixa.x, y=caixa.y, largura=caixa.largura, altura=caixa.altura
                     )
                     for caixa in bounding_boxes
                 ]
@@ -1442,18 +211,15 @@ class CameraEventPipeline:
                     "[%s] Rastreamento em lote: pessoas=%s ids=%s",
                     pacote.evento_id,
                     total_pessoas,
-                    [
-                        (decisao.pessoa_id, decisao.status)
-                        for decisao in decisoes
-                    ],
+                    [(decisao.pessoa_id, decisao.status) for decisao in decisoes],
                 )
 
-                contexto_cena = await self._analisar_contexto_cena(
+                contexto_cena = await scene.analisar_contexto_cena(
                     evento=evento,
                     bounding_boxes=bounding_boxes,
                     pacote_id=pacote.evento_id,
                 )
-                cena_renderizada = await self._renderizar_cena(
+                cena_renderizada = await scene.renderizar_cena(
                     evento=evento,
                     bounding_boxes=bounding_boxes,
                     pacote_id=pacote.evento_id,
@@ -1464,7 +230,7 @@ class CameraEventPipeline:
                     zip(bounding_boxes, decisoes, strict=True),
                     start=1,
                 ):
-                    imagem_background_base64 = await self._processar_pessoa(
+                    imagem_background_base64 = await self._person_processor.processar_pessoa(
                         evento=evento,
                         camera=camera,
                         bounding_box=bounding_box,
@@ -1474,10 +240,7 @@ class CameraEventPipeline:
                         indice_na_cena=indice,
                         total_pessoas_cena=total_pessoas,
                         pacote_id=pacote.evento_id,
-                        enviar_alerta_evento=(
-                            indice - 1
-                            in indices_alerta_evento
-                        ),
+                        enviar_alerta_evento=indice - 1 in indices_alerta_evento,
                         imagem_background_base64=imagem_background_base64,
                     )
 
