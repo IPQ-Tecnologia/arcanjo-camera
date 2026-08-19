@@ -90,6 +90,7 @@ class ImageData(BaseModel):
 
     original_path: str | None = None
     annotated_path: str | None = None
+    face_crop_path: str | None = None
 
 
 class CameraEvent(BaseModel):

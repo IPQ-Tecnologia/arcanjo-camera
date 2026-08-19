@@ -875,6 +875,7 @@ def build_face_capture_event(
             format="jpeg",
             original_path=original_path,
             annotated_path=annotated_path,
+            face_crop_path=face_crop_path,
         )
 
     model_box = convert_box_to_model(pixel_box)
