@@ -1,4 +1,5 @@
 import io
+import json
 import logging
 import re
 import xml.etree.ElementTree as ET
@@ -79,6 +80,114 @@ def extract_xml(body: bytes, boundary: str) -> str | None:
         return xml_bytes.decode("utf-8", errors="ignore").strip()
 
     return None
+
+
+def _part_name(part: bytes) -> str | None:
+    # Matches the Content-Disposition `name="..."` attribute without being
+    # fooled by the `filename="..."` attribute that often follows it.
+    match = re.search(rb';\s*name="([^"]+)"', part, flags=re.IGNORECASE)
+    if match:
+        return match.group(1).decode("utf-8", errors="ignore")
+
+    return None
+
+
+def extract_jpeg_from_part(part: bytes | None) -> bytes | None:
+    if not part:
+        return None
+
+    start = part.find(b"\xff\xd8\xff")
+    if start == -1:
+        return None
+
+    end = part.find(b"\xff\xd9", start)
+    if end != -1:
+        return part[start : end + 2]
+
+    return part[start:]
+
+
+def extract_json_from_part(part: bytes | None) -> dict | None:
+    if not part:
+        return None
+
+    start = part.find(b"\r\n\r\n")
+    if start == -1:
+        return None
+
+    payload = part[start + 4 :].strip(b"\r\n")
+    if payload.endswith(b"--"):
+        payload = payload[:-2].strip(b"\r\n")
+
+    try:
+        return json.loads(payload.decode("utf-8", errors="ignore"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None
+
+
+def is_face_capture_payload(body_lower: bytes) -> bool:
+    return b'"eventtype"' in body_lower and (
+        b'"facecapture"' in body_lower or b'"facesnap"' in body_lower
+    )
+
+
+def _is_face_capture_json(candidate: dict) -> bool:
+    return str(candidate.get("eventType", "")).strip().lower() in ("facecapture", "facesnap")
+
+
+def extract_face_capture_multipart(
+    body: bytes, boundary: str
+) -> tuple[dict, bytes | None, bytes | None] | None:
+    """
+    Splits a Hikvision `faceCapture` multipart package into its JSON
+    metadata and its two JPEGs.
+
+    Devices don't agree on the file part names: some send the face crop
+    as `name="faceImage"`, others reuse `name="faceCapture"` for both the
+    JSON metadata part *and* the image part (differentiated only by
+    Content-Type/filename). So parts are classified by content
+    (JSON vs. JPEG magic bytes), not only by name.
+    """
+    payload: dict | None = None
+    jpeg_parts: list[tuple[str | None, bytes]] = []
+
+    for part in body.split(boundary.encode()):
+        if payload is None:
+            candidate = extract_json_from_part(part)
+            if candidate is not None and _is_face_capture_json(candidate):
+                payload = candidate
+                continue
+
+        jpeg_bytes = extract_jpeg_from_part(part)
+        if jpeg_bytes:
+            jpeg_parts.append((_part_name(part), jpeg_bytes))
+
+    if payload is None:
+        return None
+
+    background_image: bytes | None = None
+    face_image: bytes | None = None
+    leftover: list[tuple[str | None, bytes]] = []
+
+    for name, data in jpeg_parts:
+        normalized_name = (name or "").strip().lower()
+        if normalized_name == "backgroundimage" and background_image is None:
+            background_image = data
+        elif normalized_name in ("faceimage", "facecapture") and face_image is None:
+            face_image = data
+        else:
+            leftover.append((name, data))
+
+    # Fallback for whatever is still missing: the background image is
+    # always the larger JPEG (full scene vs. a small face crop).
+    if leftover and (background_image is None or face_image is None):
+        leftover.sort(key=lambda item: len(item[1]))
+        if face_image is None:
+            face_image = leftover.pop(0)[1]
+        if background_image is None and leftover:
+            background_image = leftover.pop()[1]
+
+    return payload, face_image, background_image
 
 
 def clean_direct_xml(body: bytes) -> str:
@@ -590,6 +699,221 @@ def _build_hikvision_attributes(
     )
 
 
+def _first_face_capture_item(payload: dict) -> dict:
+    items = payload.get("faceCapture")
+
+    if isinstance(items, list) and items:
+        return items[0]
+
+    if isinstance(items, dict):
+        return items
+
+    return {}
+
+
+def _first_face(item: dict) -> dict:
+    faces = item.get("faces")
+    if isinstance(faces, list) and faces:
+        return faces[0]
+
+    return {}
+
+
+def _face_rect_to_pixel_box(
+    face_rect: dict,
+    image_width: int,
+    image_height: int,
+) -> dict | None:
+    x = to_number(face_rect.get("x"))
+    y = to_number(face_rect.get("y"))
+    width = to_number(face_rect.get("width"))
+    height = to_number(face_rect.get("height"))
+
+    if any(value is None for value in (x, y, width, height)):
+        return None
+
+    if width <= 0 or height <= 0:
+        return None
+
+    pixel_x = round(x * image_width)
+    pixel_y = round(y * image_height)
+    pixel_width = round(width * image_width)
+    pixel_height = round(height * image_height)
+
+    pixel_x = max(0, min(pixel_x, image_width - 1))
+    pixel_y = max(0, min(pixel_y, image_height - 1))
+    pixel_width = max(1, min(pixel_width, image_width - pixel_x))
+    pixel_height = max(1, min(pixel_height, image_height - pixel_y))
+
+    ratio = (pixel_width * pixel_height) / (image_width * image_height)
+
+    return {
+        "xml_source": "faceRect",
+        "x": pixel_x,
+        "y": pixel_y,
+        "width": pixel_width,
+        "height": pixel_height,
+        "x2": pixel_x + pixel_width,
+        "y2": pixel_y + pixel_height,
+        "image_ratio": round(ratio, 4),
+    }
+
+
+def save_face_crop_image(image: bytes, base_name: str) -> str:
+    IMAGES_FOLDER.mkdir(parents=True, exist_ok=True)
+    path = IMAGES_FOLDER / f"{base_name}_facecrop.jpg"
+    path.write_bytes(image)
+
+    return str(path)
+
+
+def _build_hikvision_face_attributes(
+    state: str | None,
+    source_event_id: str | None,
+    face_id,
+    face_score: float | None,
+    ip_address: str | None,
+    mac_address: str | None,
+    device_id: str | None,
+    stay_duration: float | None,
+) -> EventAttributes:
+    confidence = None
+    if face_score is not None:
+        confidence = round(face_score / 100, 4) if face_score > 1 else face_score
+
+    vendor_data = {
+        key: value
+        for key, value in {
+            "vendor_ip_address": ip_address,
+            "vendor_mac_address": mac_address,
+            "vendor_device_id": device_id,
+            "face_score": face_score,
+            "stay_duration_ms": stay_duration,
+        }.items()
+        if value is not None
+    }
+
+    return EventAttributes(
+        manufacturer="hikvision",
+        vendor_event_type="faceCapture",
+        category="face_capture",
+        target_type="face",
+        state=state,
+        action=None,
+        source_event_id=source_event_id,
+        rule_id=None,
+        rule_name=None,
+        object_id=str(face_id) if face_id is not None else None,
+        sensitivity=None,
+        direction=None,
+        confidence=confidence,
+        geometry_type=None,
+        geometry=[],
+        vendor_data=vendor_data,
+    )
+
+
+def build_face_capture_event(
+    package: RawCameraPackage,
+    payload: dict,
+    face_image: bytes | None,
+    background_image: bytes | None,
+    package_format: str,
+    content_type: str,
+) -> CameraEvent:
+    """
+    Normalizes a Hikvision `faceCapture` event (JSON payload, either as a
+    standalone body or as the `faceCapture` part of a multipart package
+    that also carries `faceImage`/`backgroundImage` JPEGs).
+    """
+    print(json.dumps(payload, indent=2, ensure_ascii=False))
+
+    event_type = payload.get("eventType") or "faceCapture"
+    state = payload.get("eventState")
+    date_time = convert_utc_date(payload.get("dateTime"))
+    camera_name = payload.get("channelName")
+    channel_id = payload.get("channelID")
+    camera_id = str(channel_id) if channel_id is not None else None
+    ip_address = payload.get("ipAddress")
+    mac_address = payload.get("macAddress")
+
+    capture_item = _first_face_capture_item(payload)
+    target_attrs = capture_item.get("targetAttrs") or {}
+    face = _first_face(capture_item)
+    face_rect = face.get("faceRect") or {}
+
+    face_id = face.get("faceId")
+    face_score = to_number(face.get("faceScore"))
+    stay_duration = to_number(face.get("stayDuration"))
+    device_id = target_attrs.get("deviceId")
+    source_event_id = target_attrs.get("pId") or capture_item.get("uid")
+
+    image_width = None
+    image_height = None
+    original_path = None
+    annotated_path = None
+    face_crop_path = None
+    image_data = None
+    pixel_box = None
+
+    if background_image is not None:
+        with Image.open(io.BytesIO(background_image)) as pil_image:
+            image_width, image_height = pil_image.size
+
+        pixel_box = _face_rect_to_pixel_box(face_rect, image_width, image_height)
+
+        base_name = build_base_name(date_time, event_type, package.event_id)
+        original_path = save_original_image(background_image, base_name)
+        annotated_path = save_annotated_image(background_image, base_name, pixel_box)
+
+        if face_image is not None:
+            face_crop_path = save_face_crop_image(face_image, base_name)
+
+        image_data = ImageData(
+            width=image_width,
+            height=image_height,
+            format="jpeg",
+            original_path=original_path,
+            annotated_path=annotated_path,
+        )
+
+    model_box = convert_box_to_model(pixel_box)
+
+    return CameraEvent(
+        event_id=package.event_id,
+        manufacturer="hikvision",
+        camera_model=None,
+        camera_id=camera_id,
+        camera_name=camera_name,
+        camera_ip=package.camera_ip,
+        event_type="face_detection",
+        state=state,
+        timestamp=date_time,
+        target_type="face",
+        attributes=_build_hikvision_face_attributes(
+            state=state,
+            source_event_id=source_event_id,
+            face_id=face_id,
+            face_score=face_score,
+            ip_address=ip_address,
+            mac_address=mac_address,
+            device_id=device_id,
+            stay_duration=stay_duration,
+        ),
+        bounding_boxes=[model_box] if model_box is not None else [],
+        selected_bounding_box=model_box,
+        image=image_data,
+        extra_data={
+            "package_format": package_format,
+            "image_received": background_image is not None,
+            "bounding_box_count": 1 if model_box is not None else 0,
+            "content_type": content_type,
+            "face_crop_path": face_crop_path,
+            "face_crop_received": face_image is not None,
+        },
+    )
+
+
 class HikvisionAdapter(CameraAdapter):
     manufacturer = "hikvision"
 
@@ -600,14 +924,28 @@ class HikvisionAdapter(CameraAdapter):
             b"hikvision.com" in body_lower
             or b"eventnotificationalert" in body_lower
             or b"<eventtype>" in body_lower
+            or is_face_capture_payload(body_lower)
         )
 
     def normalize(self, package: RawCameraPackage, body: bytes) -> CameraEvent:
         content_type = package.content_type or ""
         lower_content_type = content_type.lower()
         direct_xml = "application/xml" in lower_content_type or "text/xml" in lower_content_type
+        direct_json = not direct_xml and "application/json" in lower_content_type
 
         image: bytes | None = None
+
+        if direct_json:
+            payload = json.loads(body.decode("utf-8", errors="ignore"))
+            if is_face_capture_payload(body.lower()):
+                return build_face_capture_event(
+                    package=package,
+                    payload=payload,
+                    face_image=None,
+                    background_image=None,
+                    package_format="direct_json",
+                    content_type=content_type,
+                )
 
         if direct_xml:
             package_format = "direct_xml"
@@ -617,6 +955,18 @@ class HikvisionAdapter(CameraAdapter):
             boundary = get_boundary(content_type, body)
             if not boundary:
                 raise ValueError("Boundary not found")
+
+            face_capture_result = extract_face_capture_multipart(body, boundary)
+            if face_capture_result is not None:
+                payload, face_image, background_image = face_capture_result
+                return build_face_capture_event(
+                    package=package,
+                    payload=payload,
+                    face_image=face_image,
+                    background_image=background_image,
+                    package_format="multipart_json",
+                    content_type=content_type,
+                )
 
             xml = extract_xml(body, boundary)
             image = extract_image(body, boundary)

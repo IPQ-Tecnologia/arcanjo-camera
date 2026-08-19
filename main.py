@@ -142,7 +142,7 @@ def save_dahua_capture(
     )
 
 
-HIKVISION_ANALYSIS_TYPES = {"fielddetection", "linedetection"}
+HIKVISION_ANALYSIS_TYPES = {"fielddetection", "linedetection", "facecapture"}
 
 HIKVISION_CAPTURE_LIMIT = 10
 
@@ -152,6 +152,23 @@ HIKVISION_EVENT_TYPE_PATTERN = re.compile(
     rb"<(?:[A-Za-z0-9_-]+:)?eventType>\s*([^<]+)",
     flags=re.IGNORECASE,
 )
+
+HIKVISION_JSON_EVENT_TYPE_PATTERN = re.compile(
+    rb'"eventType"\s*:\s*"([^"]+)"',
+    flags=re.IGNORECASE,
+)
+
+
+def _detect_hikvision_event_type(body: bytes) -> str | None:
+    match = HIKVISION_EVENT_TYPE_PATTERN.search(body)
+    if match is not None:
+        return match.group(1).decode("utf-8", errors="ignore").strip().lower()
+
+    match = HIKVISION_JSON_EVENT_TYPE_PATTERN.search(body)
+    if match is not None:
+        return match.group(1).decode("utf-8", errors="ignore").strip().lower()
+
+    return None
 
 
 def save_hikvision_capture(
@@ -163,11 +180,10 @@ def save_hikvision_capture(
     body: bytes,
 ) -> None:
     """Saves raw samples of Hikvision events used for attribute discovery."""
-    match = HIKVISION_EVENT_TYPE_PATTERN.search(body)
-    if match is None:
+    event_type = _detect_hikvision_event_type(body)
+    if event_type is None:
         return
 
-    event_type = match.group(1).decode("utf-8", errors="ignore").strip().lower()
     if event_type not in HIKVISION_ANALYSIS_TYPES:
         return
 
