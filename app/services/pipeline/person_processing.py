@@ -350,6 +350,20 @@ class PersonProcessor:
             or event.event_type
         )
 
+        normalized_event_type = str(event.event_type or "").strip().lower()
+        normalized_vendor_event_type = str(vendor_event_type or "").strip().lower()
+
+        is_face_event = (
+            normalized_event_type == "face_detection"
+            or normalized_vendor_event_type
+            in {
+                "facecapture",
+                "facesnap",
+                "facedetection",
+                "face_detection",
+            }
+        )
+
         # The supervisor requested a numeric event.id.
         # Prioritizes the original ID sent by the camera.
         source_event_id = normalized_attributes.get("source_event_id")
@@ -384,7 +398,7 @@ class PersonProcessor:
 
             logger.info(
                 "[%s] Simple face payload ready: "
-                "topic=nelore-face-capture camera=%s quality=%.4f bbox=%s,%s-%s,%s",
+                "camera=%s quality=%.4f bbox=%s,%s-%s,%s",
                 package_id,
                 message.device.name,
                 face_result.score,
@@ -503,7 +517,7 @@ class PersonProcessor:
 
         kafka_publications = []
 
-        if send_event_alert:
+        if send_event_alert and not is_face_event:
             kafka_publications.append(
                 {
                     "label": "Alert",
@@ -516,13 +530,15 @@ class PersonProcessor:
                 }
             )
 
-        if face_kafka_payload is not None:
+        if is_face_event and face_kafka_payload is not None:
+            face_topic = "arcanjo.events.fac.capture"
+
             kafka_publications.append(
                 {
                     "label": "Face",
-                    "topic": "nelore-face-capture",
+                    "topic": face_topic,
                     "coroutine": self.publisher.publish(
-                        topic="nelore-face-capture",
+                        topic=face_topic,
                         event_id=decision.event_id,
                         data=face_kafka_payload,
                     ),
