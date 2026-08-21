@@ -40,10 +40,29 @@ class KafkaPublisher:
 
     @staticmethod
     def _create_ssl_context() -> ssl.SSLContext:
-        if settings.kafka_ssl_cafile:
-            return create_ssl_context(cafile=settings.kafka_ssl_cafile)
+        cafile = settings.kafka_ssl_cafile.strip() or None
+        certfile = settings.kafka_ssl_certfile.strip()
+        keyfile = settings.kafka_ssl_keyfile.strip()
+        key_password = settings.kafka_ssl_key_password or None
 
-        return create_ssl_context()
+        ssl_context = create_ssl_context(
+            cafile=cafile,
+        )
+
+        if bool(certfile) != bool(keyfile):
+            raise ValueError(
+                "KAFKA_SSL_CERTFILE e KAFKA_SSL_KEYFILE "
+                "devem ser configurados juntos"
+            )
+
+        if certfile and keyfile:
+            ssl_context.load_cert_chain(
+                certfile=certfile,
+                keyfile=keyfile,
+                password=key_password,
+            )
+
+        return ssl_context
 
     def _build_config(self) -> dict[str, Any]:
         protocol = settings.kafka_security_protocol.strip().upper()

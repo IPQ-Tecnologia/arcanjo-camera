@@ -7,6 +7,10 @@ class Settings(BaseSettings):
     kafka_bootstrap_servers: str = "localhost:9092"
     kafka_topic_normalized: str = "camera.events.normalized"
     kafka_topic_errors: str = "camera.events.errors"
+
+    kafka_topic_alarm_detection: str = "arcanjo.events.alarm.detection"
+    kafka_topic_face_capture: str = "arcanjo.events.face.capture"
+
     kafka_client_id: str = "camera-ingestion-api"
 
     kafka_security_protocol: str = "PLAINTEXT"
@@ -14,6 +18,10 @@ class Settings(BaseSettings):
     kafka_sasl_username: str = ""
     kafka_sasl_password: str = ""
     kafka_ssl_cafile: str = ""
+    kafka_ssl_certfile: str = ""
+    kafka_ssl_keyfile: str = ""
+    kafka_ssl_key_password: str = ""
+
     kafka_request_timeout_ms: int = 10000
     kafka_max_request_size: int = 5242880
 
