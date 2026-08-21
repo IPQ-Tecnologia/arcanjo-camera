@@ -28,3 +28,17 @@ async def publish_face_capture(
         event_id=event_id,
         data=data,
     )
+
+
+async def publish_processing_error(
+    publisher: KafkaPublisher,
+    event_id: str,
+    data: dict[str, Any],
+) -> dict[str, Any]:
+    """Publishes a camera package processing error."""
+    return await publisher.publish(
+        topic=settings.kafka_topic_errors,
+        event_id=event_id,
+        data=data,
+    )
+

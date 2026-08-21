@@ -4,6 +4,7 @@ from app.core.config import settings
 from app.messaging.kafka_events import (
     publish_alarm_detection,
     publish_face_capture,
+    publish_processing_error,
 )
 
 
@@ -67,3 +68,27 @@ async def test_publish_face_capture_uses_face_topic():
     assert publisher.calls[0]["event_id"] == "event-face-1"
     assert publisher.calls[0]["data"] == payload
     assert result["topic"] == settings.kafka_topic_face_capture
+
+
+@pytest.mark.asyncio
+async def test_publish_processing_error_uses_error_topic():
+    publisher = FakePublisher()
+    payload = {
+        "type": "camera_processing_error",
+        "error": {
+            "type": "RuntimeError",
+            "message": "teste",
+        },
+    }
+
+    result = await publish_processing_error(
+        publisher=publisher,
+        event_id="event-error-1",
+        data=payload,
+    )
+
+    assert len(publisher.calls) == 1
+    assert publisher.calls[0]["topic"] == settings.kafka_topic_errors
+    assert publisher.calls[0]["event_id"] == "event-error-1"
+    assert publisher.calls[0]["data"] == payload
+    assert result["topic"] == settings.kafka_topic_errors

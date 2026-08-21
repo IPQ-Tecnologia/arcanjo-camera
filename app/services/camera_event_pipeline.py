@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from app.adapters.cameras.factory import camera_adapter_factory
 from app.core.config import settings
 from app.domain.models.camera_event import CameraEvent, RawCameraPackage
+from app.messaging.kafka_events import publish_processing_error
 from app.messaging.kafka_producer import KafkaPublisher
 from app.services.appearance_memory import appearance_memory
 from app.services.person_movement import person_movement_memory
@@ -240,7 +241,37 @@ class CameraEventPipeline:
 
             except asyncio.CancelledError:
                 raise
-            except Exception:
+            except Exception as error:
                 logger.exception("[%s] Processing error", package.event_id)
+
+                if settings.kafka_enabled and self.publisher.started:
+                    error_payload = {
+                        "event_id": package.event_id,
+                        "type": "camera_processing_error",
+                        "error": {
+                            "type": type(error).__name__,
+                            "message": str(error),
+                        },
+                        "source": {
+                            "camera_ip": package.camera_ip,
+                            "content_type": package.content_type,
+                            "received_at": package.received_at.isoformat(),
+                            "package_path": package.package_path,
+                        },
+                        "worker": number,
+                        "occurred_at": datetime.now(timezone.utc).isoformat(),
+                    }
+
+                    try:
+                        await publish_processing_error(
+                            publisher=self.publisher,
+                            event_id=package.event_id,
+                            data=error_payload,
+                        )
+                    except Exception:
+                        logger.exception(
+                            "[%s] Could not publish processing error to Kafka",
+                            package.event_id,
+                        )
             finally:
                 self.queue.task_done()
