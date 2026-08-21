@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from app.core.config import settings
+from app.messaging.kafka_events import publish_alarm_detection
 from app.messaging.kafka_producer import kafka_publisher
 
 
@@ -16,7 +17,7 @@ async def main() -> None:
     data = json.loads(PAYLOAD_FILE.read_text(encoding="utf-8"))
 
     event_id = data["event"]["id"]
-    topic = settings.kafka_topic_normalized
+    topic = settings.kafka_topic_alarm_detection
 
     message_size = len(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
 
@@ -28,8 +29,8 @@ async def main() -> None:
     try:
         await kafka_publisher.start()
 
-        result = await kafka_publisher.publish(
-            topic=topic,
+        result = await publish_alarm_detection(
+            publisher=kafka_publisher,
             event_id=event_id,
             data=data,
         )
