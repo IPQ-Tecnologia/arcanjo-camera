@@ -41,4 +41,3 @@ async def publish_processing_error(
         event_id=event_id,
         data=data,
     )
-
