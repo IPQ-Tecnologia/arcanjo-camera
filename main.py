@@ -32,7 +32,6 @@ HIKVISION_CAPTURES_DIR = BASE_DIR / "hikvision_captures"
 
 pipeline = CameraEventPipeline(
     publisher=kafka_publisher,
-    topic=settings.kafka_topic_normalized,
     maxsize=settings.ingestion_queue_size,
     worker_count=settings.ingestion_workers,
 )

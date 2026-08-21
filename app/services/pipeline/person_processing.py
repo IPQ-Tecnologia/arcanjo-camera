@@ -9,6 +9,10 @@ import logging
 
 from app.core.config import settings
 from app.domain.models.camera_event import BoundingBox, CameraEvent
+from app.messaging.kafka_events import (
+    publish_alarm_detection,
+    publish_face_capture,
+)
 from app.messaging.kafka_producer import KafkaPublisher
 from app.services.alarm_detection_payload import (
     build_alarm_detection_message,
@@ -33,9 +37,8 @@ class PersonProcessor:
     and to Kafka.
     """
 
-    def __init__(self, publisher: KafkaPublisher, topic: str) -> None:
+    def __init__(self, publisher: KafkaPublisher) -> None:
         self.publisher = publisher
-        self.topic = topic
 
     async def _analyze_appearance(
         self,
@@ -451,9 +454,8 @@ class PersonProcessor:
 
         if send_event_alert:
             logger.info(
-                "[%s] Alert payload ready: topic=%s id=%s name=%s type=%s",
+                "[%s] Alert payload ready: id=%s name=%s type=%s",
                 package_id,
-                self.topic,
                 numeric_event_id,
                 vendor_event_type,
                 event.event_type,
@@ -521,9 +523,8 @@ class PersonProcessor:
             kafka_publications.append(
                 {
                     "label": "Alert",
-                    "topic": self.topic,
-                    "coroutine": self.publisher.publish(
-                        topic=self.topic,
+                    "coroutine": publish_alarm_detection(
+                        publisher=self.publisher,
                         event_id=decision.event_id,
                         data=alert_kafka_payload,
                     ),
@@ -531,14 +532,11 @@ class PersonProcessor:
             )
 
         if is_face_event and face_kafka_payload is not None:
-            face_topic = "arcanjo.events.face.capture"
-
             kafka_publications.append(
                 {
                     "label": "Face",
-                    "topic": face_topic,
-                    "coroutine": self.publisher.publish(
-                        topic=face_topic,
+                    "coroutine": publish_face_capture(
+                        publisher=self.publisher,
                         event_id=decision.event_id,
                         data=face_kafka_payload,
                     ),
@@ -553,10 +551,9 @@ class PersonProcessor:
         for item, kafka_result in zip(kafka_publications, kafka_results, strict=True):
             if isinstance(kafka_result, BaseException):
                 logger.error(
-                    "[%s] Error publishing %s to %s: %r",
+                    "[%s] Error publishing %s: %r",
                     package_id,
                     item["label"].lower(),
-                    item["topic"],
                     kafka_result,
                 )
                 continue

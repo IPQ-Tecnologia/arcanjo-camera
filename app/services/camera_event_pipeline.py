@@ -28,17 +28,17 @@ class CameraEventPipeline:
     def __init__(
         self,
         publisher: KafkaPublisher,
-        topic: str,
         maxsize: int = 1000,
         worker_count: int = 4,
     ) -> None:
         self.publisher = publisher
-        self.topic = topic
         self.worker_count = worker_count
         self.queue: asyncio.Queue[tuple[RawCameraPackage, bytes]] = asyncio.Queue(
             maxsize=maxsize
         )
-        self._person_processor = PersonProcessor(publisher=publisher, topic=topic)
+        self._person_processor = PersonProcessor(
+            publisher=publisher
+        )
         self._worker_tasks: list[asyncio.Task] = []
         self._exit_task: asyncio.Task | None = None
         self._started = False
