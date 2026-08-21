@@ -256,7 +256,11 @@ async def health():
         "status": "ok",
         "kafka_enabled": settings.kafka_enabled,
         "kafka_connected": kafka_publisher.started,
-        "kafka_topic": settings.kafka_topic_normalized,
+        "kafka_topics": {
+            "alarm_detection": settings.kafka_topic_alarm_detection,
+            "face_capture": settings.kafka_topic_face_capture,
+            "errors": settings.kafka_topic_errors,
+        },
         "queue": {
             "size": pipeline.queue_size,
             "capacity": pipeline.queue_capacity,

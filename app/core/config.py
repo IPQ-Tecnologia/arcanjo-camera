@@ -5,7 +5,6 @@ class Settings(BaseSettings):
     kafka_enabled: bool = False
 
     kafka_bootstrap_servers: str = "localhost:9092"
-    kafka_topic_normalized: str = "camera.events.normalized"
     kafka_topic_errors: str = "camera.events.errors"
 
     kafka_topic_alarm_detection: str = "arcanjo.events.alarm.detection"
